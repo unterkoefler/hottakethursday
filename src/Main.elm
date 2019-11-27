@@ -1,11 +1,9 @@
 module Main exposing (..)
 
 import Browser
-import Css exposing (..)
-import Html
-import Html.Styled exposing (..)
-import Html.Styled.Attributes as Attr exposing (css, disabled, placeholder, value)
-import Html.Styled.Events exposing (onClick, onInput)
+import Html exposing (..)
+import Html.Attributes exposing (class, disabled, placeholder, value)
+import Html.Events exposing (onClick, onInput)
 import Task
 import Time
 
@@ -18,7 +16,7 @@ main =
     Browser.element
         { init = init
         , update = update
-        , view = view >> toUnstyled
+        , view = view
         , subscriptions = subscriptions
         }
 
@@ -106,20 +104,33 @@ createNewTake model time =
 view : Model -> Html Msg
 view model =
     div []
-        [ input
-            [ Attr.placeholder ("Hi " ++ model.user.name ++ ". What's your hottest take?")
-            , Attr.value model.newTake
-            , onInput EditNewTake
-            , Attr.css
-                [ width (pct 100)
-                , maxWidth (px 350)
+        [ getHeader model
+        , getBody model
+        ]
+
+
+getHeader : Model -> Html Msg
+getHeader _ =
+    h1 [] [ text "HotTakeThursday" ]
+
+
+getBody : Model -> Html Msg
+getBody model =
+    div [ class "container" ]
+        [ div [ class "row" ]
+            [ div [ class "col" ]
+                [ input
+                    [ placeholder ("Hi " ++ model.user.name ++ ". What's your hottest take?")
+                    , value model.newTake
+                    , onInput EditNewTake
+                    ]
+                    []
                 ]
             ]
-            []
         , div []
             [ button
                 [ onClick PublishNewTakeClick
-                , Attr.disabled (shouldDisable model)
+                , disabled (shouldDisable model)
                 ]
                 [ text "Publish" ]
             ]
