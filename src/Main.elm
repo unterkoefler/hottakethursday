@@ -13,7 +13,7 @@ import Time
 
 
 debug =
-    True
+    False
 
 
 thursday =
@@ -131,7 +131,7 @@ update msg model =
 
         AdjustTimeZone newZone ->
             ( { model | zone = newZone }
-            , Cmd.none
+            , Task.perform Tick Time.now
             )
 
 
@@ -149,10 +149,111 @@ createNewTake newTake user time =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ header model.user
-        , body model
+    if isThursday model.time model.zone then
+        div []
+            [ header model.user
+            , body model
+            ]
+
+    else
+        four04 model.time model.zone
+
+
+isThursday : Time.Posix -> Time.Zone -> Bool
+isThursday time zone =
+    if debug then
+        thursday
+
+    else
+        Time.toWeekday zone time == Time.Thu
+
+
+four04 : Time.Posix -> Time.Zone -> Html Msg
+four04 time zone =
+    let
+        weekday =
+            Time.toWeekday zone time
+
+        weekdayString =
+            toWeekdayString weekday
+
+        daysLeft =
+            daysUntilThursday weekday
+    in
+    div [ class "container" ]
+        [ h1 [] [ text ("Error (404): Site Unavaible on " ++ weekdayString) ]
+        , img [ width 300, height 300, src "assets/404.jpg" ] []
+        , p []
+            [ text
+                ("Hi. Welcome to HotTakeThursday.com, where "
+                    ++ "you can voice your hottest takes, but only on Thursdays. "
+                    ++ "Today is "
+                    ++ weekdayString
+                    ++ ". We'll see you again in "
+                    ++ String.fromInt daysLeft
+                    ++ plural daysLeft " day." " days."
+                )
+            ]
         ]
+
+
+toWeekdayString : Time.Weekday -> String
+toWeekdayString weekday =
+    case weekday of
+        Time.Mon ->
+            "Monday"
+
+        Time.Tue ->
+            "Tuesday"
+
+        Time.Wed ->
+            "Wednesday"
+
+        Time.Thu ->
+            "Thursday"
+
+        Time.Fri ->
+            "Friday"
+
+        Time.Sat ->
+            "Saturday"
+
+        Time.Sun ->
+            "Sunday"
+
+
+daysUntilThursday : Time.Weekday -> Int
+daysUntilThursday weekday =
+    case weekday of
+        Time.Mon ->
+            3
+
+        Time.Tue ->
+            2
+
+        Time.Wed ->
+            1
+
+        Time.Thu ->
+            0
+
+        Time.Fri ->
+            6
+
+        Time.Sat ->
+            5
+
+        Time.Sun ->
+            4
+
+
+plural : Int -> String -> String -> String
+plural n sing plur =
+    if n == 1 then
+        sing
+
+    else
+        plur
 
 
 header : MaybeUser -> Html Msg
@@ -261,6 +362,9 @@ viewTake take zone =
 formatTime : Time.Posix -> Time.Zone -> String
 formatTime time zone =
     let
+        weekday =
+            toWeekdayString (Time.toWeekday zone time)
+
         hour24 =
             Time.toHour zone time
 
@@ -280,7 +384,7 @@ formatTime time zone =
             else
                 "PM"
     in
-    String.join ":" [ hour, leftPad minute, leftPad second ] ++ " " ++ xm
+    String.join ":" [ weekday, hour, leftPad minute, leftPad second ] ++ " " ++ xm
 
 
 leftPad : Int -> String

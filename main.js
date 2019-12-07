@@ -5642,7 +5642,7 @@ var $author$project$Main$update = F2(
 					_Utils_update(
 						model,
 						{zone: newZone}),
-					$elm$core$Platform$Cmd$none);
+					A2($elm$core$Task$perform, $author$project$Main$Tick, $elm$time$Time$now));
 		}
 	});
 var $elm$json$Json$Encode$string = _Json_wrap;
@@ -5867,8 +5867,61 @@ var $elm$time$Time$toSecond = F2(
 				$elm$time$Time$posixToMillis(time),
 				1000));
 	});
+var $elm$time$Time$Fri = {$: 'Fri'};
+var $elm$time$Time$Mon = {$: 'Mon'};
+var $elm$time$Time$Sat = {$: 'Sat'};
+var $elm$time$Time$Sun = {$: 'Sun'};
+var $elm$time$Time$Thu = {$: 'Thu'};
+var $elm$time$Time$Tue = {$: 'Tue'};
+var $elm$time$Time$Wed = {$: 'Wed'};
+var $elm$time$Time$toWeekday = F2(
+	function (zone, time) {
+		var _v0 = A2(
+			$elm$core$Basics$modBy,
+			7,
+			A2(
+				$elm$time$Time$flooredDiv,
+				A2($elm$time$Time$toAdjustedMinutes, zone, time),
+				60 * 24));
+		switch (_v0) {
+			case 0:
+				return $elm$time$Time$Thu;
+			case 1:
+				return $elm$time$Time$Fri;
+			case 2:
+				return $elm$time$Time$Sat;
+			case 3:
+				return $elm$time$Time$Sun;
+			case 4:
+				return $elm$time$Time$Mon;
+			case 5:
+				return $elm$time$Time$Tue;
+			default:
+				return $elm$time$Time$Wed;
+		}
+	});
+var $author$project$Main$toWeekdayString = function (weekday) {
+	switch (weekday.$) {
+		case 'Mon':
+			return 'Monday';
+		case 'Tue':
+			return 'Tuesday';
+		case 'Wed':
+			return 'Wednesday';
+		case 'Thu':
+			return 'Thursday';
+		case 'Fri':
+			return 'Friday';
+		case 'Sat':
+			return 'Saturday';
+		default:
+			return 'Sunday';
+	}
+};
 var $author$project$Main$formatTime = F2(
 	function (time, zone) {
+		var weekday = $author$project$Main$toWeekdayString(
+			A2($elm$time$Time$toWeekday, zone, time));
 		var second = A2($elm$time$Time$toSecond, $elm$time$Time$utc, time);
 		var minute = A2($elm$time$Time$toMinute, $elm$time$Time$utc, time);
 		var hour24 = A2($elm$time$Time$toHour, zone, time);
@@ -5880,6 +5933,7 @@ var $author$project$Main$formatTime = F2(
 			':',
 			_List_fromArray(
 				[
+					weekday,
 					hour,
 					$author$project$Main$leftPad(minute),
 					$author$project$Main$leftPad(second)
@@ -6007,6 +6061,75 @@ var $author$project$Main$body = function (model) {
 				$author$project$Main$ads)
 			]));
 };
+var $author$project$Main$daysUntilThursday = function (weekday) {
+	switch (weekday.$) {
+		case 'Mon':
+			return 3;
+		case 'Tue':
+			return 2;
+		case 'Wed':
+			return 1;
+		case 'Thu':
+			return 0;
+		case 'Fri':
+			return 6;
+		case 'Sat':
+			return 5;
+		default:
+			return 4;
+	}
+};
+var $elm$html$Html$h1 = _VirtualDom_node('h1');
+var $elm$html$Html$p = _VirtualDom_node('p');
+var $author$project$Main$plural = F3(
+	function (n, sing, plur) {
+		return (n === 1) ? sing : plur;
+	});
+var $elm$html$Html$Attributes$width = function (n) {
+	return A2(
+		_VirtualDom_attribute,
+		'width',
+		$elm$core$String$fromInt(n));
+};
+var $author$project$Main$four04 = F2(
+	function (time, zone) {
+		var weekday = A2($elm$time$Time$toWeekday, zone, time);
+		var weekdayString = $author$project$Main$toWeekdayString(weekday);
+		var daysLeft = $author$project$Main$daysUntilThursday(weekday);
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('container')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$h1,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text('Error (404): Site Unavaible on ' + weekdayString)
+						])),
+					A2(
+					$elm$html$Html$img,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$width(300),
+							$elm$html$Html$Attributes$height(300),
+							$elm$html$Html$Attributes$src('assets/404.jpg')
+						]),
+					_List_Nil),
+					A2(
+					$elm$html$Html$p,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text(
+							'Hi. Welcome to HotTakeThursday.com, where ' + ('you can voice your hottest takes, but only on Thursdays. ' + ('Today is ' + (weekdayString + ('. We\'ll see you again in ' + ($elm$core$String$fromInt(daysLeft) + A3($author$project$Main$plural, daysLeft, ' day.', ' days.')))))))
+						]))
+				]));
+	});
 var $elm$html$Html$nav = _VirtualDom_node('nav');
 var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
@@ -6057,15 +6180,23 @@ var $author$project$Main$header = function (maybeUser) {
 				}())
 			]));
 };
+var $author$project$Main$debug = false;
+var $author$project$Main$thursday = true;
+var $author$project$Main$isThursday = F2(
+	function (time, zone) {
+		return $author$project$Main$debug ? $author$project$Main$thursday : _Utils_eq(
+			A2($elm$time$Time$toWeekday, zone, time),
+			$elm$time$Time$Thu);
+	});
 var $author$project$Main$view = function (model) {
-	return A2(
+	return A2($author$project$Main$isThursday, model.time, model.zone) ? A2(
 		$elm$html$Html$div,
 		_List_Nil,
 		_List_fromArray(
 			[
 				$author$project$Main$header(model.user),
 				$author$project$Main$body(model)
-			]));
+			])) : A2($author$project$Main$four04, model.time, model.zone);
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{init: $author$project$Main$init, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});
