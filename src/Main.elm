@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Html exposing (..)
-import Html.Attributes exposing (class, disabled, href, placeholder, style, value)
+import Html.Attributes exposing (class, disabled, height, href, placeholder, src, style, value, width)
 import Html.Events exposing (onClick, onInput)
 import Task
 import Time
@@ -126,26 +126,41 @@ navItem txt link classes =
 
 body : Model -> Html Msg
 body model =
-    div [ class "container" ]
-        [ div [ class "row" ]
-            [ div [ class "col" ]
-                [ input
-                    [ placeholder ("Hi " ++ model.user.name ++ ". What's your hottest take?")
-                    , value model.newTake
-                    , onInput EditNewTake
-                    ]
-                    []
-                ]
-            ]
-        , div []
-            [ button
-                [ onClick PublishNewTakeClick
-                , disabled (shouldDisable model)
-                ]
-                [ text "Publish" ]
-            ]
-        , ul [] (List.map viewTake model.takes)
+    div [ class "row" ]
+        [ div [ class "col-3" ] ads
+        , div [ class "col-6" ] (feed model)
+        , div [ class "col-3" ] ads
         ]
+
+
+ads =
+    [ fakeAd, fakeAd, fakeAd ]
+
+
+fakeAd =
+    img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "assets/trash-ad.jpg" ] []
+
+
+feed : Model -> List (Html Msg)
+feed model =
+    [ div []
+        [ input
+            [ placeholder ("Hi " ++ model.user.name ++ ". What's your hottest take?")
+            , value model.newTake
+            , onInput EditNewTake
+            , class "w-100"
+            ]
+            []
+        ]
+    , div []
+        [ button
+            [ onClick PublishNewTakeClick
+            , disabled (shouldDisable model)
+            ]
+            [ text "Publish" ]
+        ]
+    , ul [] (List.map viewTake model.takes)
+    ]
 
 
 viewTake : Take -> Html Msg
@@ -199,8 +214,4 @@ leftPad i =
 
 shouldDisable : Model -> Bool
 shouldDisable model =
-    if String.isEmpty model.newTake then
-        True
-
-    else
-        False
+    String.isEmpty model.newTake

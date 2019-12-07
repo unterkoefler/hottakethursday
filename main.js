@@ -5221,11 +5221,6 @@ var $author$project$Main$update = F2(
 					$elm$core$Platform$Cmd$none);
 		}
 	});
-var $author$project$Main$EditNewTake = function (a) {
-	return {$: 'EditNewTake', a: a};
-};
-var $author$project$Main$PublishNewTakeClick = {$: 'PublishNewTakeClick'};
-var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$json$Json$Encode$string = _Json_wrap;
 var $elm$html$Html$Attributes$stringProperty = F2(
 	function (key, string) {
@@ -5235,6 +5230,36 @@ var $elm$html$Html$Attributes$stringProperty = F2(
 			$elm$json$Json$Encode$string(string));
 	});
 var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
+var $elm$html$Html$Attributes$height = function (n) {
+	return A2(
+		_VirtualDom_attribute,
+		'height',
+		$elm$core$String$fromInt(n));
+};
+var $elm$html$Html$img = _VirtualDom_node('img');
+var $elm$html$Html$Attributes$src = function (url) {
+	return A2(
+		$elm$html$Html$Attributes$stringProperty,
+		'src',
+		_VirtualDom_noJavaScriptOrHtmlUri(url));
+};
+var $author$project$Main$fakeAd = A2(
+	$elm$html$Html$img,
+	_List_fromArray(
+		[
+			$elm$html$Html$Attributes$class('w-100 mb-5 mt-5 pl-5 pr-5'),
+			$elm$html$Html$Attributes$height(200),
+			$elm$html$Html$Attributes$src('assets/trash-ad.jpg')
+		]),
+	_List_Nil);
+var $author$project$Main$ads = _List_fromArray(
+	[$author$project$Main$fakeAd, $author$project$Main$fakeAd, $author$project$Main$fakeAd]);
+var $elm$html$Html$div = _VirtualDom_node('div');
+var $author$project$Main$EditNewTake = function (a) {
+	return {$: 'EditNewTake', a: a};
+};
+var $author$project$Main$PublishNewTakeClick = {$: 'PublishNewTakeClick'};
+var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$json$Json$Encode$bool = _Json_wrap;
 var $elm$html$Html$Attributes$boolProperty = F2(
 	function (key, bool) {
@@ -5244,7 +5269,6 @@ var $elm$html$Html$Attributes$boolProperty = F2(
 			$elm$json$Json$Encode$bool(bool));
 	});
 var $elm$html$Html$Attributes$disabled = $elm$html$Html$Attributes$boolProperty('disabled');
-var $elm$html$Html$div = _VirtualDom_node('div');
 var $elm$html$Html$input = _VirtualDom_node('input');
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 'Normal', a: a};
@@ -5298,7 +5322,7 @@ var $elm$html$Html$Events$onInput = function (tagger) {
 };
 var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
 var $author$project$Main$shouldDisable = function (model) {
-	return $elm$core$String$isEmpty(model.newTake) ? true : false;
+	return $elm$core$String$isEmpty(model.newTake);
 };
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
@@ -5408,12 +5432,55 @@ var $author$project$Main$viewTake = function (take) {
 				'@' + (take.postedBy.username + (': ' + (take.content + (' (' + ($author$project$Main$formatTime(take.timePosted) + ')'))))))
 			]));
 };
+var $author$project$Main$feed = function (model) {
+	return _List_fromArray(
+		[
+			A2(
+			$elm$html$Html$div,
+			_List_Nil,
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$input,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$placeholder('Hi ' + (model.user.name + '. What\'s your hottest take?')),
+							$elm$html$Html$Attributes$value(model.newTake),
+							$elm$html$Html$Events$onInput($author$project$Main$EditNewTake),
+							$elm$html$Html$Attributes$class('w-100')
+						]),
+					_List_Nil)
+				])),
+			A2(
+			$elm$html$Html$div,
+			_List_Nil,
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$button,
+					_List_fromArray(
+						[
+							$elm$html$Html$Events$onClick($author$project$Main$PublishNewTakeClick),
+							$elm$html$Html$Attributes$disabled(
+							$author$project$Main$shouldDisable(model))
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text('Publish')
+						]))
+				])),
+			A2(
+			$elm$html$Html$ul,
+			_List_Nil,
+			A2($elm$core$List$map, $author$project$Main$viewTake, model.takes))
+		]);
+};
 var $author$project$Main$body = function (model) {
 	return A2(
 		$elm$html$Html$div,
 		_List_fromArray(
 			[
-				$elm$html$Html$Attributes$class('container')
+				$elm$html$Html$Attributes$class('row')
 			]),
 		_List_fromArray(
 			[
@@ -5421,51 +5488,23 @@ var $author$project$Main$body = function (model) {
 				$elm$html$Html$div,
 				_List_fromArray(
 					[
-						$elm$html$Html$Attributes$class('row')
+						$elm$html$Html$Attributes$class('col-3')
 					]),
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('col')
-							]),
-						_List_fromArray(
-							[
-								A2(
-								$elm$html$Html$input,
-								_List_fromArray(
-									[
-										$elm$html$Html$Attributes$placeholder('Hi ' + (model.user.name + '. What\'s your hottest take?')),
-										$elm$html$Html$Attributes$value(model.newTake),
-										$elm$html$Html$Events$onInput($author$project$Main$EditNewTake)
-									]),
-								_List_Nil)
-							]))
-					])),
+				$author$project$Main$ads),
 				A2(
 				$elm$html$Html$div,
-				_List_Nil,
 				_List_fromArray(
 					[
-						A2(
-						$elm$html$Html$button,
-						_List_fromArray(
-							[
-								$elm$html$Html$Events$onClick($author$project$Main$PublishNewTakeClick),
-								$elm$html$Html$Attributes$disabled(
-								$author$project$Main$shouldDisable(model))
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text('Publish')
-							]))
-					])),
+						$elm$html$Html$Attributes$class('col-6')
+					]),
+				$author$project$Main$feed(model)),
 				A2(
-				$elm$html$Html$ul,
-				_List_Nil,
-				A2($elm$core$List$map, $author$project$Main$viewTake, model.takes))
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('col-3')
+					]),
+				$author$project$Main$ads)
 			]));
 };
 var $elm$html$Html$a = _VirtualDom_node('a');
