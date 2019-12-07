@@ -5149,19 +5149,12 @@ var $author$project$Main$Model = F3(
 	function (takes, newTake, user) {
 		return {newTake: newTake, takes: takes, user: user};
 	});
-var $author$project$Main$User = F2(
-	function (name, username) {
-		return {name: name, username: username};
-	});
+var $author$project$Main$Visitor = {$: 'Visitor'};
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $author$project$Main$init = function (_v0) {
 	return _Utils_Tuple2(
-		A3(
-			$author$project$Main$Model,
-			_List_Nil,
-			'',
-			A2($author$project$Main$User, 'George Lucas', 'starwars4lyfe')),
+		A3($author$project$Main$Model, _List_Nil, '', $author$project$Main$Visitor),
 		$elm$core$Platform$Cmd$none);
 };
 var $elm$core$Platform$Sub$batch = _Platform_batch;
@@ -5172,9 +5165,9 @@ var $author$project$Main$subscriptions = function (model) {
 var $author$project$Main$PublishNewTake = function (a) {
 	return {$: 'PublishNewTake', a: a};
 };
-var $author$project$Main$createNewTake = F2(
-	function (model, time) {
-		return {content: model.newTake, postedBy: model.user, timePosted: time};
+var $author$project$Main$createNewTake = F3(
+	function (newTake, user, time) {
+		return {content: newTake, postedBy: user, timePosted: time};
 	});
 var $elm$time$Time$Name = function (a) {
 	return {$: 'Name', a: a};
@@ -5208,17 +5201,23 @@ var $author$project$Main$update = F2(
 					A2($elm$core$Task$perform, $author$project$Main$PublishNewTake, $elm$time$Time$now));
 			default:
 				var time = msg.a;
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{
-							newTake: '',
-							takes: A2(
-								$elm$core$List$cons,
-								A2($author$project$Main$createNewTake, model, time),
-								model.takes)
-						}),
-					$elm$core$Platform$Cmd$none);
+				var _v1 = model.user;
+				if (_v1.$ === 'KnownUser') {
+					var user = _v1.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								newTake: '',
+								takes: A2(
+									$elm$core$List$cons,
+									A3($author$project$Main$createNewTake, model.newTake, user, time),
+									model.takes)
+							}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+				}
 		}
 	});
 var $elm$json$Json$Encode$string = _Json_wrap;
@@ -5254,7 +5253,6 @@ var $author$project$Main$fakeAd = A2(
 	_List_Nil);
 var $author$project$Main$ads = _List_fromArray(
 	[$author$project$Main$fakeAd, $author$project$Main$fakeAd, $author$project$Main$fakeAd]);
-var $elm$html$Html$div = _VirtualDom_node('div');
 var $author$project$Main$EditNewTake = function (a) {
 	return {$: 'EditNewTake', a: a};
 };
@@ -5269,6 +5267,7 @@ var $elm$html$Html$Attributes$boolProperty = F2(
 			$elm$json$Json$Encode$bool(bool));
 	});
 var $elm$html$Html$Attributes$disabled = $elm$html$Html$Attributes$boolProperty('disabled');
+var $elm$html$Html$div = _VirtualDom_node('div');
 var $elm$html$Html$input = _VirtualDom_node('input');
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 'Normal', a: a};
@@ -5321,13 +5320,53 @@ var $elm$html$Html$Events$onInput = function (tagger) {
 			A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetValue)));
 };
 var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
-var $author$project$Main$shouldDisable = function (model) {
-	return $elm$core$String$isEmpty(model.newTake);
-};
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $elm$html$Html$ul = _VirtualDom_node('ul');
 var $elm$html$Html$Attributes$value = $elm$html$Html$Attributes$stringProperty('value');
+var $author$project$Main$compose = F2(
+	function (user, newTake) {
+		return A2(
+			$elm$html$Html$div,
+			_List_Nil,
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_Nil,
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$input,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$placeholder('Hi ' + (user.name + '. What\'s your hottest take?')),
+									$elm$html$Html$Attributes$value(newTake),
+									$elm$html$Html$Events$onInput($author$project$Main$EditNewTake),
+									$elm$html$Html$Attributes$class('w-100')
+								]),
+							_List_Nil)
+						])),
+					A2(
+					$elm$html$Html$div,
+					_List_Nil,
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$button,
+							_List_fromArray(
+								[
+									$elm$html$Html$Events$onClick($author$project$Main$PublishNewTakeClick),
+									$elm$html$Html$Attributes$disabled(
+									$elm$core$String$isEmpty(newTake))
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Publish')
+								]))
+						]))
+				]));
+	});
+var $elm$html$Html$ul = _VirtualDom_node('ul');
 var $author$project$Main$leftPad = function (i) {
 	return (i < 10) ? ('0' + $elm$core$String$fromInt(i)) : $elm$core$String$fromInt(i);
 };
@@ -5433,46 +5472,76 @@ var $author$project$Main$viewTake = function (take) {
 			]));
 };
 var $author$project$Main$feed = function (model) {
+	return A2(
+		$elm$html$Html$ul,
+		_List_Nil,
+		A2($elm$core$List$map, $author$project$Main$viewTake, model.takes));
+};
+var $elm$html$Html$a = _VirtualDom_node('a');
+var $elm$html$Html$Attributes$href = function (url) {
+	return A2(
+		$elm$html$Html$Attributes$stringProperty,
+		'href',
+		_VirtualDom_noJavaScriptUri(url));
+};
+var $author$project$Main$navItem = F3(
+	function (txt, link, classes) {
+		return A2(
+			$elm$html$Html$li,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('nav-item nav-link pl-3 ' + classes)
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$a,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$href(link)
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(txt)
+						]))
+				]));
+	});
+var $author$project$Main$content = function (model) {
 	return _List_fromArray(
 		[
 			A2(
-			$elm$html$Html$div,
-			_List_Nil,
-			_List_fromArray(
-				[
-					A2(
-					$elm$html$Html$input,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$placeholder('Hi ' + (model.user.name + '. What\'s your hottest take?')),
-							$elm$html$Html$Attributes$value(model.newTake),
-							$elm$html$Html$Events$onInput($author$project$Main$EditNewTake),
-							$elm$html$Html$Attributes$class('w-100')
-						]),
-					_List_Nil)
-				])),
-			A2(
-			$elm$html$Html$div,
-			_List_Nil,
-			_List_fromArray(
-				[
-					A2(
-					$elm$html$Html$button,
-					_List_fromArray(
-						[
-							$elm$html$Html$Events$onClick($author$project$Main$PublishNewTakeClick),
-							$elm$html$Html$Attributes$disabled(
-							$author$project$Main$shouldDisable(model))
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text('Publish')
-						]))
-				])),
-			A2(
 			$elm$html$Html$ul,
-			_List_Nil,
-			A2($elm$core$List$map, $author$project$Main$viewTake, model.takes))
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('nav nav-tabs mb-3 mt-2')
+				]),
+			_List_fromArray(
+				[
+					A3($author$project$Main$navItem, 'Hottest', '#', 'active'),
+					A3($author$project$Main$navItem, 'Coldest', '#', '')
+				])),
+			A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('container')
+				]),
+			function () {
+				var _v0 = model.user;
+				if (_v0.$ === 'KnownUser') {
+					var user = _v0.a;
+					return _List_fromArray(
+						[
+							A2($author$project$Main$compose, user, model.newTake),
+							$author$project$Main$feed(model)
+						]);
+				} else {
+					return _List_fromArray(
+						[
+							$author$project$Main$feed(model)
+						]);
+				}
+			}())
 		]);
 };
 var $author$project$Main$body = function (model) {
@@ -5497,7 +5566,7 @@ var $author$project$Main$body = function (model) {
 					[
 						$elm$html$Html$Attributes$class('col-6')
 					]),
-				$author$project$Main$feed(model)),
+				$author$project$Main$content(model)),
 				A2(
 				$elm$html$Html$div,
 				_List_fromArray(
@@ -5507,36 +5576,7 @@ var $author$project$Main$body = function (model) {
 				$author$project$Main$ads)
 			]));
 };
-var $elm$html$Html$a = _VirtualDom_node('a');
-var $elm$html$Html$Attributes$href = function (url) {
-	return A2(
-		$elm$html$Html$Attributes$stringProperty,
-		'href',
-		_VirtualDom_noJavaScriptUri(url));
-};
 var $elm$html$Html$nav = _VirtualDom_node('nav');
-var $author$project$Main$navItem = F3(
-	function (txt, link, classes) {
-		return A2(
-			$elm$html$Html$li,
-			_List_fromArray(
-				[
-					$elm$html$Html$Attributes$class('nav-item nav-link pl-3' + classes)
-				]),
-			_List_fromArray(
-				[
-					A2(
-					$elm$html$Html$a,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$href(link)
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text(txt)
-						]))
-				]));
-	});
 var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
 var $author$project$Main$header = function (_v0) {
@@ -5552,7 +5592,7 @@ var $author$project$Main$header = function (_v0) {
 				$elm$html$Html$a,
 				_List_fromArray(
 					[
-						$elm$html$Html$Attributes$class('navbar-brand'),
+						$elm$html$Html$Attributes$class('navbar-brand pl-2'),
 						$elm$html$Html$Attributes$href('#')
 					]),
 				_List_fromArray(

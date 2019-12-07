@@ -40,6 +40,11 @@ type alias User =
     }
 
 
+type MaybeUser
+    = KnownUser User
+    | Visitor
+
+
 type alias Take =
     { content : String
     , postedBy : User
@@ -50,13 +55,14 @@ type alias Take =
 type alias Model =
     { takes : List Take
     , newTake : String
-    , user : User
+    , user : MaybeUser
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Model [] "" (User "George Lucas" "starwars4lyfe")
+    --    ( Model [] "" (KnownUser { name = "George Lucas", username = "starwars4lyfe" })
+    ( Model [] "" Visitor
     , Cmd.none
     )
 
@@ -81,18 +87,24 @@ update msg model =
             ( model, Task.perform PublishNewTake Time.now )
 
         PublishNewTake time ->
-            ( { model
-                | takes = createNewTake model time :: model.takes
-                , newTake = ""
-              }
-            , Cmd.none
-            )
+            case model.user of
+                KnownUser user ->
+                    ( { model
+                        | takes = createNewTake model.newTake user time :: model.takes
+                        , newTake = ""
+                      }
+                    , Cmd.none
+                    )
+
+                Visitor ->
+                    -- a visitor should not publish new takes
+                    ( model, Cmd.none )
 
 
-createNewTake : Model -> Time.Posix -> Take
-createNewTake model time =
-    { content = model.newTake
-    , postedBy = model.user
+createNewTake : String -> User -> Time.Posix -> Take
+createNewTake newTake user time =
+    { content = newTake
+    , postedBy = user
     , timePosted = time
     }
 
@@ -112,7 +124,7 @@ view model =
 header : Model -> Html Msg
 header _ =
     nav [ class "navbar navbar-light bg-light" ]
-        [ a [ class "navbar-brand", href "#" ] [ text "HTT 🔥" ]
+        [ a [ class "navbar-brand pl-2", href "#" ] [ text "HTT 🔥" ]
         , ul [ class "navbar-nav ml-auto", style "flex-direction" "row" ]
             [ navItem "Login" "#" "", navItem "Sign Up" "#" "" ]
         ]
@@ -120,7 +132,7 @@ header _ =
 
 navItem : String -> String -> String -> Html Msg
 navItem txt link classes =
-    li [ class ("nav-item nav-link pl-3" ++ classes) ]
+    li [ class ("nav-item nav-link pl-3 " ++ classes) ]
         [ a [ href link ] [ text txt ] ]
 
 
@@ -128,7 +140,7 @@ body : Model -> Html Msg
 body model =
     div [ class "row" ]
         [ div [ class "col-3" ] ads
-        , div [ class "col-6" ] (feed model)
+        , div [ class "col-6" ] (content model)
         , div [ class "col-3" ] ads
         ]
 
@@ -141,26 +153,50 @@ fakeAd =
     img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "assets/trash-ad.jpg" ] []
 
 
-feed : Model -> List (Html Msg)
-feed model =
-    [ div []
-        [ input
-            [ placeholder ("Hi " ++ model.user.name ++ ". What's your hottest take?")
-            , value model.newTake
-            , onInput EditNewTake
-            , class "w-100"
-            ]
-            []
+content : Model -> List (Html Msg)
+content model =
+    [ ul [ class "nav nav-tabs mb-3 mt-2" ]
+        [ navItem "Hottest" "#" "active"
+        , navItem "Coldest" "#" ""
         ]
-    , div []
-        [ button
-            [ onClick PublishNewTakeClick
-            , disabled (shouldDisable model)
-            ]
-            [ text "Publish" ]
-        ]
-    , ul [] (List.map viewTake model.takes)
+    , div [ class "container" ]
+        (case model.user of
+            KnownUser user ->
+                [ compose user model.newTake
+                , feed model
+                ]
+
+            Visitor ->
+                [ feed model ]
+        )
     ]
+
+
+compose : User -> String -> Html Msg
+compose user newTake =
+    div []
+        [ div []
+            [ input
+                [ placeholder ("Hi " ++ user.name ++ ". What's your hottest take?")
+                , value newTake
+                , onInput EditNewTake
+                , class "w-100"
+                ]
+                []
+            ]
+        , div []
+            [ button
+                [ onClick PublishNewTakeClick
+                , disabled (String.isEmpty newTake)
+                ]
+                [ text "Publish" ]
+            ]
+        ]
+
+
+feed : Model -> Html Msg
+feed model =
+    ul [] (List.map viewTake model.takes)
 
 
 viewTake : Take -> Html Msg
@@ -210,8 +246,3 @@ leftPad i =
 
     else
         String.fromInt i
-
-
-shouldDisable : Model -> Bool
-shouldDisable model =
-    String.isEmpty model.newTake
