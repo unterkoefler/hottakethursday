@@ -12,6 +12,14 @@ import Time
 -- MAIN
 
 
+debug =
+    True
+
+
+thursday =
+    True
+
+
 main =
     Browser.element
         { init = init
@@ -27,7 +35,7 @@ main =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Time.every (15 * 60 * 1000) Tick
 
 
 
@@ -56,14 +64,28 @@ type alias Model =
     { takes : List Take
     , newTake : String
     , user : MaybeUser
+    , time : Time.Posix
+    , zone : Time.Zone
     }
+
+
+initUser =
+    KnownUser { name = "George Lucas", username = "starwars4lyfe" }
+
+
+
+-- initUser = Visitor
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    --    ( Model [] "" (KnownUser { name = "George Lucas", username = "starwars4lyfe" })
-    ( Model [] "" Visitor
-    , Cmd.none
+    ( { takes = []
+      , newTake = ""
+      , user = initUser
+      , time = Time.millisToPosix 0
+      , zone = Time.utc
+      }
+    , Task.perform AdjustTimeZone Time.here
     )
 
 
@@ -75,6 +97,8 @@ type Msg
     = EditNewTake String
     | PublishNewTakeClick
     | PublishNewTake Time.Posix
+    | AdjustTimeZone Time.Zone
+    | Tick Time.Posix
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -100,6 +124,16 @@ update msg model =
                     -- a visitor should not publish new takes
                     ( model, Cmd.none )
 
+        Tick newTime ->
+            ( { model | time = newTime }
+            , Cmd.none
+            )
+
+        AdjustTimeZone newZone ->
+            ( { model | zone = newZone }
+            , Cmd.none
+            )
+
 
 createNewTake : String -> User -> Time.Posix -> Take
 createNewTake newTake user time =
@@ -116,17 +150,27 @@ createNewTake newTake user time =
 view : Model -> Html Msg
 view model =
     div []
-        [ header model
+        [ header model.user
         , body model
         ]
 
 
-header : Model -> Html Msg
-header _ =
+header : MaybeUser -> Html Msg
+header maybeUser =
     nav [ class "navbar navbar-light bg-light" ]
         [ a [ class "navbar-brand pl-2", href "#" ] [ text "HTT 🔥" ]
         , ul [ class "navbar-nav ml-auto", style "flex-direction" "row" ]
-            [ navItem "Login" "#" "", navItem "Sign Up" "#" "" ]
+            (case maybeUser of
+                KnownUser user ->
+                    [ navItem "🔔" "#" ""
+                    , navItem "Profile" "#" ""
+                    , navItem "Logout" "#" ""
+                    , navItem "Delete Account" "#" ""
+                    ]
+
+                Visitor ->
+                    [ navItem "Login" "#" "", navItem "Sign Up" "#" "" ]
+            )
         ]
 
 
@@ -196,11 +240,11 @@ compose user newTake =
 
 feed : Model -> Html Msg
 feed model =
-    ul [] (List.map viewTake model.takes)
+    ul [] (List.map (\take -> viewTake take model.zone) model.takes)
 
 
-viewTake : Take -> Html Msg
-viewTake take =
+viewTake : Take -> Time.Zone -> Html Msg
+viewTake take zone =
     li []
         [ text
             ("@"
@@ -208,17 +252,17 @@ viewTake take =
                 ++ ": "
                 ++ take.content
                 ++ " ("
-                ++ formatTime take.timePosted
+                ++ formatTime take.timePosted zone
                 ++ ")"
             )
         ]
 
 
-formatTime : Time.Posix -> String
-formatTime time =
+formatTime : Time.Posix -> Time.Zone -> String
+formatTime time zone =
     let
         hour24 =
-            Time.toHour Time.utc time
+            Time.toHour zone time
 
         hour =
             String.fromInt (modBy 12 hour24)
