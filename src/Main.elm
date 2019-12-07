@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Html exposing (..)
-import Html.Attributes exposing (class, disabled, placeholder, value)
+import Html.Attributes exposing (class, disabled, href, placeholder, style, value)
 import Html.Events exposing (onClick, onInput)
 import Task
 import Time
@@ -104,18 +104,28 @@ createNewTake model time =
 view : Model -> Html Msg
 view model =
     div []
-        [ getHeader model
-        , getBody model
+        [ header model
+        , body model
         ]
 
 
-getHeader : Model -> Html Msg
-getHeader _ =
-    h1 [] [ text "HotTakeThursday" ]
+header : Model -> Html Msg
+header _ =
+    nav [ class "navbar navbar-light bg-light" ]
+        [ a [ class "navbar-brand", href "#" ] [ text "HTT 🔥" ]
+        , ul [ class "navbar-nav ml-auto", style "flex-direction" "row" ]
+            [ navItem "Login" "#" "", navItem "Sign Up" "#" "" ]
+        ]
 
 
-getBody : Model -> Html Msg
-getBody model =
+navItem : String -> String -> String -> Html Msg
+navItem txt link classes =
+    li [ class ("nav-item nav-link pl-3" ++ classes) ]
+        [ a [ href link ] [ text txt ] ]
+
+
+body : Model -> Html Msg
+body model =
     div [ class "container" ]
         [ div [ class "row" ]
             [ div [ class "col" ]

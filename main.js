@@ -5221,7 +5221,6 @@ var $author$project$Main$update = F2(
 					$elm$core$Platform$Cmd$none);
 		}
 	});
-var $elm$html$Html$div = _VirtualDom_node('div');
 var $author$project$Main$EditNewTake = function (a) {
 	return {$: 'EditNewTake', a: a};
 };
@@ -5245,6 +5244,7 @@ var $elm$html$Html$Attributes$boolProperty = F2(
 			$elm$json$Json$Encode$bool(bool));
 	});
 var $elm$html$Html$Attributes$disabled = $elm$html$Html$Attributes$boolProperty('disabled');
+var $elm$html$Html$div = _VirtualDom_node('div');
 var $elm$html$Html$input = _VirtualDom_node('input');
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 'Normal', a: a};
@@ -5408,7 +5408,7 @@ var $author$project$Main$viewTake = function (take) {
 				'@' + (take.postedBy.username + (': ' + (take.content + (' (' + ($author$project$Main$formatTime(take.timePosted) + ')'))))))
 			]));
 };
-var $author$project$Main$getBody = function (model) {
+var $author$project$Main$body = function (model) {
 	return A2(
 		$elm$html$Html$div,
 		_List_fromArray(
@@ -5468,14 +5468,70 @@ var $author$project$Main$getBody = function (model) {
 				A2($elm$core$List$map, $author$project$Main$viewTake, model.takes))
 			]));
 };
-var $elm$html$Html$h1 = _VirtualDom_node('h1');
-var $author$project$Main$getHeader = function (_v0) {
+var $elm$html$Html$a = _VirtualDom_node('a');
+var $elm$html$Html$Attributes$href = function (url) {
 	return A2(
-		$elm$html$Html$h1,
-		_List_Nil,
+		$elm$html$Html$Attributes$stringProperty,
+		'href',
+		_VirtualDom_noJavaScriptUri(url));
+};
+var $elm$html$Html$nav = _VirtualDom_node('nav');
+var $author$project$Main$navItem = F3(
+	function (txt, link, classes) {
+		return A2(
+			$elm$html$Html$li,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('nav-item nav-link pl-3' + classes)
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$a,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$href(link)
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(txt)
+						]))
+				]));
+	});
+var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
+var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
+var $author$project$Main$header = function (_v0) {
+	return A2(
+		$elm$html$Html$nav,
 		_List_fromArray(
 			[
-				$elm$html$Html$text('HotTakeThursday')
+				$elm$html$Html$Attributes$class('navbar navbar-light bg-light')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$a,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('navbar-brand'),
+						$elm$html$Html$Attributes$href('#')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text('HTT 🔥')
+					])),
+				A2(
+				$elm$html$Html$ul,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('navbar-nav ml-auto'),
+						A2($elm$html$Html$Attributes$style, 'flex-direction', 'row')
+					]),
+				_List_fromArray(
+					[
+						A3($author$project$Main$navItem, 'Login', '#', ''),
+						A3($author$project$Main$navItem, 'Sign Up', '#', '')
+					]))
 			]));
 };
 var $author$project$Main$view = function (model) {
@@ -5484,8 +5540,8 @@ var $author$project$Main$view = function (model) {
 		_List_Nil,
 		_List_fromArray(
 			[
-				$author$project$Main$getHeader(model),
-				$author$project$Main$getBody(model)
+				$author$project$Main$header(model),
+				$author$project$Main$body(model)
 			]));
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
