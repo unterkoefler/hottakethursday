@@ -8,6 +8,7 @@ import Html.Events exposing (onClick, onInput)
 import Task
 import Time
 import Url
+import Url.Builder exposing (absolute)
 import Url.Parser as Parser exposing (Parser, map, oneOf, parse, s, top)
 
 
@@ -76,6 +77,21 @@ toRoute string =
 
 
 
+-- this is dumb. Remove asap
+
+
+homeUrl =
+    Browser.Internal
+        { protocol = Url.Http
+        , host = "0.0.0.0"
+        , port_ = Just 8000
+        , path = "/"
+        , query = Nothing
+        , fragment = Nothing
+        }
+
+
+
 -- MODEL
 
 
@@ -141,7 +157,7 @@ init flags url key =
     let
         model =
             { page = homePage
-            , user = Just initUser
+            , user = Nothing --Just initUser
             , time = Time.millisToPosix 0
             , zone = Time.utc
             , url = url
@@ -170,6 +186,7 @@ type Msg
     | Tick Time.Posix
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
+    | LoginButtonPressed
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -220,7 +237,28 @@ updatePage msg model =
             updateHomePage msg model data
 
         Login data ->
+            updateLoginPage msg model data
+
+
+updateLoginPage : Msg -> Model -> LoginData -> ( Model, Cmd Msg )
+updateLoginPage msg model data =
+    case msg of
+        LoginButtonPressed ->
+            if validateLogin data then
+                ( { model | user = Just initUser }
+                , Nav.pushUrl model.navKey "/"
+                )
+
+            else
+                ( model, Cmd.none )
+
+        _ ->
             ( model, Cmd.none )
+
+
+validateLogin : LoginData -> Bool
+validateLogin _ =
+    True
 
 
 updateHomePage : Msg -> Model -> HomeData -> ( Model, Cmd Msg )
@@ -311,7 +349,7 @@ four04 time zone =
     in
     div [ class "container" ]
         [ h1 [] [ text ("Error (404): Site Unavaible on " ++ weekdayString) ]
-        , img [ width 300, height 300, src "assets/404.jpg" ] []
+        , img [ width 300, height 300, src "../assets/404.jpg" ] []
         , p []
             [ text
                 ("Hi. Welcome to HotTakeThursday.com, where "
@@ -431,7 +469,7 @@ body model =
                 , div [] [ input [ id "email" ] [] ]
                 , div [] [ label [ for "password" ] [ text "Password " ] ]
                 , div [] [ input [ type_ "password", id "password" ] [] ]
-                , div [] [ button [] [ text "Continue" ] ]
+                , div [] [ button [ onClick LoginButtonPressed ] [ text "Continue" ] ]
                 ]
 
 
@@ -440,7 +478,7 @@ ads =
 
 
 fakeAd =
-    img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "assets/trash-ad.jpg" ] []
+    img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "../assets/trash-ad.jpg" ] []
 
 
 content : Model -> List (Html Msg)
