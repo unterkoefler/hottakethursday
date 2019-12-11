@@ -85,11 +85,6 @@ type alias User =
     }
 
 
-type MaybeUser
-    = KnownUser User
-    | Visitor
-
-
 type alias Take =
     { content : String
     , postedBy : User
@@ -98,8 +93,7 @@ type alias Take =
 
 
 type alias HomeData =
-    { user : User
-    , takes : List Take
+    { takes : List Take
     , newTake : String
     }
 
@@ -111,8 +105,7 @@ type alias LoginData =
 
 
 type Page
-    = VisitorHome (List Take)
-    | Home HomeData
+    = Home HomeData
     | Login LoginData
 
 
@@ -123,6 +116,7 @@ type Page
 
 type alias Model =
     { page : Page
+    , user : Maybe User
     , time : Time.Posix
     , zone : Time.Zone
     , url : Url.Url
@@ -135,11 +129,7 @@ initUser =
 
 
 homePage =
-    Home { takes = [], newTake = "", user = initUser }
-
-
-visitorHomePage =
-    VisitorHome []
+    Home { takes = [], newTake = "" }
 
 
 loginPage =
@@ -150,7 +140,8 @@ init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     let
         model =
-            { page = visitorHomePage
+            { page = homePage
+            , user = Just initUser
             , time = Time.millisToPosix 0
             , zone = Time.utc
             , url = url
@@ -203,10 +194,23 @@ update msg model =
                     ( model, Nav.load href )
 
         UrlChanged url ->
-            ( { model | url = url }, Cmd.none )
+            handleUrlChange model url
 
         _ ->
             updatePage msg model
+
+
+handleUrlChange : Model -> Url.Url -> ( Model, Cmd Msg )
+handleUrlChange model url =
+    case toRoute <| Url.toString url of
+        HomeRoute ->
+            ( { model | page = homePage }, Cmd.none )
+
+        LoginRoute ->
+            ( { model | page = loginPage }, Cmd.none )
+
+        NotFound ->
+            ( model, Cmd.none )
 
 
 updatePage : Msg -> Model -> ( Model, Cmd Msg )
@@ -215,12 +219,22 @@ updatePage msg model =
         Home data ->
             updateHomePage msg model data
 
-        _ ->
+        Login data ->
             ( model, Cmd.none )
 
 
 updateHomePage : Msg -> Model -> HomeData -> ( Model, Cmd Msg )
 updateHomePage msg model data =
+    case model.user of
+        Just user ->
+            updateHomePageSignedIn msg model data user
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
+updateHomePageSignedIn : Msg -> Model -> HomeData -> User -> ( Model, Cmd Msg )
+updateHomePageSignedIn msg model data user =
     case msg of
         EditNewTake newTake ->
             ( { model | page = Home { data | newTake = newTake } }
@@ -233,12 +247,12 @@ updateHomePage msg model data =
         PublishNewTake time ->
             let
                 newTake =
-                    createNewTake data.newTake data.user time
+                    createNewTake data.newTake user time
 
                 takes =
                     newTake :: data.takes
             in
-            ( { model | page = Home { data | takes = takes } }, Cmd.none )
+            ( { model | page = Home { data | takes = takes, newTake = "" } }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -378,14 +392,16 @@ header model =
         , ul [ class "navbar-nav ml-auto", style "flex-direction" "row" ]
             (case model.page of
                 Home _ ->
-                    [ navItem "🔔" "#" ""
-                    , navItem "Profile" "#" ""
-                    , navItem "Logout" "#" ""
-                    , navItem "Delete Account" "#" ""
-                    ]
+                    case model.user of
+                        Just user ->
+                            [ navItem "🔔" "#" ""
+                            , navItem "Profile" "#" ""
+                            , navItem "Logout" "/" ""
+                            , navItem "Delete Account" "#" ""
+                            ]
 
-                VisitorHome _ ->
-                    [ navItem "Login" "#" "", navItem "Sign Up" "#" "" ]
+                        Nothing ->
+                            [ navItem "Login" "login" "", navItem "Sign Up" "#" "" ]
 
                 Login _ ->
                     [ navItem "Signup" "#" "" ]
@@ -403,13 +419,6 @@ body : Model -> Html Msg
 body model =
     case model.page of
         Home _ ->
-            div [ class "row" ]
-                [ div [ class "col-3" ] ads
-                , div [ class "col-6" ] (content model)
-                , div [ class "col-3" ] ads
-                ]
-
-        VisitorHome _ ->
             div [ class "row" ]
                 [ div [ class "col-3" ] ads
                 , div [ class "col-6" ] (content model)
@@ -443,12 +452,14 @@ content model =
     , div [ class "container" ]
         (case model.page of
             Home data ->
-                [ compose data.user data.newTake
-                , feed data.takes model.zone
-                ]
+                case model.user of
+                    Just user ->
+                        [ compose user data.newTake
+                        , feed data.takes model.zone
+                        ]
 
-            VisitorHome takes ->
-                [ feed takes model.zone ]
+                    Nothing ->
+                        [ feed data.takes model.zone ]
 
             _ ->
                 []
