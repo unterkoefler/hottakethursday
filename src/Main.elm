@@ -1,11 +1,14 @@
 module Main exposing (..)
 
 import Browser
+import Browser.Navigation as Nav
 import Html exposing (..)
-import Html.Attributes exposing (class, disabled, for, height, href, id, placeholder, src, style, type_, value, width)
+import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Task
 import Time
+import Url
+import Url.Parser as Parser exposing (Parser, map, oneOf, parse, s, top)
 
 
 
@@ -25,11 +28,13 @@ thursday =
 
 
 main =
-    Browser.element
+    Browser.application
         { init = init
         , update = update
         , view = view
         , subscriptions = subscriptions
+        , onUrlChange = UrlChanged
+        , onUrlRequest = LinkClicked
         }
 
 
@@ -40,6 +45,34 @@ main =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Time.every (15 * 60 * 1000) Tick
+
+
+
+-- ROUTES
+
+
+type Route
+    = HomeRoute
+    | LoginRoute
+    | NotFound
+
+
+routeParser : Parser.Parser (Route -> a) a
+routeParser =
+    Parser.oneOf
+        [ Parser.map HomeRoute Parser.top
+        , Parser.map LoginRoute (Parser.s "login")
+        ]
+
+
+toRoute : String -> Route
+toRoute string =
+    case Url.fromString string of
+        Nothing ->
+            NotFound
+
+        Just url ->
+            Maybe.withDefault NotFound (Parser.parse routeParser url)
 
 
 
@@ -92,6 +125,8 @@ type alias Model =
     { page : Page
     , time : Time.Posix
     , zone : Time.Zone
+    , url : Url.Url
+    , navKey : Nav.Key
     }
 
 
@@ -103,7 +138,7 @@ homePage =
     Home { takes = [], newTake = "", user = initUser }
 
 
-vistorHomePage =
+visitorHomePage =
     VisitorHome []
 
 
@@ -111,14 +146,25 @@ loginPage =
     Login <| LoginData "" ""
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
-    ( { page = loginPage
-      , time = Time.millisToPosix 0
-      , zone = Time.utc
-      }
-    , Task.perform AdjustTimeZone Time.here
-    )
+init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init flags url key =
+    let
+        model =
+            { page = visitorHomePage
+            , time = Time.millisToPosix 0
+            , zone = Time.utc
+            , url = url
+            , navKey = key
+            }
+    in
+    case toRoute <| Url.toString url of
+        LoginRoute ->
+            ( { model | page = loginPage }
+            , Task.perform AdjustTimeZone Time.here
+            )
+
+        _ ->
+            ( model, Task.perform AdjustTimeZone Time.here )
 
 
 
@@ -131,6 +177,8 @@ type Msg
     | PublishNewTake Time.Posix
     | AdjustTimeZone Time.Zone
     | Tick Time.Posix
+    | LinkClicked Browser.UrlRequest
+    | UrlChanged Url.Url
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -145,6 +193,17 @@ update msg model =
             ( { model | zone = newZone }
             , Task.perform Tick Time.now
             )
+
+        LinkClicked urlRequest ->
+            case urlRequest of
+                Browser.Internal url ->
+                    ( model, Nav.pushUrl model.navKey (Url.toString url) )
+
+                Browser.External href ->
+                    ( model, Nav.load href )
+
+        UrlChanged url ->
+            ( { model | url = url }, Cmd.none )
 
         _ ->
             updatePage msg model
@@ -197,16 +256,22 @@ createNewTake newTake user time =
 -- VIEW
 
 
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
     if isThursday model.time model.zone then
-        div []
-            [ header model
-            , body model
+        { title = "HTT"
+        , body =
+            [ div []
+                [ header model
+                , body model
+                ]
             ]
+        }
 
     else
-        four04 model.time model.zone
+        { title = "ERROR"
+        , body = [ four04 model.time model.zone ]
+        }
 
 
 isThursday : Time.Posix -> Time.Zone -> Bool
