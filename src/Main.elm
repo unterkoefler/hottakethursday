@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Html exposing (..)
-import Html.Attributes exposing (class, disabled, height, href, placeholder, src, style, value, width)
+import Html.Attributes exposing (class, disabled, for, height, href, id, placeholder, src, style, type_, value, width)
 import Html.Events exposing (onClick, onInput)
 import Task
 import Time
@@ -13,7 +13,11 @@ import Time
 
 
 debug =
-    False
+    True
+
+
+
+--    False
 
 
 thursday =
@@ -60,28 +64,56 @@ type alias Take =
     }
 
 
-type alias Model =
-    { takes : List Take
+type alias HomeData =
+    { user : User
+    , takes : List Take
     , newTake : String
-    , user : MaybeUser
+    }
+
+
+type alias LoginData =
+    { email : String
+    , password : String
+    }
+
+
+type Page
+    = VisitorHome (List Take)
+    | Home HomeData
+    | Login LoginData
+
+
+
+-- | Signup SignupData
+--  | Profile ProfileData
+
+
+type alias Model =
+    { page : Page
     , time : Time.Posix
     , zone : Time.Zone
     }
 
 
 initUser =
-    KnownUser { name = "George Lucas", username = "starwars4lyfe" }
+    { name = "George Lucas", username = "starwars4lyfe" }
 
 
+homePage =
+    Home { takes = [], newTake = "", user = initUser }
 
--- initUser = Visitor
+
+vistorHomePage =
+    VisitorHome []
+
+
+loginPage =
+    Login <| LoginData "" ""
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { takes = []
-      , newTake = ""
-      , user = initUser
+    ( { page = loginPage
       , time = Time.millisToPosix 0
       , zone = Time.utc
       }
@@ -104,26 +136,6 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        EditNewTake newTake ->
-            ( { model | newTake = newTake }, Cmd.none )
-
-        PublishNewTakeClick ->
-            ( model, Task.perform PublishNewTake Time.now )
-
-        PublishNewTake time ->
-            case model.user of
-                KnownUser user ->
-                    ( { model
-                        | takes = createNewTake model.newTake user time :: model.takes
-                        , newTake = ""
-                      }
-                    , Cmd.none
-                    )
-
-                Visitor ->
-                    -- a visitor should not publish new takes
-                    ( model, Cmd.none )
-
         Tick newTime ->
             ( { model | time = newTime }
             , Cmd.none
@@ -133,6 +145,44 @@ update msg model =
             ( { model | zone = newZone }
             , Task.perform Tick Time.now
             )
+
+        _ ->
+            updatePage msg model
+
+
+updatePage : Msg -> Model -> ( Model, Cmd Msg )
+updatePage msg model =
+    case model.page of
+        Home data ->
+            updateHomePage msg model data
+
+        _ ->
+            ( model, Cmd.none )
+
+
+updateHomePage : Msg -> Model -> HomeData -> ( Model, Cmd Msg )
+updateHomePage msg model data =
+    case msg of
+        EditNewTake newTake ->
+            ( { model | page = Home { data | newTake = newTake } }
+            , Cmd.none
+            )
+
+        PublishNewTakeClick ->
+            ( model, Task.perform PublishNewTake Time.now )
+
+        PublishNewTake time ->
+            let
+                newTake =
+                    createNewTake data.newTake data.user time
+
+                takes =
+                    newTake :: data.takes
+            in
+            ( { model | page = Home { data | takes = takes } }, Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
 
 
 createNewTake : String -> User -> Time.Posix -> Take
@@ -151,7 +201,7 @@ view : Model -> Html Msg
 view model =
     if isThursday model.time model.zone then
         div []
-            [ header model.user
+            [ header model
             , body model
             ]
 
@@ -256,21 +306,24 @@ plural n sing plur =
         plur
 
 
-header : MaybeUser -> Html Msg
-header maybeUser =
+header : Model -> Html Msg
+header model =
     nav [ class "navbar navbar-light bg-light" ]
         [ a [ class "navbar-brand pl-2", href "#" ] [ text "HTT 🔥" ]
         , ul [ class "navbar-nav ml-auto", style "flex-direction" "row" ]
-            (case maybeUser of
-                KnownUser user ->
+            (case model.page of
+                Home _ ->
                     [ navItem "🔔" "#" ""
                     , navItem "Profile" "#" ""
                     , navItem "Logout" "#" ""
                     , navItem "Delete Account" "#" ""
                     ]
 
-                Visitor ->
+                VisitorHome _ ->
                     [ navItem "Login" "#" "", navItem "Sign Up" "#" "" ]
+
+                Login _ ->
+                    [ navItem "Signup" "#" "" ]
             )
         ]
 
@@ -283,11 +336,29 @@ navItem txt link classes =
 
 body : Model -> Html Msg
 body model =
-    div [ class "row" ]
-        [ div [ class "col-3" ] ads
-        , div [ class "col-6" ] (content model)
-        , div [ class "col-3" ] ads
-        ]
+    case model.page of
+        Home _ ->
+            div [ class "row" ]
+                [ div [ class "col-3" ] ads
+                , div [ class "col-6" ] (content model)
+                , div [ class "col-3" ] ads
+                ]
+
+        VisitorHome _ ->
+            div [ class "row" ]
+                [ div [ class "col-3" ] ads
+                , div [ class "col-6" ] (content model)
+                , div [ class "col-3" ] ads
+                ]
+
+        Login data ->
+            div [ class "container" ]
+                [ div [] [ label [ for "email" ] [ text "Email " ] ]
+                , div [] [ input [ id "email" ] [] ]
+                , div [] [ label [ for "password" ] [ text "Password " ] ]
+                , div [] [ input [ type_ "password", id "password" ] [] ]
+                , div [] [ button [] [ text "Continue" ] ]
+                ]
 
 
 ads =
@@ -305,14 +376,17 @@ content model =
         , navItem "Coldest" "#" ""
         ]
     , div [ class "container" ]
-        (case model.user of
-            KnownUser user ->
-                [ compose user model.newTake
-                , feed model
+        (case model.page of
+            Home data ->
+                [ compose data.user data.newTake
+                , feed data.takes model.zone
                 ]
 
-            Visitor ->
-                [ feed model ]
+            VisitorHome takes ->
+                [ feed takes model.zone ]
+
+            _ ->
+                []
         )
     ]
 
@@ -339,9 +413,9 @@ compose user newTake =
         ]
 
 
-feed : Model -> Html Msg
-feed model =
-    ul [] (List.map (\take -> viewTake take model.zone) model.takes)
+feed : List Take -> Time.Zone -> Html Msg
+feed takes zone =
+    ul [] (List.map (\take -> viewTake take zone) takes)
 
 
 viewTake : Take -> Time.Zone -> Html Msg
@@ -384,7 +458,7 @@ formatTime time zone =
             else
                 "PM"
     in
-    String.join ":" [ weekday, hour, leftPad minute, leftPad second ] ++ " " ++ xm
+    String.join ":" [ hour, leftPad minute, leftPad second ] ++ " " ++ xm
 
 
 leftPad : Int -> String
