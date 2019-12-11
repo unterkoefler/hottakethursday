@@ -187,6 +187,7 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | LoginButtonPressed
+    | LogoutButtonPressed
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -212,6 +213,11 @@ update msg model =
 
         UrlChanged url ->
             handleUrlChange model url
+
+        LogoutButtonPressed ->
+            ( { model | user = Nothing }
+            , Nav.pushUrl model.navKey "/"
+            )
 
         _ ->
             updatePage msg model
@@ -434,7 +440,7 @@ header model =
                         Just user ->
                             [ navItem "🔔" "#" ""
                             , navItem "Profile" "#" ""
-                            , navItem "Logout" "/" ""
+                            , logoutButton
                             , navItem "Delete Account" "#" ""
                             ]
 
@@ -445,6 +451,11 @@ header model =
                     [ navItem "Signup" "#" "" ]
             )
         ]
+
+
+logoutButton =
+    li [ class "nav-item nav-link pl-3" ]
+        [ button [ class "btn btn-link", onClick LogoutButtonPressed ] [ text "Logout" ] ]
 
 
 navItem : String -> String -> String -> Html Msg
