@@ -56,6 +56,7 @@ type Route
     = HomeRoute
     | LoginRoute
     | SignupRoute
+    | ProfileRoute
     | NotFound
 
 
@@ -65,6 +66,7 @@ routeParser =
         [ Parser.map HomeRoute Parser.top
         , Parser.map LoginRoute (Parser.s "login")
         , Parser.map SignupRoute (Parser.s "signup")
+        , Parser.map ProfileRoute (Parser.s "profile")
         ]
 
 
@@ -117,10 +119,7 @@ type Page
     = Home HomeData
     | Login LoginData
     | Signup SignupData
-
-
-
---  | Profile ProfileData
+    | Profile User
 
 
 type alias Model =
@@ -133,7 +132,7 @@ type alias Model =
     }
 
 
-initUser =
+george =
     { name = "George Lucas", username = "starwars4lyfe" }
 
 
@@ -153,7 +152,7 @@ init flags url key =
 
         model =
             { page = homePage
-            , user = Nothing --Just initUser
+            , user = Nothing
             , time = Time.millisToPosix 0
             , zone = Time.utc
             , url = url
@@ -239,6 +238,14 @@ handleUrlChange model url =
         SignupRoute ->
             ( { model | page = Signup <| SignupData "" "" }, Cmd.none )
 
+        ProfileRoute ->
+            case model.user of
+                Just user ->
+                    ( { model | page = Profile user }, Cmd.none )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
         NotFound ->
             ( model, Cmd.none )
 
@@ -254,6 +261,9 @@ updatePage msg model =
 
         Signup data ->
             updateSignupPage msg model data
+
+        Profile _ ->
+            ( model, Cmd.none )
 
 
 updateSignupPage : Msg -> Model -> SignupData -> ( Model, Cmd Msg )
@@ -292,7 +302,7 @@ updateLoginPage msg model data =
     case msg of
         LoginButtonPressed ->
             if validateLogin data then
-                ( { model | user = Just initUser }
+                ( { model | user = Just george }
                 , Nav.pushUrl model.navKey "/"
                 )
 
@@ -480,7 +490,7 @@ header model =
                     case model.user of
                         Just user ->
                             [ navItem "🔔" "#" ""
-                            , navItem "Profile" "#" ""
+                            , navItem "Profile" "profile" ""
                             , logoutButton
                             , navItem "Delete Account" "#" ""
                             ]
@@ -493,6 +503,9 @@ header model =
 
                 Signup _ ->
                     [ navItem "Login" "login" "" ]
+
+                Profile _ ->
+                    [ logoutButton, navItem "Delete Account" "" "" ]
             )
         ]
 
@@ -544,6 +557,12 @@ body model =
                     ]
                 ]
 
+        Profile user ->
+            div [ class "row" ]
+                [ div [ class "col-3" ] (aboutUser user)
+                , div [ class "col-9" ] (content model)
+                ]
+
 
 ads =
     [ fakeAd, fakeAd, fakeAd ]
@@ -556,9 +575,7 @@ fakeAd =
 content : Model -> List (Html Msg)
 content model =
     [ ul [ class "nav nav-tabs mb-3 mt-2" ]
-        [ navItem "Hottest" "#" "active"
-        , navItem "Coldest" "#" ""
-        ]
+        (navPills model.page)
     , div [ class "container" ]
         (case model.page of
             Home data ->
@@ -574,6 +591,34 @@ content model =
             _ ->
                 []
         )
+    ]
+
+
+navPills : Page -> List (Html Msg)
+navPills page =
+    case page of
+        Home _ ->
+            [ navItem "Hottest" "#" "active"
+            , navItem "Coldest" "#" ""
+            ]
+
+        Profile _ ->
+            [ navItem "Your Takes" "#" "active"
+            , navItem "Following" "#" ""
+            , navItem "Followers" "#" ""
+            , navItem "Notifications" "#" ""
+            , navItem "Settings" "#" ""
+            ]
+
+        _ ->
+            []
+
+
+aboutUser : User -> List (Html Msg)
+aboutUser user =
+    [ h3 [] [ text <| "@" ++ user.username ]
+    , img [ src "assets/profilepic.jpg", width 100 ] []
+    , p [] [ text user.name ]
     ]
 
 
