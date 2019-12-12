@@ -473,7 +473,7 @@ plural n sing plur =
 header : Model -> Html Msg
 header model =
     nav [ class "navbar navbar-light bg-light" ]
-        [ a [ class "navbar-brand pl-2", href "#" ] [ text "HTT 🔥" ]
+        [ a [ class "navbar-brand pl-2", href "/" ] [ text "HTT 🔥" ]
         , ul [ class "navbar-nav ml-auto", style "flex-direction" "row" ]
             (case model.page of
                 Home _ ->
