@@ -55,6 +55,7 @@ subscriptions model =
 type Route
     = HomeRoute
     | LoginRoute
+    | SignupRoute
     | NotFound
 
 
@@ -63,6 +64,7 @@ routeParser =
     Parser.oneOf
         [ Parser.map HomeRoute Parser.top
         , Parser.map LoginRoute (Parser.s "login")
+        , Parser.map SignupRoute (Parser.s "signup")
         ]
 
 
@@ -74,21 +76,6 @@ toRoute string =
 
         Just url ->
             Maybe.withDefault NotFound (Parser.parse routeParser url)
-
-
-
--- this is dumb. Remove asap
-
-
-homeUrl =
-    Browser.Internal
-        { protocol = Url.Http
-        , host = "0.0.0.0"
-        , port_ = Just 8000
-        , path = "/"
-        , query = Nothing
-        , fragment = Nothing
-        }
 
 
 
@@ -120,13 +107,19 @@ type alias LoginData =
     }
 
 
+type alias SignupData =
+    { name : String
+    , username : String
+    }
+
+
 type Page
     = Home HomeData
     | Login LoginData
+    | Signup SignupData
 
 
 
--- | Signup SignupData
 --  | Profile ProfileData
 
 
@@ -155,6 +148,9 @@ loginPage =
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     let
+        setTimeZone =
+            Task.perform AdjustTimeZone Time.here
+
         model =
             { page = homePage
             , user = Nothing --Just initUser
@@ -167,11 +163,16 @@ init flags url key =
     case toRoute <| Url.toString url of
         LoginRoute ->
             ( { model | page = loginPage }
-            , Task.perform AdjustTimeZone Time.here
+            , setTimeZone
+            )
+
+        SignupRoute ->
+            ( { model | page = Signup <| SignupData "" "" }
+            , setTimeZone
             )
 
         _ ->
-            ( model, Task.perform AdjustTimeZone Time.here )
+            ( model, setTimeZone )
 
 
 
@@ -188,6 +189,9 @@ type Msg
     | UrlChanged Url.Url
     | LoginButtonPressed
     | LogoutButtonPressed
+    | SignupButtonPressed
+    | SignupEditName String
+    | SignupEditUsername String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -232,6 +236,9 @@ handleUrlChange model url =
         LoginRoute ->
             ( { model | page = loginPage }, Cmd.none )
 
+        SignupRoute ->
+            ( { model | page = Signup <| SignupData "" "" }, Cmd.none )
+
         NotFound ->
             ( model, Cmd.none )
 
@@ -244,6 +251,40 @@ updatePage msg model =
 
         Login data ->
             updateLoginPage msg model data
+
+        Signup data ->
+            updateSignupPage msg model data
+
+
+updateSignupPage : Msg -> Model -> SignupData -> ( Model, Cmd Msg )
+updateSignupPage msg model data =
+    case msg of
+        SignupButtonPressed ->
+            if validateSignup data then
+                ( { model | user = Just data }
+                , Nav.pushUrl model.navKey "/"
+                )
+
+            else
+                ( model, Cmd.none )
+
+        SignupEditName newName ->
+            ( { model | page = Signup { data | name = newName } }
+            , Cmd.none
+            )
+
+        SignupEditUsername newUsername ->
+            ( { model | page = Signup { data | username = newUsername } }
+            , Cmd.none
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+validateSignup : SignupData -> Bool
+validateSignup data =
+    not (String.isEmpty data.name) && not (String.isEmpty data.username)
 
 
 updateLoginPage : Msg -> Model -> LoginData -> ( Model, Cmd Msg )
@@ -445,10 +486,13 @@ header model =
                             ]
 
                         Nothing ->
-                            [ navItem "Login" "login" "", navItem "Sign Up" "#" "" ]
+                            [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
 
                 Login _ ->
-                    [ navItem "Signup" "#" "" ]
+                    [ navItem "Sign Up" "signup" "" ]
+
+                Signup _ ->
+                    [ navItem "Login" "login" "" ]
             )
         ]
 
@@ -481,6 +525,23 @@ body model =
                 , div [] [ label [ for "password" ] [ text "Password " ] ]
                 , div [] [ input [ type_ "password", id "password" ] [] ]
                 , div [] [ button [ onClick LoginButtonPressed ] [ text "Continue" ] ]
+                ]
+
+        Signup data ->
+            div [ class "container" ]
+                [ h2 [] [ text "Create Account" ]
+                , p [] [ text "Feed us your data" ]
+                , div [] [ label [ for "name" ] [ text "Name" ] ]
+                , div [] [ input [ id "name", onInput SignupEditName ] [] ]
+                , div [] [ label [ for "username" ] [ text "Username" ] ]
+                , div [] [ input [ id "username", onInput SignupEditUsername ] [] ]
+                , div []
+                    [ button
+                        [ onClick SignupButtonPressed
+                        , disabled <| not <| validateSignup data
+                        ]
+                        [ text "Begin" ]
+                    ]
                 ]
 
 
