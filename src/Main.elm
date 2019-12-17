@@ -673,8 +673,15 @@ formatTime time zone =
         hour24 =
             Time.toHour zone time
 
-        hour =
+        hourTmp =
             String.fromInt (modBy 12 hour24)
+
+        hour =
+            if hourTmp == "0" then
+                "12"
+
+            else
+                hourTmp
 
         minute =
             Time.toMinute Time.utc time
