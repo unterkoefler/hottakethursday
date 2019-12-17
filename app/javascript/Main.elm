@@ -406,7 +406,7 @@ four04 time zone =
     in
     div [ class "container" ]
         [ h1 [] [ text ("Error (404): Site Unavaible on " ++ weekdayString) ]
-        , img [ width 300, height 300, src "../assets/404.jpg" ] []
+        , img [ width 300, height 300, src "/assets/404.jpg" ] []
         , p []
             [ text
                 ("Hi. Welcome to HotTakeThursday.com, where "
@@ -569,7 +569,7 @@ ads =
 
 
 fakeAd =
-    img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "../assets/trash-ad.jpg" ] []
+    img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "/assets/trash-ad.jpg" ] []
 
 
 content : Model -> List (Html Msg)
@@ -617,7 +617,7 @@ navPills page =
 aboutUser : User -> List (Html Msg)
 aboutUser user =
     [ h3 [] [ text <| "@" ++ user.username ]
-    , img [ src "assets/profilepic.jpg", width 100 ] []
+    , img [ src "/assets/profilepic.jpg", width 100 ] []
     , p [] [ text user.name ]
     ]
 
