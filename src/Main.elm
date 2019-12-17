@@ -9,7 +9,7 @@ import Task
 import Time
 import Url
 import Url.Builder exposing (absolute)
-import Url.Parser as Parser exposing (Parser, map, oneOf, parse, s, top)
+import Url.Parser as Parser exposing ((</>), Parser, map, oneOf, parse, s, top)
 
 
 
@@ -18,10 +18,6 @@ import Url.Parser as Parser exposing (Parser, map, oneOf, parse, s, top)
 
 debug =
     True
-
-
-
---    False
 
 
 thursday =
@@ -52,21 +48,40 @@ subscriptions model =
 -- ROUTES
 
 
+type HomeSection
+    = Hottest
+    | Coldest
+
+
+type ProfileSection
+    = YourTakes
+    | Following
+    | Followers
+    | Notifications
+    | Settings
+
+
 type Route
-    = HomeRoute
+    = HomeRoute HomeSection
     | LoginRoute
     | SignupRoute
-    | ProfileRoute
+    | ProfileRoute ProfileSection
     | NotFound
 
 
 routeParser : Parser.Parser (Route -> a) a
 routeParser =
     Parser.oneOf
-        [ Parser.map HomeRoute Parser.top
+        [ Parser.map (HomeRoute Hottest) Parser.top
+        , Parser.map (HomeRoute Hottest) (Parser.s "hottest")
+        , Parser.map (HomeRoute Coldest) (Parser.s "coldest")
         , Parser.map LoginRoute (Parser.s "login")
         , Parser.map SignupRoute (Parser.s "signup")
-        , Parser.map ProfileRoute (Parser.s "profile")
+        , Parser.map (ProfileRoute Following) (Parser.s "profile" </> Parser.s "following")
+        , Parser.map (ProfileRoute Followers) (Parser.s "profile" </> Parser.s "followers")
+        , Parser.map (ProfileRoute Notifications) (Parser.s "profile" </> Parser.s "notifications")
+        , Parser.map (ProfileRoute Settings) (Parser.s "profile" </> Parser.s "settings")
+        , Parser.map (ProfileRoute YourTakes) (Parser.s "profile")
         ]
 
 
@@ -116,10 +131,10 @@ type alias SignupData =
 
 
 type Page
-    = Home HomeData
+    = Home HomeSection HomeData
     | Login LoginData
     | Signup SignupData
-    | Profile User
+    | Profile ProfileSection User
 
 
 type alias Model =
@@ -137,7 +152,11 @@ george =
 
 
 homePage =
-    Home { takes = [], newTake = "" }
+    Home Hottest { takes = [], newTake = "" }
+
+
+homePageCold =
+    Home Coldest { takes = [], newTake = "" }
 
 
 loginPage =
@@ -229,8 +248,11 @@ update msg model =
 handleUrlChange : Model -> Url.Url -> ( Model, Cmd Msg )
 handleUrlChange model url =
     case toRoute <| Url.toString url of
-        HomeRoute ->
+        HomeRoute Hottest ->
             ( { model | page = homePage }, Cmd.none )
+
+        HomeRoute Coldest ->
+            ( { model | page = homePageCold }, Cmd.none )
 
         LoginRoute ->
             ( { model | page = loginPage }, Cmd.none )
@@ -238,10 +260,10 @@ handleUrlChange model url =
         SignupRoute ->
             ( { model | page = Signup <| SignupData "" "" }, Cmd.none )
 
-        ProfileRoute ->
+        ProfileRoute section ->
             case model.user of
                 Just user ->
-                    ( { model | page = Profile user }, Cmd.none )
+                    handleUrlChangeToProfile model section user
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -250,10 +272,15 @@ handleUrlChange model url =
             ( model, Cmd.none )
 
 
+handleUrlChangeToProfile : Model -> ProfileSection -> User -> ( Model, Cmd Msg )
+handleUrlChangeToProfile model section user =
+    ( { model | page = Profile section user }, Cmd.none )
+
+
 updatePage : Msg -> Model -> ( Model, Cmd Msg )
 updatePage msg model =
     case model.page of
-        Home data ->
+        Home _ data ->
             updateHomePage msg model data
 
         Login data ->
@@ -262,7 +289,7 @@ updatePage msg model =
         Signup data ->
             updateSignupPage msg model data
 
-        Profile _ ->
+        Profile _ _ ->
             ( model, Cmd.none )
 
 
@@ -332,7 +359,7 @@ updateHomePageSignedIn : Msg -> Model -> HomeData -> User -> ( Model, Cmd Msg )
 updateHomePageSignedIn msg model data user =
     case msg of
         EditNewTake newTake ->
-            ( { model | page = Home { data | newTake = newTake } }
+            ( { model | page = Home Hottest { data | newTake = newTake } }
             , Cmd.none
             )
 
@@ -347,7 +374,7 @@ updateHomePageSignedIn msg model data user =
                 takes =
                     newTake :: data.takes
             in
-            ( { model | page = Home { data | takes = takes, newTake = "" } }, Cmd.none )
+            ( { model | page = Home Hottest { data | takes = takes, newTake = "" } }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -486,7 +513,7 @@ header model =
         [ a [ class "navbar-brand pl-2", href "/" ] [ text "HTT 🔥" ]
         , ul [ class "navbar-nav ml-auto", style "flex-direction" "row" ]
             (case model.page of
-                Home _ ->
+                Home _ _ ->
                     case model.user of
                         Just user ->
                             [ navItem "🔔" "#" ""
@@ -504,7 +531,7 @@ header model =
                 Signup _ ->
                     [ navItem "Login" "login" "" ]
 
-                Profile _ ->
+                Profile _ _ ->
                     [ logoutButton, navItem "Delete Account" "" "" ]
             )
         ]
@@ -524,7 +551,7 @@ navItem txt link classes =
 body : Model -> Html Msg
 body model =
     case model.page of
-        Home _ ->
+        Home _ _ ->
             div [ class "row" ]
                 [ div [ class "col-3" ] ads
                 , div [ class "col-6" ] (content model)
@@ -557,7 +584,7 @@ body model =
                     ]
                 ]
 
-        Profile user ->
+        Profile _ user ->
             div [ class "row" ]
                 [ div [ class "col-3" ] (aboutUser user)
                 , div [ class "col-9" ] (content model)
@@ -578,7 +605,7 @@ content model =
         (navPills model.page)
     , div [ class "container" ]
         (case model.page of
-            Home data ->
+            Home Hottest data ->
                 case model.user of
                     Just user ->
                         [ compose user data.newTake
@@ -587,6 +614,9 @@ content model =
 
                     Nothing ->
                         [ feed data.takes model.zone ]
+
+            Home Coldest data ->
+                [ p [] [ text "Sorry, we don't have any cold takes here" ] ]
 
             _ ->
                 []
@@ -597,21 +627,35 @@ content model =
 navPills : Page -> List (Html Msg)
 navPills page =
     case page of
-        Home _ ->
-            [ navItem "Hottest" "#" "active"
-            , navItem "Coldest" "#" ""
+        Home Hottest _ ->
+            [ navItem "Hottest" "hottest" "active"
+            , navItem "Coldest" "coldest" ""
             ]
 
-        Profile _ ->
-            [ navItem "Your Takes" "#" "active"
-            , navItem "Following" "#" ""
-            , navItem "Followers" "#" ""
-            , navItem "Notifications" "#" ""
-            , navItem "Settings" "#" ""
+        Home Coldest _ ->
+            [ navItem "Hottest" "hottest" ""
+            , navItem "Coldest" "coldest" "active"
+            ]
+
+        Profile section _ ->
+            [ navItem "Your Takes" "/profile" (isActive YourTakes section)
+            , navItem "Following" "/profile/following" (isActive Following section)
+            , navItem "Followers" "/profile/followers" (isActive Followers section)
+            , navItem "Notifications" "/profile/notifications" (isActive Notifications section)
+            , navItem "Settings" "/profile/settings" (isActive Settings section)
             ]
 
         _ ->
             []
+
+
+isActive : ProfileSection -> ProfileSection -> String
+isActive thisSection currentSection =
+    if thisSection == currentSection then
+        "active"
+
+    else
+        ""
 
 
 aboutUser : User -> List (Html Msg)
