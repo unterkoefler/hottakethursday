@@ -664,27 +664,29 @@ fakeAd =
 
 loginBody : LoginData -> Html Msg
 loginBody data =
-    div [ class "container" ]
-        ([ div [] [ label [ for "email" ] [ text "Email " ] ]
-         , div [] [ input [ id "email", value data.email, onInput LoginEmailChanged ] [] ]
-         ]
-            ++ errorMessage .email data.errors
-            ++ [ div [] [ label [ for "password" ] [ text "Password " ] ]
-               , div []
-                    [ input
-                        [ type_ "password"
-                        , id "password"
-                        , value data.password
-                        , onInput LoginPasswordChanged
+    div [ id "loginBody" ]
+        [ div [ class "container form mx-auto" ]
+            ([ div [] [ label [ for "email" ] [ text "Email " ] ]
+             , div [] [ input [ id "email", value data.email, onInput LoginEmailChanged ] [] ]
+             ]
+                ++ errorMessage .email data.errors
+                ++ [ div [] [ label [ for "password" ] [ text "Password " ] ]
+                   , div []
+                        [ input
+                            [ type_ "password"
+                            , id "password"
+                            , value data.password
+                            , onInput LoginPasswordChanged
+                            ]
+                            []
                         ]
-                        []
-                    ]
-               ]
-            ++ errorMessage .password data.errors
-            ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
-               , div [] [ button [ onClick LoginButtonPressed ] [ text "Continue" ] ]
-               ]
-        )
+                   ]
+                ++ errorMessage .password data.errors
+                ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
+                   , div [] [ button [ onClick LoginButtonPressed ] [ text "Continue" ] ]
+                   ]
+            )
+        ]
 
 
 errorMessage : (LoginError -> Maybe String) -> Maybe LoginError -> List (Html Msg)
