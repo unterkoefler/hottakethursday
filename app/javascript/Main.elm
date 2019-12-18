@@ -64,6 +64,7 @@ type ProfileSection
 type Route
     = HomeRoute HomeSection
     | LoginRoute
+    | ForgotPasswordRoute
     | SignupRoute
     | ProfileRoute ProfileSection
     | NotFound
@@ -76,6 +77,7 @@ routeParser =
         , Parser.map (HomeRoute Hottest) (Parser.s "hottest")
         , Parser.map (HomeRoute Coldest) (Parser.s "coldest")
         , Parser.map LoginRoute (Parser.s "login")
+        , Parser.map ForgotPasswordRoute (Parser.s "forgot-password")
         , Parser.map SignupRoute (Parser.s "signup")
         , Parser.map (ProfileRoute Following) (Parser.s "profile" </> Parser.s "following")
         , Parser.map (ProfileRoute Followers) (Parser.s "profile" </> Parser.s "followers")
@@ -121,7 +123,12 @@ type alias HomeData =
 type alias LoginData =
     { email : String
     , password : String
+    , errors : Maybe LoginError
     }
+
+
+type alias LoginError =
+    { email : Maybe String, password : Maybe String }
 
 
 type alias SignupData =
@@ -133,6 +140,7 @@ type alias SignupData =
 type Page
     = Home HomeSection HomeData
     | Login LoginData
+    | ForgotPassword String
     | Signup SignupData
     | Profile ProfileSection User
 
@@ -160,7 +168,7 @@ homePageCold =
 
 
 loginPage =
-    Login <| LoginData "" ""
+    Login { email = "", password = "", errors = Nothing }
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -206,6 +214,8 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | LoginButtonPressed
+    | LoginEmailChanged String
+    | LoginPasswordChanged String
     | LogoutButtonPressed
     | SignupButtonPressed
     | SignupEditName String
@@ -257,6 +267,9 @@ handleUrlChange model url =
         LoginRoute ->
             ( { model | page = loginPage }, Cmd.none )
 
+        ForgotPasswordRoute ->
+            ( { model | page = ForgotPassword "yahoo@gmail.com" }, Cmd.none )
+
         SignupRoute ->
             ( { model | page = Signup <| SignupData "" "" }, Cmd.none )
 
@@ -285,6 +298,9 @@ updatePage msg model =
 
         Login data ->
             updateLoginPage msg model data
+
+        ForgotPassword _ ->
+            ( model, Cmd.none )
 
         Signup data ->
             updateSignupPage msg model data
@@ -328,21 +344,60 @@ updateLoginPage : Msg -> Model -> LoginData -> ( Model, Cmd Msg )
 updateLoginPage msg model data =
     case msg of
         LoginButtonPressed ->
-            if validateLogin data then
+            let
+                maybeError =
+                    validateLogin data
+            in
+            if maybeError == Nothing then
                 ( { model | user = Just george }
                 , Nav.pushUrl model.navKey "/"
                 )
 
             else
-                ( model, Cmd.none )
+                ( { model | page = Login { data | errors = maybeError } }, Cmd.none )
+
+        LoginEmailChanged newEmail ->
+            ( { model | page = Login { data | email = newEmail } }, Cmd.none )
+
+        LoginPasswordChanged newPassword ->
+            ( { model | page = Login { data | password = newPassword } }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
 
 
-validateLogin : LoginData -> Bool
-validateLogin _ =
-    True
+validateLogin : LoginData -> Maybe LoginError
+validateLogin data =
+    let
+        emailError =
+            validateEmail data.email
+
+        passwordError =
+            validatePassword data.password
+    in
+    if emailError == Nothing && passwordError == Nothing then
+        Nothing
+
+    else
+        Just { email = emailError, password = passwordError }
+
+
+validateEmail : String -> Maybe String
+validateEmail email =
+    if String.isEmpty email then
+        Just "Email cannot be empty"
+
+    else
+        Nothing
+
+
+validatePassword : String -> Maybe String
+validatePassword password =
+    if String.isEmpty password then
+        Just "Password must contain at least 1 character"
+
+    else
+        Nothing
 
 
 updateHomePage : Msg -> Model -> HomeData -> ( Model, Cmd Msg )
@@ -528,6 +583,9 @@ header model =
                 Login _ ->
                     [ navItem "Sign Up" "signup" "" ]
 
+                ForgotPassword _ ->
+                    [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
+
                 Signup _ ->
                     [ navItem "Login" "login" "" ]
 
@@ -559,12 +617,17 @@ body model =
                 ]
 
         Login data ->
-            div [ class "container" ]
-                [ div [] [ label [ for "email" ] [ text "Email " ] ]
-                , div [] [ input [ id "email" ] [] ]
-                , div [] [ label [ for "password" ] [ text "Password " ] ]
-                , div [] [ input [ type_ "password", id "password" ] [] ]
-                , div [] [ button [ onClick LoginButtonPressed ] [ text "Continue" ] ]
+            loginBody data
+
+        ForgotPassword email ->
+            p []
+                [ text <|
+                    "We've sent an email to "
+                        ++ email
+                        ++ " with a link to reset "
+                        ++ "your password. Remember to not "
+                        ++ "forget your password again! I like "
+                        ++ "to write mine on my forehead!"
                 ]
 
         Signup data ->
@@ -597,6 +660,46 @@ ads =
 
 fakeAd =
     img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "/assets/trash-ad.jpg" ] []
+
+
+loginBody : LoginData -> Html Msg
+loginBody data =
+    div [ class "container" ]
+        ([ div [] [ label [ for "email" ] [ text "Email " ] ]
+         , div [] [ input [ id "email", value data.email, onInput LoginEmailChanged ] [] ]
+         ]
+            ++ errorMessage .email data.errors
+            ++ [ div [] [ label [ for "password" ] [ text "Password " ] ]
+               , div []
+                    [ input
+                        [ type_ "password"
+                        , id "password"
+                        , value data.password
+                        , onInput LoginPasswordChanged
+                        ]
+                        []
+                    ]
+               ]
+            ++ errorMessage .password data.errors
+            ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
+               , div [] [ button [ onClick LoginButtonPressed ] [ text "Continue" ] ]
+               ]
+        )
+
+
+errorMessage : (LoginError -> Maybe String) -> Maybe LoginError -> List (Html Msg)
+errorMessage selector maybeError =
+    case maybeError of
+        Just data ->
+            case selector data of
+                Just msg ->
+                    [ div [] [ p [ class "text-danger" ] [ text msg ] ] ]
+
+                Nothing ->
+                    []
+
+        Nothing ->
+            []
 
 
 content : Model -> List (Html Msg)
