@@ -134,6 +134,7 @@ type alias LoginError =
 type alias SignupData =
     { name : String
     , username : String
+    , email : String
     }
 
 
@@ -193,7 +194,7 @@ init flags url key =
             )
 
         SignupRoute ->
-            ( { model | page = Signup <| SignupData "" "" }
+            ( { model | page = Signup <| SignupData "" "" "" }
             , setTimeZone
             )
 
@@ -220,6 +221,7 @@ type Msg
     | SignupButtonPressed
     | SignupEditName String
     | SignupEditUsername String
+    | SignupEditEmail String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -271,7 +273,7 @@ handleUrlChange model url =
             ( { model | page = ForgotPassword "yahoo@gmail.com" }, Cmd.none )
 
         SignupRoute ->
-            ( { model | page = Signup <| SignupData "" "" }, Cmd.none )
+            ( { model | page = Signup <| SignupData "" "" "" }, Cmd.none )
 
         ProfileRoute section ->
             case model.user of
@@ -314,7 +316,7 @@ updateSignupPage msg model data =
     case msg of
         SignupButtonPressed ->
             if validateSignup data then
-                ( { model | user = Just data }
+                ( { model | user = Just { name = data.name, username = data.username } }
                 , Nav.pushUrl model.navKey "/"
                 )
 
@@ -328,6 +330,11 @@ updateSignupPage msg model data =
 
         SignupEditUsername newUsername ->
             ( { model | page = Signup { data | username = newUsername } }
+            , Cmd.none
+            )
+
+        SignupEditEmail newEmail ->
+            ( { model | page = Signup { data | email = newEmail } }
             , Cmd.none
             )
 
@@ -384,8 +391,8 @@ validateLogin data =
 
 validateEmail : String -> Maybe String
 validateEmail email =
-    if String.isEmpty email then
-        Just "Email cannot be empty"
+    if email /= "lucas.g@husky.neu.edu" then
+        Just "Email not found"
 
     else
         Nothing
@@ -393,8 +400,8 @@ validateEmail email =
 
 validatePassword : String -> Maybe String
 validatePassword password =
-    if String.isEmpty password then
-        Just "Password must contain at least 1 character"
+    if password /= "password" then
+        Just "Incorrect password"
 
     else
         Nothing
@@ -631,21 +638,7 @@ body model =
                 ]
 
         Signup data ->
-            div [ class "container" ]
-                [ h2 [] [ text "Create Account" ]
-                , p [] [ text "Feed us your data" ]
-                , div [] [ label [ for "name" ] [ text "Name" ] ]
-                , div [] [ input [ id "name", onInput SignupEditName ] [] ]
-                , div [] [ label [ for "username" ] [ text "Username" ] ]
-                , div [] [ input [ id "username", onInput SignupEditUsername ] [] ]
-                , div []
-                    [ button
-                        [ onClick SignupButtonPressed
-                        , disabled <| not <| validateSignup data
-                        ]
-                        [ text "Begin" ]
-                    ]
-                ]
+            signupBody data
 
         Profile _ user ->
             div [ class "row" ]
@@ -666,27 +659,50 @@ loginBody : LoginData -> Html Msg
 loginBody data =
     div [ id "loginBody" ]
         [ div [ class "container form mx-auto" ]
-            ([ div [] [ label [ for "email" ] [ text "Email " ] ]
-             , div [] [ input [ id "email", value data.email, onInput LoginEmailChanged ] [] ]
-             ]
+            (inputWithLabel "email" "Email" data.email LoginEmailChanged
                 ++ errorMessage .email data.errors
-                ++ [ div [] [ label [ for "password" ] [ text "Password " ] ]
-                   , div []
-                        [ input
-                            [ type_ "password"
-                            , id "password"
-                            , value data.password
-                            , onInput LoginPasswordChanged
-                            ]
-                            []
-                        ]
-                   ]
+                ++ inputWithLabel "password" "Password" data.password LoginPasswordChanged
                 ++ errorMessage .password data.errors
                 ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
                    , div [] [ button [ onClick LoginButtonPressed ] [ text "Continue" ] ]
                    ]
             )
         ]
+
+
+signupBody : SignupData -> Html Msg
+signupBody data =
+    div [ class "container" ]
+        ([ h2 [] [ text "Create Account" ]
+         , p [] [ text "Feed us your data" ]
+         ]
+            ++ inputWithLabel "name" "Name" data.name SignupEditName
+            ++ inputWithLabel "username" "Username" data.username SignupEditUsername
+            ++ inputWithLabel "email" "Email" data.email SignupEditEmail
+            ++ [ div []
+                    [ button
+                        [ onClick SignupButtonPressed
+                        , disabled <| not <| validateSignup data
+                        ]
+                        [ text "Begin" ]
+                    ]
+               ]
+        )
+
+
+inputWithLabel : String -> String -> String -> (String -> Msg) -> List (Html Msg)
+inputWithLabel id_ text_ val msg =
+    let
+        type__ =
+            if id_ == "password" then
+                "password"
+
+            else
+                "input"
+    in
+    [ div [] [ label [ for id_ ] [ text text_ ] ]
+    , div [] [ input [ type_ type__, id id_, onInput msg, value val ] [] ]
+    ]
 
 
 errorMessage : (LoginError -> Maybe String) -> Maybe LoginError -> List (Html Msg)
