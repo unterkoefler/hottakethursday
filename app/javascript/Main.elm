@@ -135,6 +135,15 @@ type alias SignupData =
     { name : String
     , username : String
     , email : String
+    , birthday : String
+    }
+
+
+blankSignupData =
+    { name = ""
+    , username = ""
+    , email = ""
+    , birthday = ""
     }
 
 
@@ -194,7 +203,7 @@ init flags url key =
             )
 
         SignupRoute ->
-            ( { model | page = Signup <| SignupData "" "" "" }
+            ( { model | page = Signup blankSignupData }
             , setTimeZone
             )
 
@@ -222,6 +231,7 @@ type Msg
     | SignupEditName String
     | SignupEditUsername String
     | SignupEditEmail String
+    | SignupEditBirthday String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -273,7 +283,7 @@ handleUrlChange model url =
             ( { model | page = ForgotPassword "yahoo@gmail.com" }, Cmd.none )
 
         SignupRoute ->
-            ( { model | page = Signup <| SignupData "" "" "" }, Cmd.none )
+            ( { model | page = Signup blankSignupData }, Cmd.none )
 
         ProfileRoute section ->
             case model.user of
@@ -338,8 +348,56 @@ updateSignupPage msg model data =
             , Cmd.none
             )
 
+        SignupEditBirthday newBirthday ->
+            ( { model | page = Signup { data | birthday = handleBirthdayInput data.birthday newBirthday } }
+            , Cmd.none
+            )
+
         _ ->
             ( model, Cmd.none )
+
+
+handleBirthdayInput : String -> String -> String
+handleBirthdayInput prev new =
+    if String.length prev < String.length new then
+        if String.length new == 1 then
+            if new == "0" || new == "1" then
+                new
+
+            else
+                "0" ++ new ++ "/"
+
+        else if String.length new == 2 then
+            case String.toInt new of
+                Just _ ->
+                    new ++ "/"
+
+                Nothing ->
+                    new
+
+        else if String.right 2 new == "//" then
+            String.dropRight 1 new
+
+        else if String.length new == 5 then
+            case String.toInt <| String.right 2 new of
+                Just _ ->
+                    new ++ "/"
+
+                Nothing ->
+                    if
+                        (String.right 1 new == "/")
+                            && (String.toInt (String.slice 3 4 new) /= Nothing)
+                    then
+                        String.slice 0 3 new ++ "0" ++ String.slice 3 4 new ++ "/"
+
+                    else
+                        new
+
+        else
+            new
+
+    else
+        new
 
 
 validateSignup : SignupData -> Bool
@@ -679,6 +737,7 @@ signupBody data =
             ++ inputWithLabel "name" "Name" data.name SignupEditName
             ++ inputWithLabel "username" "Username" data.username SignupEditUsername
             ++ inputWithLabel "email" "Email" data.email SignupEditEmail
+            ++ inputWithLabel "bday" "Birthday (MM/DD/YYYY)" data.birthday SignupEditBirthday
             ++ [ div []
                     [ button
                         [ onClick SignupButtonPressed
