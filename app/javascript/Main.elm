@@ -64,6 +64,7 @@ type ProfileSection
 type Route
     = HomeRoute HomeSection
     | LoginRoute
+    | ForgotPasswordRoute
     | SignupRoute
     | ProfileRoute ProfileSection
     | NotFound
@@ -76,6 +77,7 @@ routeParser =
         , Parser.map (HomeRoute Hottest) (Parser.s "hottest")
         , Parser.map (HomeRoute Coldest) (Parser.s "coldest")
         , Parser.map LoginRoute (Parser.s "login")
+        , Parser.map ForgotPasswordRoute (Parser.s "forgot-password")
         , Parser.map SignupRoute (Parser.s "signup")
         , Parser.map (ProfileRoute Following) (Parser.s "profile" </> Parser.s "following")
         , Parser.map (ProfileRoute Followers) (Parser.s "profile" </> Parser.s "followers")
@@ -121,18 +123,34 @@ type alias HomeData =
 type alias LoginData =
     { email : String
     , password : String
+    , errors : Maybe LoginError
     }
+
+
+type alias LoginError =
+    { email : Maybe String, password : Maybe String }
 
 
 type alias SignupData =
     { name : String
     , username : String
+    , email : String
+    , birthday : String
+    }
+
+
+blankSignupData =
+    { name = ""
+    , username = ""
+    , email = ""
+    , birthday = ""
     }
 
 
 type Page
     = Home HomeSection HomeData
     | Login LoginData
+    | ForgotPassword String
     | Signup SignupData
     | Profile ProfileSection User
 
@@ -160,7 +178,7 @@ homePageCold =
 
 
 loginPage =
-    Login <| LoginData "" ""
+    Login { email = "", password = "", errors = Nothing }
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -185,7 +203,7 @@ init flags url key =
             )
 
         SignupRoute ->
-            ( { model | page = Signup <| SignupData "" "" }
+            ( { model | page = Signup blankSignupData }
             , setTimeZone
             )
 
@@ -206,10 +224,14 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | LoginButtonPressed
+    | LoginEmailChanged String
+    | LoginPasswordChanged String
     | LogoutButtonPressed
     | SignupButtonPressed
     | SignupEditName String
     | SignupEditUsername String
+    | SignupEditEmail String
+    | SignupEditBirthday String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -257,8 +279,11 @@ handleUrlChange model url =
         LoginRoute ->
             ( { model | page = loginPage }, Cmd.none )
 
+        ForgotPasswordRoute ->
+            ( { model | page = ForgotPassword "yahoo@gmail.com" }, Cmd.none )
+
         SignupRoute ->
-            ( { model | page = Signup <| SignupData "" "" }, Cmd.none )
+            ( { model | page = Signup blankSignupData }, Cmd.none )
 
         ProfileRoute section ->
             case model.user of
@@ -286,6 +311,9 @@ updatePage msg model =
         Login data ->
             updateLoginPage msg model data
 
+        ForgotPassword _ ->
+            ( model, Cmd.none )
+
         Signup data ->
             updateSignupPage msg model data
 
@@ -298,7 +326,7 @@ updateSignupPage msg model data =
     case msg of
         SignupButtonPressed ->
             if validateSignup data then
-                ( { model | user = Just data }
+                ( { model | user = Just { name = data.name, username = data.username } }
                 , Nav.pushUrl model.navKey "/"
                 )
 
@@ -315,8 +343,61 @@ updateSignupPage msg model data =
             , Cmd.none
             )
 
+        SignupEditEmail newEmail ->
+            ( { model | page = Signup { data | email = newEmail } }
+            , Cmd.none
+            )
+
+        SignupEditBirthday newBirthday ->
+            ( { model | page = Signup { data | birthday = handleBirthdayInput data.birthday newBirthday } }
+            , Cmd.none
+            )
+
         _ ->
             ( model, Cmd.none )
+
+
+handleBirthdayInput : String -> String -> String
+handleBirthdayInput prev new =
+    if String.length prev < String.length new then
+        if String.length new == 1 then
+            if new == "0" || new == "1" then
+                new
+
+            else
+                "0" ++ new ++ "/"
+
+        else if String.length new == 2 then
+            case String.toInt new of
+                Just _ ->
+                    new ++ "/"
+
+                Nothing ->
+                    new
+
+        else if String.right 2 new == "//" then
+            String.dropRight 1 new
+
+        else if String.length new == 5 then
+            case String.toInt <| String.right 2 new of
+                Just _ ->
+                    new ++ "/"
+
+                Nothing ->
+                    if
+                        (String.right 1 new == "/")
+                            && (String.toInt (String.slice 3 4 new) /= Nothing)
+                    then
+                        String.slice 0 3 new ++ "0" ++ String.slice 3 4 new ++ "/"
+
+                    else
+                        new
+
+        else
+            new
+
+    else
+        new
 
 
 validateSignup : SignupData -> Bool
@@ -328,21 +409,60 @@ updateLoginPage : Msg -> Model -> LoginData -> ( Model, Cmd Msg )
 updateLoginPage msg model data =
     case msg of
         LoginButtonPressed ->
-            if validateLogin data then
+            let
+                maybeError =
+                    validateLogin data
+            in
+            if maybeError == Nothing then
                 ( { model | user = Just george }
                 , Nav.pushUrl model.navKey "/"
                 )
 
             else
-                ( model, Cmd.none )
+                ( { model | page = Login { data | errors = maybeError } }, Cmd.none )
+
+        LoginEmailChanged newEmail ->
+            ( { model | page = Login { data | email = newEmail } }, Cmd.none )
+
+        LoginPasswordChanged newPassword ->
+            ( { model | page = Login { data | password = newPassword } }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
 
 
-validateLogin : LoginData -> Bool
-validateLogin _ =
-    True
+validateLogin : LoginData -> Maybe LoginError
+validateLogin data =
+    let
+        emailError =
+            validateEmail data.email
+
+        passwordError =
+            validatePassword data.password
+    in
+    if emailError == Nothing && passwordError == Nothing then
+        Nothing
+
+    else
+        Just { email = emailError, password = passwordError }
+
+
+validateEmail : String -> Maybe String
+validateEmail email =
+    if email /= "lucas.g@husky.neu.edu" then
+        Just "Email not found"
+
+    else
+        Nothing
+
+
+validatePassword : String -> Maybe String
+validatePassword password =
+    if password /= "password" then
+        Just "Incorrect password"
+
+    else
+        Nothing
 
 
 updateHomePage : Msg -> Model -> HomeData -> ( Model, Cmd Msg )
@@ -528,6 +648,9 @@ header model =
                 Login _ ->
                     [ navItem "Sign Up" "signup" "" ]
 
+                ForgotPassword _ ->
+                    [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
+
                 Signup _ ->
                     [ navItem "Login" "login" "" ]
 
@@ -559,30 +682,21 @@ body model =
                 ]
 
         Login data ->
-            div [ class "container" ]
-                [ div [] [ label [ for "email" ] [ text "Email " ] ]
-                , div [] [ input [ id "email" ] [] ]
-                , div [] [ label [ for "password" ] [ text "Password " ] ]
-                , div [] [ input [ type_ "password", id "password" ] [] ]
-                , div [] [ button [ onClick LoginButtonPressed ] [ text "Continue" ] ]
+            loginBody data
+
+        ForgotPassword email ->
+            p []
+                [ text <|
+                    "We've sent an email to "
+                        ++ email
+                        ++ " with a link to reset "
+                        ++ "your password. Remember to not "
+                        ++ "forget your password again! I like "
+                        ++ "to write mine on my forehead!"
                 ]
 
         Signup data ->
-            div [ class "container" ]
-                [ h2 [] [ text "Create Account" ]
-                , p [] [ text "Feed us your data" ]
-                , div [] [ label [ for "name" ] [ text "Name" ] ]
-                , div [] [ input [ id "name", onInput SignupEditName ] [] ]
-                , div [] [ label [ for "username" ] [ text "Username" ] ]
-                , div [] [ input [ id "username", onInput SignupEditUsername ] [] ]
-                , div []
-                    [ button
-                        [ onClick SignupButtonPressed
-                        , disabled <| not <| validateSignup data
-                        ]
-                        [ text "Begin" ]
-                    ]
-                ]
+            signupBody data
 
         Profile _ user ->
             div [ class "row" ]
@@ -597,6 +711,72 @@ ads =
 
 fakeAd =
     img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "/assets/trash-ad.jpg" ] []
+
+
+loginBody : LoginData -> Html Msg
+loginBody data =
+    div [ id "loginBody" ]
+        [ div [ class "container form mx-auto" ]
+            (inputWithLabel "email" "Email" data.email LoginEmailChanged
+                ++ errorMessage .email data.errors
+                ++ inputWithLabel "password" "Password" data.password LoginPasswordChanged
+                ++ errorMessage .password data.errors
+                ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
+                   , div [] [ button [ onClick LoginButtonPressed ] [ text "Continue" ] ]
+                   ]
+            )
+        ]
+
+
+signupBody : SignupData -> Html Msg
+signupBody data =
+    div [ class "container" ]
+        ([ h2 [] [ text "Create Account" ]
+         , p [] [ text "Feed us your data" ]
+         ]
+            ++ inputWithLabel "name" "Name" data.name SignupEditName
+            ++ inputWithLabel "username" "Username" data.username SignupEditUsername
+            ++ inputWithLabel "email" "Email" data.email SignupEditEmail
+            ++ inputWithLabel "bday" "Birthday (MM/DD/YYYY)" data.birthday SignupEditBirthday
+            ++ [ div []
+                    [ button
+                        [ onClick SignupButtonPressed
+                        , disabled <| not <| validateSignup data
+                        ]
+                        [ text "Begin" ]
+                    ]
+               ]
+        )
+
+
+inputWithLabel : String -> String -> String -> (String -> Msg) -> List (Html Msg)
+inputWithLabel id_ text_ val msg =
+    let
+        type__ =
+            if id_ == "password" then
+                "password"
+
+            else
+                "input"
+    in
+    [ div [] [ label [ for id_ ] [ text text_ ] ]
+    , div [] [ input [ type_ type__, id id_, onInput msg, value val ] [] ]
+    ]
+
+
+errorMessage : (LoginError -> Maybe String) -> Maybe LoginError -> List (Html Msg)
+errorMessage selector maybeError =
+    case maybeError of
+        Just data ->
+            case selector data of
+                Just msg ->
+                    [ div [] [ p [ class "text-danger" ] [ text msg ] ] ]
+
+                Nothing ->
+                    []
+
+        Nothing ->
+            []
 
 
 content : Model -> List (Html Msg)
