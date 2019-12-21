@@ -1,9 +1,14 @@
 class RegistrationsController < Devise::RegistrationsController
+  protect_from_forgery with: :null_session
   respond_to :json
 
   def create
-    build_resource(sign_up_params)
+    #user = User.create(email: params['email'], password: params['password'])
+    #user.save
+    #render_resource user
 
+    # This code _should_ work, but it doesn't
+    build_resource(sign_up_params)
     resource.save
     render_resource(resource)
   end
