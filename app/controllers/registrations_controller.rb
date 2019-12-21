@@ -3,14 +3,15 @@ class RegistrationsController < Devise::RegistrationsController
   respond_to :json
 
   def create
-    #user = User.create(email: params['email'], password: params['password'])
-    #user.save
-    #render_resource user
-
-    # This code _should_ work, but it doesn't
     build_resource(sign_up_params)
     resource.save
     render_resource(resource)
+  end
+
+  before_action :configure_sign_up_params, only: [:create]
+
+  def configure_sign_up_params
+    devise_parameter_sanitizer.permit(:sign_up, keys: %i[email password])
   end
 
   private
