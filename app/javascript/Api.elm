@@ -135,3 +135,23 @@ signOut (BearerToken token) onFinish =
                 }
     in
     httpRequest
+
+
+me : UserAuth -> (Result Http.Error User.User -> msg) -> Cmd msg
+me (BearerToken token) onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "users", "me" ]) []
+
+        httpRequest =
+            Http.request
+                { method = "Get"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.emptyBody
+                , expect = Http.expectJson onFinish User.decoder
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+    in
+    httpRequest
