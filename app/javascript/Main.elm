@@ -12,7 +12,7 @@ import Task
 import Time
 import Url
 import Url.Builder exposing (absolute)
-import Url.Parser as Parser exposing ((</>), Parser, map, oneOf, parse, s, top)
+import Url.Parser as Parser exposing ((</>), Parser, fragment, map, oneOf, parse, s, top)
 
 
 
@@ -76,18 +76,50 @@ type Route
 routeParser : Parser.Parser (Route -> a) a
 routeParser =
     Parser.oneOf
-        [ Parser.map (HomeRoute Hottest) Parser.top
-        , Parser.map (HomeRoute Hottest) (Parser.s "hottest")
-        , Parser.map (HomeRoute Coldest) (Parser.s "coldest")
+        [ Parser.map HomeRoute (Parser.fragment toHomeSection)
         , Parser.map LoginRoute (Parser.s "login")
         , Parser.map ForgotPasswordRoute (Parser.s "forgot-password")
         , Parser.map SignupRoute (Parser.s "signup")
-        , Parser.map (ProfileRoute Following) (Parser.s "profile" </> Parser.s "following")
-        , Parser.map (ProfileRoute Followers) (Parser.s "profile" </> Parser.s "followers")
-        , Parser.map (ProfileRoute Notifications) (Parser.s "profile" </> Parser.s "notifications")
-        , Parser.map (ProfileRoute Settings) (Parser.s "profile" </> Parser.s "settings")
-        , Parser.map (ProfileRoute YourTakes) (Parser.s "profile")
+        , Parser.map ProfileRoute (Parser.s "profile" </> Parser.fragment toProfileSection)
         ]
+
+
+toHomeSection : Maybe String -> HomeSection
+toHomeSection frag =
+    case frag of
+        Just "hottest" ->
+            Hottest
+
+        Just "coldest" ->
+            Coldest
+
+        Just str ->
+            Hottest
+
+        Nothing ->
+            Hottest
+
+
+toProfileSection : Maybe String -> ProfileSection
+toProfileSection frag =
+    case frag of
+        Just "following" ->
+            Following
+
+        Just "followers" ->
+            Followers
+
+        Just "notifications" ->
+            Notifications
+
+        Just "settings" ->
+            Settings
+
+        Just str ->
+            YourTakes
+
+        Nothing ->
+            YourTakes
 
 
 toRoute : String -> Route
@@ -614,7 +646,7 @@ header model =
                 Home _ _ ->
                     case model.profile of
                         Just { user } ->
-                            [ navItem "🔔" "#" ""
+                            [ navItem "🔔" "profile#notifications" ""
                             , navItem "Profile" "profile" ""
                             , logoutButton
                             , navItem "Delete Account" "#" ""
@@ -776,21 +808,21 @@ navPills : Page -> List (Html Msg)
 navPills page =
     case page of
         Home Hottest _ ->
-            [ navItem "Hottest" "hottest" "active"
-            , navItem "Coldest" "coldest" ""
+            [ navItem "Hottest" "#hottest" "active"
+            , navItem "Coldest" "#coldest" ""
             ]
 
         Home Coldest _ ->
-            [ navItem "Hottest" "hottest" ""
-            , navItem "Coldest" "coldest" "active"
+            [ navItem "Hottest" "#hottest" ""
+            , navItem "Coldest" "#coldest" "active"
             ]
 
         Profile section _ ->
             [ navItem "Your Takes" "/profile" (isActive YourTakes section)
-            , navItem "Following" "/profile/following" (isActive Following section)
-            , navItem "Followers" "/profile/followers" (isActive Followers section)
-            , navItem "Notifications" "/profile/notifications" (isActive Notifications section)
-            , navItem "Settings" "/profile/settings" (isActive Settings section)
+            , navItem "Following" "/profile#following" (isActive Following section)
+            , navItem "Followers" "/profile#followers" (isActive Followers section)
+            , navItem "Notifications" "/profile#notifications" (isActive Notifications section)
+            , navItem "Settings" "/profile#settings" (isActive Settings section)
             ]
 
         _ ->
