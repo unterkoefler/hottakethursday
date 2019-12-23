@@ -1,10 +1,13 @@
 module Main exposing (..)
 
+import Api
 import Browser
 import Browser.Navigation as Nav
+import Data.User as User exposing (User)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
+import Http
 import Task
 import Time
 import Url
@@ -101,12 +104,6 @@ toRoute string =
 -- MODEL
 
 
-type alias User =
-    { name : String
-    , username : String
-    }
-
-
 type alias Take =
     { content : String
     , postedBy : User
@@ -123,12 +120,12 @@ type alias HomeData =
 type alias LoginData =
     { email : String
     , password : String
-    , errors : Maybe LoginError
+    , previousInvalidAttempt : Bool
     }
 
 
-type alias LoginError =
-    { email : Maybe String, password : Maybe String }
+type LoginError
+    = InvalidUsernameOrPassword
 
 
 type alias SignupData =
@@ -157,7 +154,7 @@ type Page
 
 type alias Model =
     { page : Page
-    , user : Maybe User
+    , profile : Maybe { user : User, auth : Api.UserAuth }
     , time : Time.Posix
     , zone : Time.Zone
     , url : Url.Url
@@ -166,7 +163,7 @@ type alias Model =
 
 
 george =
-    { name = "George Lucas", username = "starwars4lyfe" }
+    { id = 3, username = "starwars4lyfe" }
 
 
 homePage =
@@ -178,7 +175,7 @@ homePageCold =
 
 
 loginPage =
-    Login { email = "", password = "", errors = Nothing }
+    Login { email = "", password = "", previousInvalidAttempt = False }
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -189,7 +186,7 @@ init flags url key =
 
         model =
             { page = homePage
-            , user = Nothing
+            , profile = Nothing
             , time = Time.millisToPosix 0
             , zone = Time.utc
             , url = url
@@ -226,12 +223,15 @@ type Msg
     | LoginButtonPressed
     | LoginEmailChanged String
     | LoginPasswordChanged String
+    | LoginAttemptCompleted (Result Api.SignInError { user : User.User, auth : Api.UserAuth })
     | LogoutButtonPressed
+    | LogoutRequestHandled (Result Http.Error ())
     | SignupButtonPressed
     | SignupEditName String
     | SignupEditUsername String
     | SignupEditEmail String
     | SignupEditBirthday String
+    | NoOp
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -259,9 +259,17 @@ update msg model =
             handleUrlChange model url
 
         LogoutButtonPressed ->
-            ( { model | user = Nothing }
-            , Nav.pushUrl model.navKey "/"
+            ( model
+            , case model.profile of
+                Just { auth } ->
+                    Api.signOut auth LogoutRequestHandled
+
+                Nothing ->
+                    Cmd.none
             )
+
+        LogoutRequestHandled (Ok _) ->
+            ( { model | profile = Nothing }, Nav.pushUrl model.navKey "/" )
 
         _ ->
             updatePage msg model
@@ -286,8 +294,8 @@ handleUrlChange model url =
             ( { model | page = Signup blankSignupData }, Cmd.none )
 
         ProfileRoute section ->
-            case model.user of
-                Just user ->
+            case model.profile of
+                Just { user } ->
                     handleUrlChangeToProfile model section user
 
                 Nothing ->
@@ -326,9 +334,8 @@ updateSignupPage msg model data =
     case msg of
         SignupButtonPressed ->
             if validateSignup data then
-                ( { model | user = Just { name = data.name, username = data.username } }
-                , Nav.pushUrl model.navKey "/"
-                )
+                ( model, Cmd.none )
+                -- TODO: Fix this so that a sign up actually does something
 
             else
                 ( model, Cmd.none )
@@ -409,17 +416,13 @@ updateLoginPage : Msg -> Model -> LoginData -> ( Model, Cmd Msg )
 updateLoginPage msg model data =
     case msg of
         LoginButtonPressed ->
-            let
-                maybeError =
-                    validateLogin data
-            in
-            if maybeError == Nothing then
-                ( { model | user = Just george }
-                , Nav.pushUrl model.navKey "/"
+            if data.email /= "" && data.password /= "" then
+                ( model
+                , Api.signIn data LoginAttemptCompleted
                 )
 
             else
-                ( { model | page = Login { data | errors = maybeError } }, Cmd.none )
+                ( { model | page = Login { data | previousInvalidAttempt = True } }, Cmd.none )
 
         LoginEmailChanged newEmail ->
             ( { model | page = Login { data | email = newEmail } }, Cmd.none )
@@ -427,48 +430,23 @@ updateLoginPage msg model data =
         LoginPasswordChanged newPassword ->
             ( { model | page = Login { data | password = newPassword } }, Cmd.none )
 
+        LoginAttemptCompleted (Ok profile) ->
+            ( { model | profile = Just profile }
+            , Nav.pushUrl model.navKey "/"
+            )
+
+        LoginAttemptCompleted (Err _) ->
+            -- TODO Determine based on error whether it was actually invalid creds
+            ( { model | page = Login { data | previousInvalidAttempt = True } }, Cmd.none )
+
         _ ->
             ( model, Cmd.none )
 
 
-validateLogin : LoginData -> Maybe LoginError
-validateLogin data =
-    let
-        emailError =
-            validateEmail data.email
-
-        passwordError =
-            validatePassword data.password
-    in
-    if emailError == Nothing && passwordError == Nothing then
-        Nothing
-
-    else
-        Just { email = emailError, password = passwordError }
-
-
-validateEmail : String -> Maybe String
-validateEmail email =
-    if email /= "lucas.g@husky.neu.edu" then
-        Just "Email not found"
-
-    else
-        Nothing
-
-
-validatePassword : String -> Maybe String
-validatePassword password =
-    if password /= "password" then
-        Just "Incorrect password"
-
-    else
-        Nothing
-
-
 updateHomePage : Msg -> Model -> HomeData -> ( Model, Cmd Msg )
 updateHomePage msg model data =
-    case model.user of
-        Just user ->
+    case model.profile of
+        Just { user } ->
             updateHomePageSignedIn msg model data user
 
         Nothing ->
@@ -634,8 +612,8 @@ header model =
         , ul [ class "navbar-nav ml-auto", style "flex-direction" "row" ]
             (case model.page of
                 Home _ _ ->
-                    case model.user of
-                        Just user ->
+                    case model.profile of
+                        Just { user } ->
                             [ navItem "🔔" "#" ""
                             , navItem "Profile" "profile" ""
                             , logoutButton
@@ -718,12 +696,17 @@ loginBody data =
     div [ id "loginBody" ]
         [ div [ class "container form mx-auto" ]
             (inputWithLabel "email" "Email" data.email LoginEmailChanged
-                ++ errorMessage .email data.errors
                 ++ inputWithLabel "password" "Password" data.password LoginPasswordChanged
-                ++ errorMessage .password data.errors
                 ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
                    , div [] [ button [ onClick LoginButtonPressed ] [ text "Continue" ] ]
                    ]
+                ++ (case data.previousInvalidAttempt of
+                        True ->
+                            [ div [] [ p [ class "text-danger" ] [ text "Invalid Username or Password" ] ] ]
+
+                        False ->
+                            []
+                   )
             )
         ]
 
@@ -764,21 +747,6 @@ inputWithLabel id_ text_ val msg =
     ]
 
 
-errorMessage : (LoginError -> Maybe String) -> Maybe LoginError -> List (Html Msg)
-errorMessage selector maybeError =
-    case maybeError of
-        Just data ->
-            case selector data of
-                Just msg ->
-                    [ div [] [ p [ class "text-danger" ] [ text msg ] ] ]
-
-                Nothing ->
-                    []
-
-        Nothing ->
-            []
-
-
 content : Model -> List (Html Msg)
 content model =
     [ ul [ class "nav nav-tabs mb-3 mt-2" ]
@@ -786,8 +754,8 @@ content model =
     , div [ class "container" ]
         (case model.page of
             Home Hottest data ->
-                case model.user of
-                    Just user ->
+                case model.profile of
+                    Just { user } ->
                         [ compose user data.newTake
                         , feed data.takes model.zone
                         ]
@@ -842,7 +810,7 @@ aboutUser : User -> List (Html Msg)
 aboutUser user =
     [ h3 [] [ text <| "@" ++ user.username ]
     , img [ src "/assets/profilepic.jpg", width 100 ] []
-    , p [] [ text user.name ]
+    , p [] [ text user.username ]
     ]
 
 
@@ -851,7 +819,7 @@ compose user newTake =
     div []
         [ div []
             [ input
-                [ placeholder ("Hi " ++ user.name ++ ". What's your hottest take?")
+                [ placeholder ("Hi " ++ user.username ++ ". What's your hottest take?")
                 , value newTake
                 , onInput EditNewTake
                 , class "w-100"
