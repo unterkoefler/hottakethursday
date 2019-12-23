@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import Api
 import Browser
 import Browser.Navigation as Nav
 import Html exposing (..)
@@ -208,7 +209,7 @@ init flags url key =
             )
 
         _ ->
-            ( model, setTimeZone )
+            ( model, Cmd.batch [ setTimeZone, Api.signIn { email = "adsaa@faff.com", password = "1dd23d4" } SignInAttemptCompleted ] )
 
 
 
@@ -232,6 +233,7 @@ type Msg
     | SignupEditUsername String
     | SignupEditEmail String
     | SignupEditBirthday String
+    | SignInAttemptCompleted (Result Api.SignInError Api.UserAuth)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )

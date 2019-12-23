@@ -1,10 +1,9 @@
 module Api exposing (LoginInfo, RegistrationInfo, SignInError(..), UserAuth, signIn, signUp)
 
+import Debug
 import Dict
 import Http
 import Json.Encode
-import Jwt
-import Result.Extra
 import Url.Builder
 
 
@@ -56,22 +55,6 @@ signUp registrationInfo onFinish =
 type SignInError
     = HttpError Http.Error
     | NoAuthToken
-    | MalformedAuthToken
-
-
-validBearerToken : String -> Bool
-validBearerToken bearerToken =
-    let
-        bearerPrefix =
-            "Bearer "
-
-        startsWithBearer =
-            String.startsWith bearerPrefix bearerToken
-
-        validJwt =
-            Result.Extra.isOk <| Jwt.getTokenHeader (String.dropLeft (String.length bearerPrefix) bearerToken)
-    in
-    startsWithBearer && validJwt
 
 
 expectAuthHeader : (Result SignInError UserAuth -> msg) -> Http.Expect msg
@@ -92,13 +75,9 @@ expectAuthHeader toMsg =
                     Err (HttpError <| Http.BadStatus metadata.statusCode)
 
                 Http.GoodStatus_ metadata _ ->
-                    case Dict.get "Authorization" metadata.headers of
+                    case Dict.get "authorization" metadata.headers of
                         Just auth ->
-                            if validBearerToken auth then
-                                Ok (BearerToken auth)
-
-                            else
-                                Err MalformedAuthToken
+                            Ok (BearerToken auth)
 
                         Nothing ->
                             Err NoAuthToken
