@@ -1,8 +1,10 @@
-module Api exposing (LoginInfo, RegistrationInfo, SignInError(..), UserAuth, signIn, signUp)
+module Api exposing (LoginInfo, RegistrationInfo, SignInError(..), UserAuth, signIn, signOut, signUp)
 
+import Data.User as User
 import Debug
 import Dict
 import Http
+import Json.Decode
 import Json.Encode
 import Url.Builder
 
@@ -54,10 +56,11 @@ signUp registrationInfo onFinish =
 
 type SignInError
     = HttpError Http.Error
+    | InvalidUserReturned Json.Decode.Error
     | NoAuthToken
 
 
-expectAuthHeader : (Result SignInError UserAuth -> msg) -> Http.Expect msg
+expectAuthHeader : (Result SignInError { user : User.User, auth : UserAuth } -> msg) -> Http.Expect msg
 expectAuthHeader toMsg =
     Http.expectStringResponse toMsg <|
         \response ->
@@ -74,16 +77,21 @@ expectAuthHeader toMsg =
                 Http.BadStatus_ metadata _ ->
                     Err (HttpError <| Http.BadStatus metadata.statusCode)
 
-                Http.GoodStatus_ metadata _ ->
+                Http.GoodStatus_ metadata body ->
                     case Dict.get "authorization" metadata.headers of
                         Just auth ->
-                            Ok (BearerToken auth)
+                            case Json.Decode.decodeString User.decoder body of
+                                Err err ->
+                                    Err (InvalidUserReturned err)
+
+                                Ok user ->
+                                    Ok { user = user, auth = BearerToken auth }
 
                         Nothing ->
                             Err NoAuthToken
 
 
-signIn : LoginInfo a -> (Result SignInError UserAuth -> msg) -> Cmd msg
+signIn : LoginInfo a -> (Result SignInError { user : User.User, auth : UserAuth } -> msg) -> Cmd msg
 signIn loginInfo onFinish =
     let
         url =
@@ -104,6 +112,26 @@ signIn loginInfo onFinish =
                 { url = url
                 , body = Http.jsonBody json
                 , expect = expectAuthHeader onFinish
+                }
+    in
+    httpRequest
+
+
+signOut : UserAuth -> (Result Http.Error () -> msg) -> Cmd msg
+signOut (BearerToken token) onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "users", "sign_out" ]) []
+
+        httpRequest =
+            Http.request
+                { method = "DELETE"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.emptyBody
+                , expect = Http.expectWhatever onFinish
+                , timeout = Nothing
+                , tracker = Nothing
                 }
     in
     httpRequest
