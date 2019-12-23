@@ -22,3 +22,19 @@
   background-color: #ffffffd1;
 }
 
+
+.fire-button {
+    background-image: url("/assets/fire.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    border-style: none;
+
+
+}
+
+.fire-button-transparent {
+    background-image: url("/assets/fire-transparent.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    border-style: none;
+}

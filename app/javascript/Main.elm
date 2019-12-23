@@ -140,6 +140,7 @@ type alias Take =
     { content : String
     , postedBy : User
     , timePosted : Time.Posix
+    , likedBy : List User
     }
 
 
@@ -198,8 +199,16 @@ george =
     { id = 3, username = "starwars4lyfe" }
 
 
+take1 =
+    { content = "Birds are not real"
+    , postedBy = george
+    , timePosted = Time.millisToPosix 10000
+    , likedBy = []
+    }
+
+
 homePage =
-    Home Hottest { takes = [], newTake = "" }
+    Home Hottest { takes = [ take1 ], newTake = "" }
 
 
 homePageCold =
@@ -263,6 +272,7 @@ type Msg
     | SignupEditUsername String
     | SignupEditEmail String
     | SignupEditBirthday String
+    | FireButtonPressed Take
     | NoOp
 
 
@@ -506,8 +516,25 @@ updateHomePageSignedIn msg model data user =
             in
             ( { model | page = Home Hottest { data | takes = takes, newTake = "" } }, Cmd.none )
 
+        FireButtonPressed take ->
+            ( { model | page = Home Hottest (handleFireButtonPress take data user) }, Cmd.none )
+
         _ ->
             ( model, Cmd.none )
+
+
+handleFireButtonPress : Take -> HomeData -> User -> HomeData
+handleFireButtonPress take data user =
+    { data | takes = List.map (\tk -> updateTakeIfEqual tk take user) data.takes }
+
+
+updateTakeIfEqual : Take -> Take -> User -> Take
+updateTakeIfEqual takeA takeB user =
+    if takeA == takeB then
+        { takeA | likedBy = user :: takeA.likedBy }
+
+    else
+        takeA
 
 
 createNewTake : String -> User -> Time.Posix -> Take
@@ -515,6 +542,7 @@ createNewTake newTake user time =
     { content = newTake
     , postedBy = user
     , timePosted = time
+    , likedBy = []
     }
 
 
@@ -783,17 +811,17 @@ content : Model -> List (Html Msg)
 content model =
     [ ul [ class "nav nav-tabs mb-3 mt-2" ]
         (navPills model.page)
-    , div [ class "container" ]
+    , div [ class "container px-0" ]
         (case model.page of
             Home Hottest data ->
                 case model.profile of
                     Just { user } ->
                         [ compose user data.newTake
-                        , feed data.takes model.zone
+                        , feed data.takes model.zone (Just user)
                         ]
 
                     Nothing ->
-                        [ feed data.takes model.zone ]
+                        [ feed data.takes model.zone Nothing ]
 
             Home Coldest data ->
                 [ p [] [ text "Sorry, we don't have any cold takes here" ] ]
@@ -848,7 +876,10 @@ aboutUser user =
 
 compose : User -> String -> Html Msg
 compose user newTake =
-    div []
+    div
+        [ style "padding-left" "15px"
+        , style "padding-right" "15px"
+        ]
         [ div []
             [ input
                 [ placeholder ("Hi " ++ user.username ++ ". What's your hottest take?")
@@ -868,24 +899,43 @@ compose user newTake =
         ]
 
 
-feed : List Take -> Time.Zone -> Html Msg
-feed takes zone =
-    ul [] (List.map (\take -> viewTake take zone) takes)
+feed : List Take -> Time.Zone -> Maybe User -> Html Msg
+feed takes zone user =
+    div [ class "mt-3" ] (List.map (\take -> viewTake take zone user) takes)
 
 
-viewTake : Take -> Time.Zone -> Html Msg
-viewTake take zone =
-    li []
-        [ text
-            ("@"
-                ++ take.postedBy.username
-                ++ ": "
-                ++ take.content
-                ++ " ("
-                ++ formatTime take.timePosted zone
-                ++ ")"
-            )
+viewTake : Take -> Time.Zone -> Maybe User -> Html Msg
+viewTake take zone user =
+    div [ class "media border border-warning p-3" ]
+        [ img [ class "mr-2", width 64, height 64, src "assets/profilepic.jpg" ] []
+        , div [ class "media-body pr-3" ]
+            [ p [ class "mb-0" ] [ text ("\"" ++ take.content ++ "\"") ]
+            , p [ class "text-right" ] [ text <| "- @" ++ take.postedBy.username ]
+            ]
+        , fireButton take user take.likedBy
         ]
+
+
+fireButton : Take -> Maybe User -> List User -> Html Msg
+fireButton take maybeUser likers =
+    case maybeUser of
+        Just user ->
+            if List.member user likers then
+                button
+                    [ class "align-self-end align-self-center fire-button" ]
+                    [ text <| String.fromInt <| List.length likers ]
+
+            else
+                button
+                    [ class "align-self-end align-self-center fire-button-transparent"
+                    , onClick (FireButtonPressed take)
+                    ]
+                    [ text <| String.fromInt <| List.length likers ]
+
+        Nothing ->
+            button
+                [ class "align-self-end align-self-center fire-button" ]
+                [ text <| String.fromInt <| List.length likers ]
 
 
 formatTime : Time.Posix -> Time.Zone -> String
