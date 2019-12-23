@@ -163,6 +163,7 @@ type alias Model =
     , zone : Time.Zone
     , url : Url.Url
     , navKey : Nav.Key
+    , userAuth : Maybe Api.UserAuth
     }
 
 
@@ -195,6 +196,7 @@ init flags url key =
             , zone = Time.utc
             , url = url
             , navKey = key
+            , userAuth = Nothing
             }
     in
     case toRoute <| Url.toString url of
@@ -264,6 +266,9 @@ update msg model =
             ( { model | user = Nothing }
             , Nav.pushUrl model.navKey "/"
             )
+
+        SignInAttemptCompleted (Ok auth) ->
+            ( { model | userAuth = Just auth }, Cmd.none )
 
         _ ->
             updatePage msg model
