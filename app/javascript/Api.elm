@@ -180,23 +180,24 @@ type SavedUserAuthError
     | DecodingProblem Json.Decode.Error
 
 
-{-| Tries to load user authentication from json. Must be a task
-so that an expired token is not loaded.
+{-| Tries to load user authentication from json. Is a command so that the validity of the jwt
+can be checked.
 -}
-loadUserAuthTask : Json.Decode.Value -> Task.Task SavedUserAuthError UserAuth
-loadUserAuthTask json =
-    case Json.Decode.decodeValue Json.Decode.string json of
-        Ok token ->
-            Jwt.checkTokenExpiry token
-                |> Task.mapError JwtProblem
-                |> Task.andThen
-                    (\expired ->
-                        if not expired then
-                            Task.succeed <| BearerToken ("Bearer " ++ token)
+loadUserAuth : Json.Decode.Value -> (Result SavedUserAuthError UserAuth -> msg) -> Cmd msg
+loadUserAuth json onFinish =
+    Task.attempt onFinish <|
+        case Json.Decode.decodeValue Json.Decode.string json of
+            Ok token ->
+                Jwt.checkTokenExpiry token
+                    |> Task.mapError JwtProblem
+                    |> Task.andThen
+                        (\expired ->
+                            if not expired then
+                                Task.succeed <| BearerToken ("Bearer " ++ token)
 
-                        else
-                            Task.fail TokenExpired
-                    )
+                            else
+                                Task.fail TokenExpired
+                        )
 
-        Err decodingError ->
-            Task.fail (DecodingProblem decodingError)
+            Err decodingError ->
+                Task.fail (DecodingProblem decodingError)
