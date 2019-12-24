@@ -7,7 +7,7 @@ import Data.User as User exposing (User)
 import Flags
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
 import Http
 import Json.Decode
 import Ports
@@ -143,6 +143,7 @@ type alias Take =
     , postedBy : User
     , timePosted : Time.Posix
     , likedBy : List User
+    , hoveredOver : Bool
     }
 
 
@@ -203,6 +204,7 @@ take1 =
     , postedBy = george
     , timePosted = Time.millisToPosix 10000
     , likedBy = []
+    , hoveredOver = False
     }
 
 
@@ -283,6 +285,7 @@ type Msg
     | SignupEditEmail String
     | SignupEditBirthday String
     | FireButtonPressed Take
+    | TakeHovered Take
     | StoredAuthReceived Json.Decode.Value -- Got auth that was stored from a previous session.
     | StoredAuthValidated (Result Api.SavedUserAuthError Api.UserAuth)
     | StoredAuthUserReceived ( Api.UserAuth, Result Http.Error User )
@@ -546,8 +549,27 @@ updateHomePageSignedIn msg model data user =
         FireButtonPressed take ->
             ( { model | page = Home Hottest (handleFireButtonPress take data user) }, Cmd.none )
 
+        TakeHovered take ->
+            ( { model | page = Home Hottest (handleTakeHover take data user) }
+            , Cmd.none
+            )
+
         _ ->
             ( model, Cmd.none )
+
+
+handleTakeHover : Take -> HomeData -> User -> HomeData
+handleTakeHover take data user =
+    { data | takes = List.map (\tk -> toggleHover tk take) data.takes }
+
+
+toggleHover : Take -> Take -> Take
+toggleHover takeA takeB =
+    if takeA == takeB then
+        { takeA | hoveredOver = not takeA.hoveredOver }
+
+    else
+        takeA
 
 
 handleFireButtonPress : Take -> HomeData -> User -> HomeData
@@ -583,6 +605,7 @@ createNewTake newTake user time =
     , postedBy = user
     , timePosted = time
     , likedBy = []
+    , hoveredOver = False
     }
 
 
@@ -946,14 +969,48 @@ feed takes zone user =
 
 viewTake : Take -> Time.Zone -> Maybe User -> Html Msg
 viewTake take zone user =
-    div [ class "media border border-warning p-3" ]
+    div
+        [ class "media border border-warning p-3"
+        , onMouseEnter <| TakeHovered take
+        , onMouseLeave <| TakeHovered take
+        ]
         [ img [ class "mr-2", width 64, height 64, src "assets/profilepic.jpg" ] []
         , div [ class "media-body pr-3" ]
-            [ p [ class "mb-0" ] [ text ("\"" ++ take.content ++ "\"") ]
-            , p [ class "text-right" ] [ text <| "- @" ++ take.postedBy.username ]
-            ]
+            ([ p [ class "mb-0" ] [ text ("\"" ++ take.content ++ "\"") ]
+             , p [ class "text-right" ] [ text <| "- @" ++ take.postedBy.username ]
+             ]
+                ++ hoverButtons take user
+            )
         , fireButton take user take.likedBy
         ]
+
+
+hoverButtons : Take -> Maybe User -> List (Html Msg)
+hoverButtons take user =
+    let
+        buttons =
+            if Just take.postedBy == user then
+                [ takeHoverButton "edit"
+                , text " | "
+                , takeHoverButton "delete"
+                ]
+
+            else
+                [ takeHoverButton "report" ]
+    in
+    if take.hoveredOver then
+        [ div
+            [ class "text-center" ]
+            buttons
+        ]
+
+    else
+        []
+
+
+takeHoverButton : String -> Html Msg
+takeHoverButton txt =
+    button [ class "btn-link" ] [ text txt ]
 
 
 fireButton : Take -> Maybe User -> List User -> Html Msg
