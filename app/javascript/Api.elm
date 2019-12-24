@@ -1,4 +1,4 @@
-module Api exposing (LoginInfo, RegistrationInfo, SignInError(..), UserAuth, signIn, signOut, signUp)
+module Api exposing (LoginInfo, RegistrationInfo, SignInError(..), UserAuth, encodeUserAuth, loadUserAuthTask, signIn, signOut, signUp)
 
 import Data.User as User
 import Debug
@@ -6,6 +6,8 @@ import Dict
 import Http
 import Json.Decode
 import Json.Encode
+import Jwt
+import Task
 import Url.Builder
 
 
@@ -78,17 +80,19 @@ expectAuthHeader toMsg =
                     Err (HttpError <| Http.BadStatus metadata.statusCode)
 
                 Http.GoodStatus_ metadata body ->
-                    case Dict.get "authorization" metadata.headers of
-                        Just auth ->
-                            case Json.Decode.decodeString User.decoder body of
-                                Err err ->
-                                    Err (InvalidUserReturned err)
+                    case
+                        ( Dict.get "authorization" metadata.headers
+                        , Json.Decode.decodeString User.decoder body
+                        )
+                    of
+                        ( Just auth, Ok user ) ->
+                            Ok { user = user, auth = BearerToken auth }
 
-                                Ok user ->
-                                    Ok { user = user, auth = BearerToken auth }
-
-                        Nothing ->
+                        ( Nothing, _ ) ->
                             Err NoAuthToken
+
+                        ( _, Err err ) ->
+                            Err (InvalidUserReturned err)
 
 
 signIn : LoginInfo a -> (Result SignInError { user : User.User, auth : UserAuth } -> msg) -> Cmd msg
@@ -155,3 +159,44 @@ me (BearerToken token) onFinish =
                 }
     in
     httpRequest
+
+
+withoutBearerPrefix : String -> String
+withoutBearerPrefix =
+    String.dropLeft (String.length "Bearer ")
+
+
+{-| Encodes the user auth into a json object for uses such as saving into
+localstorage
+-}
+encodeUserAuth : UserAuth -> Json.Encode.Value
+encodeUserAuth (BearerToken auth) =
+    Json.Encode.string (withoutBearerPrefix auth)
+
+
+type SavedUserAuthError
+    = JwtProblem Jwt.JwtError
+    | TokenExpired
+    | DecodingProblem Json.Decode.Error
+
+
+{-| Tries to load user authentication from json. Must be a task
+so that an expired token is not loaded.
+-}
+loadUserAuthTask : Json.Decode.Value -> Task.Task SavedUserAuthError UserAuth
+loadUserAuthTask json =
+    case Json.Decode.decodeValue Json.Decode.string json of
+        Ok token ->
+            Jwt.checkTokenExpiry token
+                |> Task.mapError JwtProblem
+                |> Task.andThen
+                    (\expired ->
+                        if not expired then
+                            Task.succeed <| BearerToken ("Bearer " ++ token)
+
+                        else
+                            Task.fail TokenExpired
+                    )
+
+        Err decodingError ->
+            Task.fail (DecodingProblem decodingError)
