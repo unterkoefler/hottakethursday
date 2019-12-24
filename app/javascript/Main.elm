@@ -286,6 +286,9 @@ type Msg
     | SignupEditBirthday String
     | FireButtonPressed Take
     | TakeHovered Take
+    | EditTake Take
+    | DeleteTake Take
+    | ReportTake Take
     | StoredAuthReceived Json.Decode.Value -- Got auth that was stored from a previous session.
     | StoredAuthValidated (Result Api.SavedUserAuthError Api.UserAuth)
     | StoredAuthUserReceived ( Api.UserAuth, Result Http.Error User )
@@ -990,13 +993,13 @@ hoverButtons take user =
     let
         buttons =
             if Just take.postedBy == user then
-                [ takeHoverButton "edit"
+                [ takeHoverButton "edit" (EditTake take)
                 , text " | "
-                , takeHoverButton "delete"
+                , takeHoverButton "delete" (DeleteTake take)
                 ]
 
             else
-                [ takeHoverButton "report" ]
+                [ takeHoverButton "report" (ReportTake take) ]
     in
     if take.hoveredOver then
         [ div
@@ -1008,9 +1011,9 @@ hoverButtons take user =
         []
 
 
-takeHoverButton : String -> Html Msg
-takeHoverButton txt =
-    button [ class "btn-link" ] [ text txt ]
+takeHoverButton : String -> Msg -> Html Msg
+takeHoverButton txt msg =
+    button [ class "btn-link", onClick msg ] [ text txt ]
 
 
 fireButton : Take -> Maybe User -> List User -> Html Msg
