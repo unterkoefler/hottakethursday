@@ -4,14 +4,16 @@ import Api
 import Browser
 import Browser.Navigation as Nav
 import Data.User as User exposing (User)
+import Flags
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Http
+import Json.Decode
+import Ports
 import Task
 import Time
 import Url
-import Url.Builder exposing (absolute)
 import Url.Parser as Parser exposing ((</>), Parser, fragment, map, oneOf, parse, s, top)
 
 
@@ -157,10 +159,6 @@ type alias LoginData =
     }
 
 
-type LoginError
-    = InvalidUsernameOrPassword
-
-
 type alias SignupData =
     { name : String
     , username : String
@@ -195,6 +193,7 @@ type alias Model =
     }
 
 
+george : User
 george =
     { id = 3, username = "starwars4lyfe" }
 
@@ -219,9 +218,12 @@ loginPage =
     Login { email = "", password = "", previousInvalidAttempt = False }
 
 
-init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init : Json.Decode.Value -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     let
+        parsedFlags =
+            Flags.parseFlags flags
+
         setTimeZone =
             Task.perform AdjustTimeZone Time.here
 
@@ -233,20 +235,28 @@ init flags url key =
             , url = url
             , navKey = key
             }
+
+        loadAuthCmd =
+            case parsedFlags.storedJWT of
+                Just jwt ->
+                    Api.loadUserAuth jwt StoredAuthValidated
+
+                Nothing ->
+                    Cmd.none
     in
     case toRoute <| Url.toString url of
         LoginRoute ->
             ( { model | page = loginPage }
-            , setTimeZone
+            , Cmd.batch [ loadAuthCmd, setTimeZone ]
             )
 
         SignupRoute ->
             ( { model | page = Signup blankSignupData }
-            , setTimeZone
+            , Cmd.batch [ loadAuthCmd, setTimeZone ]
             )
 
         _ ->
-            ( model, setTimeZone )
+            ( model, Cmd.batch [ loadAuthCmd, setTimeZone ] )
 
 
 
@@ -273,6 +283,9 @@ type Msg
     | SignupEditEmail String
     | SignupEditBirthday String
     | FireButtonPressed Take
+    | StoredAuthReceived Json.Decode.Value -- Got auth that was stored from a previous session.
+    | StoredAuthValidated (Result Api.SavedUserAuthError Api.UserAuth)
+    | StoredAuthUserReceived ( Api.UserAuth, Result Http.Error User )
     | NoOp
 
 
@@ -311,7 +324,18 @@ update msg model =
             )
 
         LogoutRequestHandled (Ok _) ->
-            ( { model | profile = Nothing }, Nav.pushUrl model.navKey "/" )
+            ( { model | profile = Nothing }, Cmd.batch [ Ports.clearAuthToken (), Nav.pushUrl model.navKey "/" ] )
+
+        StoredAuthValidated (Ok auth) ->
+            ( model
+            , Api.me auth (\user -> StoredAuthUserReceived ( auth, user ))
+            )
+
+        StoredAuthValidated (Err Api.TokenExpired) ->
+            ( model, Ports.clearAuthToken () )
+
+        StoredAuthUserReceived ( auth, Ok user ) ->
+            ( { model | profile = Just { auth = auth, user = user } }, Cmd.none )
 
         _ ->
             updatePage msg model
@@ -474,7 +498,10 @@ updateLoginPage msg model data =
 
         LoginAttemptCompleted (Ok profile) ->
             ( { model | profile = Just profile }
-            , Nav.pushUrl model.navKey "/"
+            , Cmd.batch
+                [ Ports.storeAuthToken (Api.encodeUserAuth profile.auth)
+                , Nav.pushUrl model.navKey "/"
+                ]
             )
 
         LoginAttemptCompleted (Err _) ->

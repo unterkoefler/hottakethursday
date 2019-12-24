@@ -23,7 +23,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const target = document.createElement('div');
 
     document.body.appendChild(target);
-    Elm.Main.init({
-        node: target
-    })
+    const app = Elm.Main.init({
+        node: target,
+        flags: {
+            storedJWT: window.localStorage.getItem("jwt")
+        }
+    });
+
+    app.ports.storeAuthToken.subscribe(token => {
+        window.localStorage.setItem("jwt", token);
+    });
+
+    app.ports.clearAuthToken.subscribe(() => {
+        window.localStorage.removeItem("jwt");
+    });
 });

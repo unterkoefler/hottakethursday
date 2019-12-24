@@ -1,4 +1,16 @@
-module Api exposing (LoginInfo, RegistrationInfo, SignInError(..), UserAuth, encodeUserAuth, loadUserAuthTask, signIn, signOut, signUp)
+module Api exposing
+    ( LoginInfo
+    , RegistrationInfo
+    , SavedUserAuthError(..)
+    , SignInError(..)
+    , UserAuth
+    , encodeUserAuth
+    , loadUserAuth
+    , me
+    , signIn
+    , signOut
+    , signUp
+    )
 
 import Data.User as User
 import Debug
