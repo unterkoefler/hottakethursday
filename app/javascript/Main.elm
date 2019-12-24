@@ -552,11 +552,24 @@ updateHomePageSignedIn msg model data user =
 
 handleFireButtonPress : Take -> HomeData -> User -> HomeData
 handleFireButtonPress take data user =
-    { data | takes = List.map (\tk -> updateTakeIfEqual tk take user) data.takes }
+    if List.member user take.likedBy then
+        { data | takes = List.map (\tk -> unlikeTake tk take user) data.takes }
+
+    else
+        { data | takes = List.map (\tk -> likeTake tk take user) data.takes }
 
 
-updateTakeIfEqual : Take -> Take -> User -> Take
-updateTakeIfEqual takeA takeB user =
+unlikeTake : Take -> Take -> User -> Take
+unlikeTake takeA takeB user =
+    if takeA == takeB then
+        { takeA | likedBy = List.filter (\u -> u /= user) takeA.likedBy }
+
+    else
+        takeA
+
+
+likeTake : Take -> Take -> User -> Take
+likeTake takeA takeB user =
     if takeA == takeB then
         { takeA | likedBy = user :: takeA.likedBy }
 
@@ -949,7 +962,9 @@ fireButton take maybeUser likers =
         Just user ->
             if List.member user likers then
                 button
-                    [ class "align-self-end align-self-center fire-button" ]
+                    [ class "align-self-end align-self-center fire-button"
+                    , onClick (FireButtonPressed take)
+                    ]
                     [ text <| String.fromInt <| List.length likers ]
 
             else
