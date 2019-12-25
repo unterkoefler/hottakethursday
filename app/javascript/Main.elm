@@ -3,6 +3,7 @@ module Main exposing (..)
 import Api
 import Browser
 import Browser.Navigation as Nav
+import Compose exposing (Compose)
 import Data.User as User exposing (User)
 import Flags
 import Html exposing (..)
@@ -141,7 +142,7 @@ toRoute string =
 
 type alias HomeData =
     { takes : List Take
-    , newTake : String
+    , compose : Compose
     }
 
 
@@ -201,11 +202,11 @@ take1 =
 
 
 homePage =
-    Home Hottest { takes = [ take1 ], newTake = "" }
+    Home Hottest { takes = [ take1 ], compose = "" }
 
 
 homePageCold =
-    Home Coldest { takes = [], newTake = "" }
+    Home Coldest { takes = [], compose = "" }
 
 
 loginPage =
@@ -258,9 +259,7 @@ init flags url key =
 
 
 type Msg
-    = EditNewTake String
-    | PublishNewTakeClick
-    | PublishNewTake Time.Posix
+    = ComposeMsg Compose.Msg
     | AdjustTimeZone Time.Zone
     | Tick Time.Posix
     | LinkClicked Browser.UrlRequest
@@ -519,24 +518,28 @@ updateHomePage msg model data =
 updateHomePageSignedIn : Msg -> Model -> HomeData -> User -> ( Model, Cmd Msg )
 updateHomePageSignedIn msg model data user =
     case msg of
-        EditNewTake newTake ->
-            ( { model | page = Home Hottest { data | newTake = newTake } }
-            , Cmd.none
-            )
+        ComposeMsg m ->
+            handleComposeMsg m model data user
 
-        PublishNewTakeClick ->
-            ( model, Task.perform PublishNewTake Time.now )
+        {-
+           EditNewTake newTake ->
+               ( { model | page = Home Hottest { data | newTake = newTake } }
+               , Cmd.none
+               )
 
-        PublishNewTake time ->
-            let
-                newTake =
-                    createNewTake data.newTake user time
+           PublishNewTakeClick ->
+               ( model, Task.perform PublishNewTake Time.now )
 
-                takes =
-                    newTake :: data.takes
-            in
-            ( { model | page = Home Hottest { data | takes = takes, newTake = "" } }, Cmd.none )
+           PublishNewTake time ->
+               let
+                   newTake =
+                       createNewTake data.newTake user time
 
+                   takes =
+                       newTake :: data.takes
+               in
+               ( { model | page = Home Hottest { data | takes = takes, newTake = "" } }, Cmd.none )
+        -}
         TakeMsg m ->
             ( { model
                 | page =
@@ -548,6 +551,21 @@ updateHomePageSignedIn msg model data user =
 
         _ ->
             ( model, Cmd.none )
+
+
+handleComposeMsg : Compose.Msg -> Model -> HomeData -> User -> ( Model, Cmd Msg )
+handleComposeMsg msg model data user =
+    let
+        ( newCompose, newTakes, cmd ) =
+            Compose.update msg data.compose
+    in
+    ( { model
+        | page =
+            Home Hottest
+                { data | compose = newCompose, takes = newTakes ++ data.takes }
+      }
+    , Cmd.map (\m -> ComposeMsg m) cmd
+    )
 
 
 
@@ -820,7 +838,8 @@ content model =
             Home Hottest data ->
                 case model.profile of
                     Just { user } ->
-                        [ compose user data.newTake
+                        [ Html.map (\m -> ComposeMsg m)
+                            (Compose.view user data.compose)
                         , feed data.takes model.zone (Just user)
                         ]
 
@@ -876,31 +895,6 @@ aboutUser user =
     , img [ src "/assets/profilepic.jpg", width 100 ] []
     , p [] [ text user.username ]
     ]
-
-
-compose : User -> String -> Html Msg
-compose user newTake =
-    div
-        [ style "padding-left" "15px"
-        , style "padding-right" "15px"
-        ]
-        [ div []
-            [ input
-                [ placeholder ("Hi " ++ user.username ++ ". What's your hottest take?")
-                , value newTake
-                , onInput EditNewTake
-                , class "w-100"
-                ]
-                []
-            ]
-        , div []
-            [ button
-                [ onClick PublishNewTakeClick
-                , disabled (String.isEmpty newTake)
-                ]
-                [ text "Publish" ]
-            ]
-        ]
 
 
 feed : List Take -> Time.Zone -> Maybe User -> Html Msg
