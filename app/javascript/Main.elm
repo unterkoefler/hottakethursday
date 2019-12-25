@@ -7,10 +7,11 @@ import Data.User as User exposing (User)
 import Flags
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
 import Http
 import Json.Decode
 import Ports
+import Take exposing (Take, createNewTake, likeOrUnlike, toggleHover)
 import Task
 import Time
 import Url
@@ -138,14 +139,6 @@ toRoute string =
 -- MODEL
 
 
-type alias Take =
-    { content : String
-    , postedBy : User
-    , timePosted : Time.Posix
-    , likedBy : List User
-    }
-
-
 type alias HomeData =
     { takes : List Take
     , newTake : String
@@ -203,6 +196,7 @@ take1 =
     , postedBy = george
     , timePosted = Time.millisToPosix 10000
     , likedBy = []
+    , hoveredOver = False
     }
 
 
@@ -283,6 +277,10 @@ type Msg
     | SignupEditEmail String
     | SignupEditBirthday String
     | FireButtonPressed Take
+    | TakeHovered Take
+    | EditTake Take
+    | DeleteTake Take
+    | ReportTake Take
     | StoredAuthReceived Json.Decode.Value -- Got auth that was stored from a previous session.
     | StoredAuthValidated (Result Api.SavedUserAuthError Api.UserAuth)
     | StoredAuthUserReceived ( Api.UserAuth, Result Http.Error User )
@@ -546,44 +544,40 @@ updateHomePageSignedIn msg model data user =
         FireButtonPressed take ->
             ( { model | page = Home Hottest (handleFireButtonPress take data user) }, Cmd.none )
 
+        TakeHovered take ->
+            ( { model | page = Home Hottest (handleTakeHover take data user) }
+            , Cmd.none
+            )
+
         _ ->
             ( model, Cmd.none )
 
 
+handleTakeHover : Take -> HomeData -> User -> HomeData
+handleTakeHover take data user =
+    { data | takes = findAndApply take toggleHover data.takes }
+
+
+
+-- if x is found in l, applies f to x and returns the new list
+
+
+findAndApply : a -> (a -> a) -> List a -> List a
+findAndApply x f l =
+    List.map
+        (\e ->
+            if e == x then
+                f x
+
+            else
+                e
+        )
+        l
+
+
 handleFireButtonPress : Take -> HomeData -> User -> HomeData
 handleFireButtonPress take data user =
-    if List.member user take.likedBy then
-        { data | takes = List.map (\tk -> unlikeTake tk take user) data.takes }
-
-    else
-        { data | takes = List.map (\tk -> likeTake tk take user) data.takes }
-
-
-unlikeTake : Take -> Take -> User -> Take
-unlikeTake takeA takeB user =
-    if takeA == takeB then
-        { takeA | likedBy = List.filter (\u -> u /= user) takeA.likedBy }
-
-    else
-        takeA
-
-
-likeTake : Take -> Take -> User -> Take
-likeTake takeA takeB user =
-    if takeA == takeB then
-        { takeA | likedBy = user :: takeA.likedBy }
-
-    else
-        takeA
-
-
-createNewTake : String -> User -> Time.Posix -> Take
-createNewTake newTake user time =
-    { content = newTake
-    , postedBy = user
-    , timePosted = time
-    , likedBy = []
-    }
+    { data | takes = findAndApply take (likeOrUnlike user) data.takes }
 
 
 
@@ -946,14 +940,48 @@ feed takes zone user =
 
 viewTake : Take -> Time.Zone -> Maybe User -> Html Msg
 viewTake take zone user =
-    div [ class "media border border-warning p-3" ]
+    div
+        [ class "media border border-warning p-3"
+        , onMouseEnter <| TakeHovered take
+        , onMouseLeave <| TakeHovered take
+        ]
         [ img [ class "mr-2", width 64, height 64, src "assets/profilepic.jpg" ] []
         , div [ class "media-body pr-3" ]
-            [ p [ class "mb-0" ] [ text ("\"" ++ take.content ++ "\"") ]
-            , p [ class "text-right" ] [ text <| "- @" ++ take.postedBy.username ]
-            ]
+            ([ p [ class "mb-0" ] [ text ("\"" ++ take.content ++ "\"") ]
+             , p [ class "text-right" ] [ text <| "- @" ++ take.postedBy.username ]
+             ]
+                ++ hoverButtons take user
+            )
         , fireButton take user take.likedBy
         ]
+
+
+hoverButtons : Take -> Maybe User -> List (Html Msg)
+hoverButtons take user =
+    let
+        buttons =
+            if Just take.postedBy == user then
+                [ takeHoverButton "edit" (EditTake take)
+                , text " | "
+                , takeHoverButton "delete" (DeleteTake take)
+                ]
+
+            else
+                [ takeHoverButton "report" (ReportTake take) ]
+    in
+    if take.hoveredOver then
+        [ div
+            [ class "text-center" ]
+            buttons
+        ]
+
+    else
+        []
+
+
+takeHoverButton : String -> Msg -> Html Msg
+takeHoverButton txt msg =
+    button [ class "btn-link", onClick msg ] [ text txt ]
 
 
 fireButton : Take -> Maybe User -> List User -> Html Msg
