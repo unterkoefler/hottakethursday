@@ -1,6 +1,9 @@
-module Take exposing (Take, createNewTake, likeOrUnlike, toggleHover)
+module Take exposing (Msg, Take, createNewTake, likeOrUnlike, toggleHover, update, viewTake)
 
 import Data.User as User exposing (User)
+import Html exposing (..)
+import Html.Attributes exposing (..)
+import Html.Events exposing (onClick, onMouseEnter, onMouseLeave)
 import Time
 
 
@@ -19,6 +22,44 @@ type alias Take =
 
 
 -- UPDATE
+
+
+type Msg
+    = FireButtonPressed Take
+    | TakeHovered Take
+    | EditTake Take
+    | DeleteTake Take
+    | ReportTake Take
+
+
+update : Msg -> List Take -> User -> List Take
+update msg takes user =
+    case msg of
+        FireButtonPressed take ->
+            findAndApply take (likeOrUnlike user) takes
+
+        TakeHovered take ->
+            findAndApply take toggleHover takes
+
+        _ ->
+            takes
+
+
+
+-- if x is found in l, applies f to x and returns the new list
+
+
+findAndApply : a -> (a -> a) -> List a -> List a
+findAndApply x f l =
+    List.map
+        (\e ->
+            if e == x then
+                f x
+
+            else
+                e
+        )
+        l
 
 
 createNewTake : String -> User -> Time.Posix -> Take
@@ -43,3 +84,77 @@ likeOrUnlike user take =
 
     else
         { take | likedBy = user :: take.likedBy }
+
+
+
+-- VIEW
+
+
+viewTake : Take -> Time.Zone -> Maybe User -> Html Msg
+viewTake take zone user =
+    div
+        [ class "media border border-warning p-3"
+        , onMouseEnter <| TakeHovered take
+        , onMouseLeave <| TakeHovered take
+        ]
+        [ img [ class "mr-2", width 64, height 64, src "assets/profilepic.jpg" ] []
+        , div [ class "media-body pr-3" ]
+            ([ p [ class "mb-0" ] [ text ("\"" ++ take.content ++ "\"") ]
+             , p [ class "text-right" ] [ text <| "- @" ++ take.postedBy.username ]
+             ]
+                ++ hoverButtons take user
+            )
+        , fireButton take user take.likedBy
+        ]
+
+
+hoverButtons : Take -> Maybe User -> List (Html Msg)
+hoverButtons take user =
+    let
+        buttons =
+            if Just take.postedBy == user then
+                [ takeHoverButton "edit" (EditTake take)
+                , text " | "
+                , takeHoverButton "delete" (DeleteTake take)
+                ]
+
+            else
+                [ takeHoverButton "report" (ReportTake take) ]
+    in
+    if take.hoveredOver then
+        [ div
+            [ class "text-center" ]
+            buttons
+        ]
+
+    else
+        []
+
+
+takeHoverButton : String -> Msg -> Html Msg
+takeHoverButton txt msg =
+    button [ class "btn-link", onClick msg ] [ text txt ]
+
+
+fireButton : Take -> Maybe User -> List User -> Html Msg
+fireButton take maybeUser likers =
+    case maybeUser of
+        Just user ->
+            if List.member user likers then
+                button
+                    [ class "align-self-end align-self-center fire-button"
+                    , onClick (FireButtonPressed take)
+                    ]
+                    [ text <| String.fromInt <| List.length likers ]
+
+            else
+                button
+                    [ class "align-self-end align-self-center fire-button-transparent"
+                    , onClick (FireButtonPressed take)
+                    ]
+                    [ text <| String.fromInt <| List.length likers ]
+
+        Nothing ->
+            button
+                [ class "align-self-end align-self-center fire-button" ]
+                [ text <| String.fromInt <| List.length likers ]

@@ -11,7 +11,7 @@ import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
 import Http
 import Json.Decode
 import Ports
-import Take exposing (Take, createNewTake, likeOrUnlike, toggleHover)
+import Take exposing (Take, createNewTake, likeOrUnlike, toggleHover, viewTake)
 import Task
 import Time
 import Url
@@ -276,11 +276,7 @@ type Msg
     | SignupEditUsername String
     | SignupEditEmail String
     | SignupEditBirthday String
-    | FireButtonPressed Take
-    | TakeHovered Take
-    | EditTake Take
-    | DeleteTake Take
-    | ReportTake Take
+    | TakeMsg Take.Msg
     | StoredAuthReceived Json.Decode.Value -- Got auth that was stored from a previous session.
     | StoredAuthValidated (Result Api.SavedUserAuthError Api.UserAuth)
     | StoredAuthUserReceived ( Api.UserAuth, Result Http.Error User )
@@ -541,43 +537,17 @@ updateHomePageSignedIn msg model data user =
             in
             ( { model | page = Home Hottest { data | takes = takes, newTake = "" } }, Cmd.none )
 
-        FireButtonPressed take ->
-            ( { model | page = Home Hottest (handleFireButtonPress take data user) }, Cmd.none )
-
-        TakeHovered take ->
-            ( { model | page = Home Hottest (handleTakeHover take data user) }
+        TakeMsg m ->
+            ( { model
+                | page =
+                    Home Hottest
+                        { data | takes = Take.update m data.takes user }
+              }
             , Cmd.none
             )
 
         _ ->
             ( model, Cmd.none )
-
-
-handleTakeHover : Take -> HomeData -> User -> HomeData
-handleTakeHover take data user =
-    { data | takes = findAndApply take toggleHover data.takes }
-
-
-
--- if x is found in l, applies f to x and returns the new list
-
-
-findAndApply : a -> (a -> a) -> List a -> List a
-findAndApply x f l =
-    List.map
-        (\e ->
-            if e == x then
-                f x
-
-            else
-                e
-        )
-        l
-
-
-handleFireButtonPress : Take -> HomeData -> User -> HomeData
-handleFireButtonPress take data user =
-    { data | takes = findAndApply take (likeOrUnlike user) data.takes }
 
 
 
@@ -935,77 +905,12 @@ compose user newTake =
 
 feed : List Take -> Time.Zone -> Maybe User -> Html Msg
 feed takes zone user =
-    div [ class "mt-3" ] (List.map (\take -> viewTake take zone user) takes)
+    div [ class "mt-3" ] (List.map (\take -> viewTakeFixMsg take zone user) takes)
 
 
-viewTake : Take -> Time.Zone -> Maybe User -> Html Msg
-viewTake take zone user =
-    div
-        [ class "media border border-warning p-3"
-        , onMouseEnter <| TakeHovered take
-        , onMouseLeave <| TakeHovered take
-        ]
-        [ img [ class "mr-2", width 64, height 64, src "assets/profilepic.jpg" ] []
-        , div [ class "media-body pr-3" ]
-            ([ p [ class "mb-0" ] [ text ("\"" ++ take.content ++ "\"") ]
-             , p [ class "text-right" ] [ text <| "- @" ++ take.postedBy.username ]
-             ]
-                ++ hoverButtons take user
-            )
-        , fireButton take user take.likedBy
-        ]
-
-
-hoverButtons : Take -> Maybe User -> List (Html Msg)
-hoverButtons take user =
-    let
-        buttons =
-            if Just take.postedBy == user then
-                [ takeHoverButton "edit" (EditTake take)
-                , text " | "
-                , takeHoverButton "delete" (DeleteTake take)
-                ]
-
-            else
-                [ takeHoverButton "report" (ReportTake take) ]
-    in
-    if take.hoveredOver then
-        [ div
-            [ class "text-center" ]
-            buttons
-        ]
-
-    else
-        []
-
-
-takeHoverButton : String -> Msg -> Html Msg
-takeHoverButton txt msg =
-    button [ class "btn-link", onClick msg ] [ text txt ]
-
-
-fireButton : Take -> Maybe User -> List User -> Html Msg
-fireButton take maybeUser likers =
-    case maybeUser of
-        Just user ->
-            if List.member user likers then
-                button
-                    [ class "align-self-end align-self-center fire-button"
-                    , onClick (FireButtonPressed take)
-                    ]
-                    [ text <| String.fromInt <| List.length likers ]
-
-            else
-                button
-                    [ class "align-self-end align-self-center fire-button-transparent"
-                    , onClick (FireButtonPressed take)
-                    ]
-                    [ text <| String.fromInt <| List.length likers ]
-
-        Nothing ->
-            button
-                [ class "align-self-end align-self-center fire-button" ]
-                [ text <| String.fromInt <| List.length likers ]
+viewTakeFixMsg : Take -> Time.Zone -> Maybe User -> Html Msg
+viewTakeFixMsg take zone user =
+    Html.map (\m -> TakeMsg m) (viewTake take zone user)
 
 
 formatTime : Time.Posix -> Time.Zone -> String
