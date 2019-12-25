@@ -11,6 +11,7 @@ import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
 import Http
 import Json.Decode
 import Ports
+import Take exposing (Take, createNewTake, likeOrUnlike, toggleHover)
 import Task
 import Time
 import Url
@@ -136,15 +137,6 @@ toRoute string =
 
 
 -- MODEL
-
-
-type alias Take =
-    { content : String
-    , postedBy : User
-    , timePosted : Time.Posix
-    , likedBy : List User
-    , hoveredOver : Bool
-    }
 
 
 type alias HomeData =
@@ -563,53 +555,29 @@ updateHomePageSignedIn msg model data user =
 
 handleTakeHover : Take -> HomeData -> User -> HomeData
 handleTakeHover take data user =
-    { data | takes = List.map (\tk -> toggleHover tk take) data.takes }
+    { data | takes = findAndApply take toggleHover data.takes }
 
 
-toggleHover : Take -> Take -> Take
-toggleHover takeA takeB =
-    if takeA == takeB then
-        { takeA | hoveredOver = not takeA.hoveredOver }
 
-    else
-        takeA
+-- if x is found in l, applies f to x and returns the new list
+
+
+findAndApply : a -> (a -> a) -> List a -> List a
+findAndApply x f l =
+    List.map
+        (\e ->
+            if e == x then
+                f x
+
+            else
+                e
+        )
+        l
 
 
 handleFireButtonPress : Take -> HomeData -> User -> HomeData
 handleFireButtonPress take data user =
-    if List.member user take.likedBy then
-        { data | takes = List.map (\tk -> unlikeTake tk take user) data.takes }
-
-    else
-        { data | takes = List.map (\tk -> likeTake tk take user) data.takes }
-
-
-unlikeTake : Take -> Take -> User -> Take
-unlikeTake takeA takeB user =
-    if takeA == takeB then
-        { takeA | likedBy = List.filter (\u -> u /= user) takeA.likedBy }
-
-    else
-        takeA
-
-
-likeTake : Take -> Take -> User -> Take
-likeTake takeA takeB user =
-    if takeA == takeB then
-        { takeA | likedBy = user :: takeA.likedBy }
-
-    else
-        takeA
-
-
-createNewTake : String -> User -> Time.Posix -> Take
-createNewTake newTake user time =
-    { content = newTake
-    , postedBy = user
-    , timePosted = time
-    , likedBy = []
-    , hoveredOver = False
-    }
+    { data | takes = findAndApply take (likeOrUnlike user) data.takes }
 
 
 
