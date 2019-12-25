@@ -11,6 +11,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
 import Http
 import Json.Decode
+import Login
 import Ports
 import Take exposing (Take, createNewTake, likeOrUnlike, toggleHover, viewTake)
 import Task
@@ -146,13 +147,6 @@ type alias HomeData =
     }
 
 
-type alias LoginData =
-    { email : String
-    , password : String
-    , previousInvalidAttempt : Bool
-    }
-
-
 type alias SignupData =
     { name : String
     , username : String
@@ -171,7 +165,7 @@ blankSignupData =
 
 type Page
     = Home HomeSection HomeData
-    | Login LoginData
+    | Login Login.Model
     | ForgotPassword String
     | Signup SignupData
     | Profile ProfileSection User
@@ -260,14 +254,11 @@ init flags url key =
 
 type Msg
     = ComposeMsg Compose.Msg
+    | LoginMsg Login.Msg
     | AdjustTimeZone Time.Zone
     | Tick Time.Posix
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
-    | LoginButtonPressed
-    | LoginEmailChanged String
-    | LoginPasswordChanged String
-    | LoginAttemptCompleted (Result Api.SignInError { user : User.User, auth : Api.UserAuth })
     | LogoutButtonPressed
     | LogoutRequestHandled (Result Http.Error ())
     | SignupButtonPressed
@@ -388,6 +379,22 @@ updatePage msg model =
             ( model, Cmd.none )
 
 
+updateLoginPage : Msg -> Model -> Login.Model -> ( Model, Cmd Msg )
+updateLoginPage msg model data =
+    case msg of
+        LoginMsg lm ->
+            let
+                ( newData, profile, cmd ) =
+                    Login.update lm data model.navKey
+            in
+            ( { model | page = Login newData, profile = profile }
+            , Cmd.map (\m -> LoginMsg m) cmd
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
 updateSignupPage : Msg -> Model -> SignupData -> ( Model, Cmd Msg )
 updateSignupPage msg model data =
     case msg of
@@ -469,40 +476,6 @@ handleBirthdayInput prev new =
 validateSignup : SignupData -> Bool
 validateSignup data =
     not (String.isEmpty data.name) && not (String.isEmpty data.username)
-
-
-updateLoginPage : Msg -> Model -> LoginData -> ( Model, Cmd Msg )
-updateLoginPage msg model data =
-    case msg of
-        LoginButtonPressed ->
-            if data.email /= "" && data.password /= "" then
-                ( model
-                , Api.signIn data LoginAttemptCompleted
-                )
-
-            else
-                ( { model | page = Login { data | previousInvalidAttempt = True } }, Cmd.none )
-
-        LoginEmailChanged newEmail ->
-            ( { model | page = Login { data | email = newEmail } }, Cmd.none )
-
-        LoginPasswordChanged newPassword ->
-            ( { model | page = Login { data | password = newPassword } }, Cmd.none )
-
-        LoginAttemptCompleted (Ok profile) ->
-            ( { model | profile = Just profile }
-            , Cmd.batch
-                [ Ports.storeAuthToken (Api.encodeUserAuth profile.auth)
-                , Nav.pushUrl model.navKey "/"
-                ]
-            )
-
-        LoginAttemptCompleted (Err _) ->
-            -- TODO Determine based on error whether it was actually invalid creds
-            ( { model | page = Login { data | previousInvalidAttempt = True } }, Cmd.none )
-
-        _ ->
-            ( model, Cmd.none )
 
 
 updateHomePage : Msg -> Model -> HomeData -> ( Model, Cmd Msg )
@@ -742,7 +715,7 @@ body model =
                 ]
 
         Login data ->
-            loginBody data
+            Html.map (\m -> LoginMsg m) (Login.view data)
 
         ForgotPassword email ->
             p []
@@ -771,26 +744,6 @@ ads =
 
 fakeAd =
     img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "/assets/trash-ad.jpg" ] []
-
-
-loginBody : LoginData -> Html Msg
-loginBody data =
-    div [ id "loginBody" ]
-        [ div [ class "container form mx-auto" ]
-            (inputWithLabel "email" "Email" data.email LoginEmailChanged
-                ++ inputWithLabel "password" "Password" data.password LoginPasswordChanged
-                ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
-                   , div [] [ button [ onClick LoginButtonPressed ] [ text "Continue" ] ]
-                   ]
-                ++ (case data.previousInvalidAttempt of
-                        True ->
-                            [ div [] [ p [ class "text-danger" ] [ text "Invalid Username or Password" ] ] ]
-
-                        False ->
-                            []
-                   )
-            )
-        ]
 
 
 signupBody : SignupData -> Html Msg
