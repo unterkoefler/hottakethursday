@@ -13,6 +13,7 @@ import Http
 import Json.Decode
 import Login
 import Ports
+import Signup
 import Take exposing (Take, createNewTake, likeOrUnlike, toggleHover, viewTake)
 import Task
 import Time
@@ -147,14 +148,6 @@ type alias HomeData =
     }
 
 
-type alias SignupData =
-    { name : String
-    , username : String
-    , email : String
-    , birthday : String
-    }
-
-
 blankSignupData =
     { name = ""
     , username = ""
@@ -167,7 +160,7 @@ type Page
     = Home HomeSection HomeData
     | Login Login.Model
     | ForgotPassword String
-    | Signup SignupData
+    | Signup Signup.Model
     | Profile ProfileSection User
 
 
@@ -255,18 +248,14 @@ init flags url key =
 type Msg
     = ComposeMsg Compose.Msg
     | LoginMsg Login.Msg
+    | TakeMsg Take.Msg
+    | SignupMsg Signup.Msg
     | AdjustTimeZone Time.Zone
     | Tick Time.Posix
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | LogoutButtonPressed
     | LogoutRequestHandled (Result Http.Error ())
-    | SignupButtonPressed
-    | SignupEditName String
-    | SignupEditUsername String
-    | SignupEditEmail String
-    | SignupEditBirthday String
-    | TakeMsg Take.Msg
     | StoredAuthReceived Json.Decode.Value -- Got auth that was stored from a previous session.
     | StoredAuthValidated (Result Api.SavedUserAuthError Api.UserAuth)
     | StoredAuthUserReceived ( Api.UserAuth, Result Http.Error User )
@@ -395,87 +384,16 @@ updateLoginPage msg model data =
             ( model, Cmd.none )
 
 
-updateSignupPage : Msg -> Model -> SignupData -> ( Model, Cmd Msg )
+updateSignupPage : Msg -> Model -> Signup.Model -> ( Model, Cmd Msg )
 updateSignupPage msg model data =
     case msg of
-        SignupButtonPressed ->
-            if validateSignup data then
-                ( model, Cmd.none )
-                -- TODO: Fix this so that a sign up actually does something
-
-            else
-                ( model, Cmd.none )
-
-        SignupEditName newName ->
-            ( { model | page = Signup { data | name = newName } }
-            , Cmd.none
-            )
-
-        SignupEditUsername newUsername ->
-            ( { model | page = Signup { data | username = newUsername } }
-            , Cmd.none
-            )
-
-        SignupEditEmail newEmail ->
-            ( { model | page = Signup { data | email = newEmail } }
-            , Cmd.none
-            )
-
-        SignupEditBirthday newBirthday ->
-            ( { model | page = Signup { data | birthday = handleBirthdayInput data.birthday newBirthday } }
+        SignupMsg sm ->
+            ( { model | page = Signup (Signup.update sm data) }
             , Cmd.none
             )
 
         _ ->
             ( model, Cmd.none )
-
-
-handleBirthdayInput : String -> String -> String
-handleBirthdayInput prev new =
-    if String.length prev < String.length new then
-        if String.length new == 1 then
-            if new == "0" || new == "1" then
-                new
-
-            else
-                "0" ++ new ++ "/"
-
-        else if String.length new == 2 then
-            case String.toInt new of
-                Just _ ->
-                    new ++ "/"
-
-                Nothing ->
-                    new
-
-        else if String.right 2 new == "//" then
-            String.dropRight 1 new
-
-        else if String.length new == 5 then
-            case String.toInt <| String.right 2 new of
-                Just _ ->
-                    new ++ "/"
-
-                Nothing ->
-                    if
-                        (String.right 1 new == "/")
-                            && (String.toInt (String.slice 3 4 new) /= Nothing)
-                    then
-                        String.slice 0 3 new ++ "0" ++ String.slice 3 4 new ++ "/"
-
-                    else
-                        new
-
-        else
-            new
-
-    else
-        new
-
-
-validateSignup : SignupData -> Bool
-validateSignup data =
-    not (String.isEmpty data.name) && not (String.isEmpty data.username)
 
 
 updateHomePage : Msg -> Model -> HomeData -> ( Model, Cmd Msg )
@@ -729,7 +647,7 @@ body model =
                 ]
 
         Signup data ->
-            signupBody data
+            Html.map (\m -> SignupMsg m) (Signup.view data)
 
         Profile _ user ->
             div [ class "row" ]
@@ -744,42 +662,6 @@ ads =
 
 fakeAd =
     img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "/assets/trash-ad.jpg" ] []
-
-
-signupBody : SignupData -> Html Msg
-signupBody data =
-    div [ class "container" ]
-        ([ h2 [] [ text "Create Account" ]
-         , p [] [ text "Feed us your data" ]
-         ]
-            ++ inputWithLabel "name" "Name" data.name SignupEditName
-            ++ inputWithLabel "username" "Username" data.username SignupEditUsername
-            ++ inputWithLabel "email" "Email" data.email SignupEditEmail
-            ++ inputWithLabel "bday" "Birthday (MM/DD/YYYY)" data.birthday SignupEditBirthday
-            ++ [ div []
-                    [ button
-                        [ onClick SignupButtonPressed
-                        , disabled <| not <| validateSignup data
-                        ]
-                        [ text "Begin" ]
-                    ]
-               ]
-        )
-
-
-inputWithLabel : String -> String -> String -> (String -> Msg) -> List (Html Msg)
-inputWithLabel id_ text_ val msg =
-    let
-        type__ =
-            if id_ == "password" then
-                "password"
-
-            else
-                "input"
-    in
-    [ div [] [ label [ for id_ ] [ text text_ ] ]
-    , div [] [ input [ type_ type__, id id_, onInput msg, value val ] [] ]
-    ]
 
 
 content : Model -> List (Html Msg)
