@@ -4,6 +4,7 @@ import Data.User as User exposing (User)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onMouseEnter, onMouseLeave)
+import Thursday exposing (toWeekdayString)
 import Time
 
 
@@ -158,3 +159,47 @@ fireButton take maybeUser likers =
             button
                 [ class "align-self-end align-self-center fire-button" ]
                 [ text <| String.fromInt <| List.length likers ]
+
+
+formatTime : Time.Posix -> Time.Zone -> String
+formatTime time zone =
+    let
+        weekday =
+            toWeekdayString (Time.toWeekday zone time)
+
+        hour24 =
+            Time.toHour zone time
+
+        hourTmp =
+            String.fromInt (modBy 12 hour24)
+
+        hour =
+            if hourTmp == "0" then
+                "12"
+
+            else
+                hourTmp
+
+        minute =
+            Time.toMinute Time.utc time
+
+        second =
+            Time.toSecond Time.utc time
+
+        xm =
+            if hour24 < 12 then
+                "AM"
+
+            else
+                "PM"
+    in
+    String.join ":" [ hour, leftPad minute, leftPad second ] ++ " " ++ xm
+
+
+leftPad : Int -> String
+leftPad i =
+    if i < 10 then
+        "0" ++ String.fromInt i
+
+    else
+        String.fromInt i

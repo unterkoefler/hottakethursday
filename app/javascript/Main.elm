@@ -16,6 +16,7 @@ import Ports
 import Signup
 import Take exposing (Take, createNewTake, likeOrUnlike, toggleHover, viewTake)
 import Task
+import Thursday exposing (daysUntilThursday, isThursday, toWeekdayString)
 import Time
 import Url
 import Url.Parser as Parser exposing ((</>), Parser, fragment, map, oneOf, parse, s, top)
@@ -23,14 +24,6 @@ import Url.Parser as Parser exposing ((</>), Parser, fragment, map, oneOf, parse
 
 
 -- MAIN
-
-
-debug =
-    True
-
-
-thursday =
-    True
 
 
 main =
@@ -412,25 +405,6 @@ updateHomePageSignedIn msg model data user =
         ComposeMsg m ->
             handleComposeMsg m model data user
 
-        {-
-           EditNewTake newTake ->
-               ( { model | page = Home Hottest { data | newTake = newTake } }
-               , Cmd.none
-               )
-
-           PublishNewTakeClick ->
-               ( model, Task.perform PublishNewTake Time.now )
-
-           PublishNewTake time ->
-               let
-                   newTake =
-                       createNewTake data.newTake user time
-
-                   takes =
-                       newTake :: data.takes
-               in
-               ( { model | page = Home Hottest { data | takes = takes, newTake = "" } }, Cmd.none )
-        -}
         TakeMsg m ->
             ( { model
                 | page =
@@ -481,15 +455,6 @@ view model =
         }
 
 
-isThursday : Time.Posix -> Time.Zone -> Bool
-isThursday time zone =
-    if debug then
-        thursday
-
-    else
-        Time.toWeekday zone time == Time.Thu
-
-
 four04 : Time.Posix -> Time.Zone -> Html Msg
 four04 time zone =
     let
@@ -517,56 +482,6 @@ four04 time zone =
                 )
             ]
         ]
-
-
-toWeekdayString : Time.Weekday -> String
-toWeekdayString weekday =
-    case weekday of
-        Time.Mon ->
-            "Monday"
-
-        Time.Tue ->
-            "Tuesday"
-
-        Time.Wed ->
-            "Wednesday"
-
-        Time.Thu ->
-            "Thursday"
-
-        Time.Fri ->
-            "Friday"
-
-        Time.Sat ->
-            "Saturday"
-
-        Time.Sun ->
-            "Sunday"
-
-
-daysUntilThursday : Time.Weekday -> Int
-daysUntilThursday weekday =
-    case weekday of
-        Time.Mon ->
-            3
-
-        Time.Tue ->
-            2
-
-        Time.Wed ->
-            1
-
-        Time.Thu ->
-            0
-
-        Time.Fri ->
-            6
-
-        Time.Sat ->
-            5
-
-        Time.Sun ->
-            4
 
 
 plural : Int -> String -> String -> String
@@ -740,47 +655,3 @@ feed takes zone user =
 viewTakeFixMsg : Take -> Time.Zone -> Maybe User -> Html Msg
 viewTakeFixMsg take zone user =
     Html.map (\m -> TakeMsg m) (viewTake take zone user)
-
-
-formatTime : Time.Posix -> Time.Zone -> String
-formatTime time zone =
-    let
-        weekday =
-            toWeekdayString (Time.toWeekday zone time)
-
-        hour24 =
-            Time.toHour zone time
-
-        hourTmp =
-            String.fromInt (modBy 12 hour24)
-
-        hour =
-            if hourTmp == "0" then
-                "12"
-
-            else
-                hourTmp
-
-        minute =
-            Time.toMinute Time.utc time
-
-        second =
-            Time.toSecond Time.utc time
-
-        xm =
-            if hour24 < 12 then
-                "AM"
-
-            else
-                "PM"
-    in
-    String.join ":" [ hour, leftPad minute, leftPad second ] ++ " " ++ xm
-
-
-leftPad : Int -> String
-leftPad i =
-    if i < 10 then
-        "0" ++ String.fromInt i
-
-    else
-        String.fromInt i
