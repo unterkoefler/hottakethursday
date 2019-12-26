@@ -2,6 +2,10 @@
 // They will automatically be included in application.css.
 // You can use Sass (SCSS) here: https://sass-lang.com/
 
+textarea {
+    resize: none;
+}
+
 .btn-link {
   padding: 0px;
   border-width: 0px;

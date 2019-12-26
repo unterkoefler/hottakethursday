@@ -542,9 +542,9 @@ body model =
     case model.page of
         Home _ _ ->
             div [ class "row" ]
-                [ div [ class "col-3" ] ads
-                , div [ class "col-6" ] (content model)
-                , div [ class "col-3" ] ads
+                [ div [ class "col-3 d-none d-md-block" ] ads
+                , div [ class "col-md-6 col-xs-10" ] (content model)
+                , div [ class "col-3 d-none d-md-block" ] ads
                 ]
 
         Login data ->
@@ -581,9 +581,9 @@ fakeAd =
 
 content : Model -> List (Html Msg)
 content model =
-    [ ul [ class "nav nav-tabs mb-3 mt-2" ]
+    [ ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
         (navPills model.page)
-    , div [ class "container px-0" ]
+    , div [ class "container" ]
         (case model.page of
             Home Hottest data ->
                 case model.profile of

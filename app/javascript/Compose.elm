@@ -50,9 +50,10 @@ view user newTake =
         , style "padding-right" "15px"
         ]
         [ div []
-            [ input
+            [ textarea
                 [ placeholder ("Hi " ++ user.username ++ ". What's your hottest take?")
                 , value newTake
+                , rows 2
                 , onInput EditNewTake
                 , class "w-100"
                 ]
