@@ -164,6 +164,7 @@ type alias Model =
     , zone : Time.Zone
     , url : Url.Url
     , navKey : Nav.Key
+    , showNavBar : Bool
     }
 
 
@@ -209,6 +210,7 @@ init flags url key =
             , zone = Time.utc
             , url = url
             , navKey = key
+            , showNavBar = False
             }
 
         loadAuthCmd =
@@ -247,6 +249,7 @@ type Msg
     | Tick Time.Posix
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
+    | NavBarToggled
     | LogoutButtonPressed
     | LogoutRequestHandled (Result Http.Error ())
     | StoredAuthReceived Json.Decode.Value -- Got auth that was stored from a previous session.
@@ -278,6 +281,11 @@ update msg model =
 
         UrlChanged url ->
             handleUrlChange model url
+
+        NavBarToggled ->
+            ( { model | showNavBar = not model.showNavBar }
+            , Cmd.none
+            )
 
         LogoutButtonPressed ->
             ( model
@@ -495,35 +503,77 @@ plural n sing plur =
 
 header : Model -> Html Msg
 header model =
+    let
+        links =
+            navLinks model.page model.profile
+    in
+    if List.length links > 2 then
+        headerWithToggle links model.showNavBar
+
+    else
+        headerWithoutToggle links
+
+
+headerWithToggle : List (Html Msg) -> Bool -> Html Msg
+headerWithToggle links expandToggle =
+    let
+        show =
+            if expandToggle then
+                " show"
+
+            else
+                ""
+    in
+    nav [ class "navbar navbar-light bg-light navbar-expand-lg" ]
+        [ a [ class "navbar-brand pl-2", href "/" ] [ text "HTT 🔥" ]
+        , button
+            [ class "navbar-toggler"
+            , onClick NavBarToggled
+            ]
+            [ span [ class "navbar-toggler-icon" ] [] ]
+        , div [ class <| "collapse navbar-collapse" ++ show ]
+            [ ul
+                [ class "navbar-nav ml-auto" ]
+                links
+            ]
+        ]
+
+
+headerWithoutToggle : List (Html Msg) -> Html Msg
+headerWithoutToggle links =
     nav [ class "navbar navbar-light bg-light" ]
         [ a [ class "navbar-brand pl-2", href "/" ] [ text "HTT 🔥" ]
         , ul [ class "navbar-nav ml-auto", style "flex-direction" "row" ]
-            (case model.page of
-                Home _ _ ->
-                    case model.profile of
-                        Just { user } ->
-                            [ navItem "🔔" "profile#notifications" ""
-                            , navItem "Profile" "profile" ""
-                            , logoutButton
-                            , navItem "Delete Account" "#" ""
-                            ]
+            links
+        ]
 
-                        Nothing ->
-                            [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
 
-                Login _ ->
-                    [ navItem "Sign Up" "signup" "" ]
+navLinks : Page -> Maybe { a | user : User } -> List (Html Msg)
+navLinks page profile =
+    case page of
+        Home _ _ ->
+            case profile of
+                Just { user } ->
+                    [ navItem "🔔" "profile#notifications" ""
+                    , navItem "Profile" "profile" ""
+                    , logoutButton
+                    , navItem "Delete Account" "#" ""
+                    ]
 
-                ForgotPassword _ ->
+                Nothing ->
                     [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
 
-                Signup _ ->
-                    [ navItem "Login" "login" "" ]
+        Login _ ->
+            [ navItem "Sign Up" "signup" "" ]
 
-                Profile _ _ ->
-                    [ logoutButton, navItem "Delete Account" "" "" ]
-            )
-        ]
+        ForgotPassword _ ->
+            [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
+
+        Signup _ ->
+            [ navItem "Login" "login" "" ]
+
+        Profile _ _ ->
+            [ logoutButton, navItem "Delete Account" "" "" ]
 
 
 logoutButton =
