@@ -3,6 +3,7 @@ module Main exposing (..)
 import Api
 import Browser
 import Browser.Navigation as Nav
+import Compose exposing (Compose)
 import Data.User as User exposing (User)
 import Flags
 import Html exposing (..)
@@ -10,9 +11,12 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
 import Http
 import Json.Decode
+import Login
 import Ports
-import Take exposing (Take, createNewTake, likeOrUnlike, toggleHover)
+import Signup
+import Take exposing (Take, createNewTake, likeOrUnlike, toggleHover, viewTake)
 import Task
+import Thursday exposing (daysUntilThursday, isThursday, toWeekdayString)
 import Time
 import Url
 import Url.Parser as Parser exposing ((</>), Parser, fragment, map, oneOf, parse, s, top)
@@ -20,14 +24,6 @@ import Url.Parser as Parser exposing ((</>), Parser, fragment, map, oneOf, parse
 
 
 -- MAIN
-
-
-debug =
-    True
-
-
-thursday =
-    True
 
 
 main =
@@ -141,22 +137,7 @@ toRoute string =
 
 type alias HomeData =
     { takes : List Take
-    , newTake : String
-    }
-
-
-type alias LoginData =
-    { email : String
-    , password : String
-    , previousInvalidAttempt : Bool
-    }
-
-
-type alias SignupData =
-    { name : String
-    , username : String
-    , email : String
-    , birthday : String
+    , compose : Compose
     }
 
 
@@ -170,9 +151,9 @@ blankSignupData =
 
 type Page
     = Home HomeSection HomeData
-    | Login LoginData
+    | Login Login.Model
     | ForgotPassword String
-    | Signup SignupData
+    | Signup Signup.Model
     | Profile ProfileSection User
 
 
@@ -201,11 +182,11 @@ take1 =
 
 
 homePage =
-    Home Hottest { takes = [ take1 ], newTake = "" }
+    Home Hottest { takes = [ take1 ], compose = "" }
 
 
 homePageCold =
-    Home Coldest { takes = [], newTake = "" }
+    Home Coldest { takes = [], compose = "" }
 
 
 loginPage =
@@ -258,29 +239,16 @@ init flags url key =
 
 
 type Msg
-    = EditNewTake String
-    | PublishNewTakeClick
-    | PublishNewTake Time.Posix
+    = ComposeMsg Compose.Msg
+    | LoginMsg Login.Msg
+    | TakeMsg Take.Msg
+    | SignupMsg Signup.Msg
     | AdjustTimeZone Time.Zone
     | Tick Time.Posix
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
-    | LoginButtonPressed
-    | LoginEmailChanged String
-    | LoginPasswordChanged String
-    | LoginAttemptCompleted (Result Api.SignInError { user : User.User, auth : Api.UserAuth })
     | LogoutButtonPressed
     | LogoutRequestHandled (Result Http.Error ())
-    | SignupButtonPressed
-    | SignupEditName String
-    | SignupEditUsername String
-    | SignupEditEmail String
-    | SignupEditBirthday String
-    | FireButtonPressed Take
-    | TakeHovered Take
-    | EditTake Take
-    | DeleteTake Take
-    | ReportTake Take
     | StoredAuthReceived Json.Decode.Value -- Got auth that was stored from a previous session.
     | StoredAuthValidated (Result Api.SavedUserAuthError Api.UserAuth)
     | StoredAuthUserReceived ( Api.UserAuth, Result Http.Error User )
@@ -393,118 +361,29 @@ updatePage msg model =
             ( model, Cmd.none )
 
 
-updateSignupPage : Msg -> Model -> SignupData -> ( Model, Cmd Msg )
-updateSignupPage msg model data =
+updateLoginPage : Msg -> Model -> Login.Model -> ( Model, Cmd Msg )
+updateLoginPage msg model data =
     case msg of
-        SignupButtonPressed ->
-            if validateSignup data then
-                ( model, Cmd.none )
-                -- TODO: Fix this so that a sign up actually does something
-
-            else
-                ( model, Cmd.none )
-
-        SignupEditName newName ->
-            ( { model | page = Signup { data | name = newName } }
-            , Cmd.none
-            )
-
-        SignupEditUsername newUsername ->
-            ( { model | page = Signup { data | username = newUsername } }
-            , Cmd.none
-            )
-
-        SignupEditEmail newEmail ->
-            ( { model | page = Signup { data | email = newEmail } }
-            , Cmd.none
-            )
-
-        SignupEditBirthday newBirthday ->
-            ( { model | page = Signup { data | birthday = handleBirthdayInput data.birthday newBirthday } }
-            , Cmd.none
+        LoginMsg lm ->
+            let
+                ( newData, profile, cmd ) =
+                    Login.update lm data model.navKey
+            in
+            ( { model | page = Login newData, profile = profile }
+            , Cmd.map (\m -> LoginMsg m) cmd
             )
 
         _ ->
             ( model, Cmd.none )
 
 
-handleBirthdayInput : String -> String -> String
-handleBirthdayInput prev new =
-    if String.length prev < String.length new then
-        if String.length new == 1 then
-            if new == "0" || new == "1" then
-                new
-
-            else
-                "0" ++ new ++ "/"
-
-        else if String.length new == 2 then
-            case String.toInt new of
-                Just _ ->
-                    new ++ "/"
-
-                Nothing ->
-                    new
-
-        else if String.right 2 new == "//" then
-            String.dropRight 1 new
-
-        else if String.length new == 5 then
-            case String.toInt <| String.right 2 new of
-                Just _ ->
-                    new ++ "/"
-
-                Nothing ->
-                    if
-                        (String.right 1 new == "/")
-                            && (String.toInt (String.slice 3 4 new) /= Nothing)
-                    then
-                        String.slice 0 3 new ++ "0" ++ String.slice 3 4 new ++ "/"
-
-                    else
-                        new
-
-        else
-            new
-
-    else
-        new
-
-
-validateSignup : SignupData -> Bool
-validateSignup data =
-    not (String.isEmpty data.name) && not (String.isEmpty data.username)
-
-
-updateLoginPage : Msg -> Model -> LoginData -> ( Model, Cmd Msg )
-updateLoginPage msg model data =
+updateSignupPage : Msg -> Model -> Signup.Model -> ( Model, Cmd Msg )
+updateSignupPage msg model data =
     case msg of
-        LoginButtonPressed ->
-            if data.email /= "" && data.password /= "" then
-                ( model
-                , Api.signIn data LoginAttemptCompleted
-                )
-
-            else
-                ( { model | page = Login { data | previousInvalidAttempt = True } }, Cmd.none )
-
-        LoginEmailChanged newEmail ->
-            ( { model | page = Login { data | email = newEmail } }, Cmd.none )
-
-        LoginPasswordChanged newPassword ->
-            ( { model | page = Login { data | password = newPassword } }, Cmd.none )
-
-        LoginAttemptCompleted (Ok profile) ->
-            ( { model | profile = Just profile }
-            , Cmd.batch
-                [ Ports.storeAuthToken (Api.encodeUserAuth profile.auth)
-                , Nav.pushUrl model.navKey "/"
-                ]
+        SignupMsg sm ->
+            ( { model | page = Signup (Signup.update sm data) }
+            , Cmd.none
             )
-
-        LoginAttemptCompleted (Err _) ->
-            -- TODO Determine based on error whether it was actually invalid creds
-            ( { model | page = Login { data | previousInvalidAttempt = True } }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -523,29 +402,15 @@ updateHomePage msg model data =
 updateHomePageSignedIn : Msg -> Model -> HomeData -> User -> ( Model, Cmd Msg )
 updateHomePageSignedIn msg model data user =
     case msg of
-        EditNewTake newTake ->
-            ( { model | page = Home Hottest { data | newTake = newTake } }
-            , Cmd.none
-            )
+        ComposeMsg m ->
+            handleComposeMsg m model data user
 
-        PublishNewTakeClick ->
-            ( model, Task.perform PublishNewTake Time.now )
-
-        PublishNewTake time ->
-            let
-                newTake =
-                    createNewTake data.newTake user time
-
-                takes =
-                    newTake :: data.takes
-            in
-            ( { model | page = Home Hottest { data | takes = takes, newTake = "" } }, Cmd.none )
-
-        FireButtonPressed take ->
-            ( { model | page = Home Hottest (handleFireButtonPress take data user) }, Cmd.none )
-
-        TakeHovered take ->
-            ( { model | page = Home Hottest (handleTakeHover take data user) }
+        TakeMsg m ->
+            ( { model
+                | page =
+                    Home Hottest
+                        { data | takes = Take.update m data.takes user }
+              }
             , Cmd.none
             )
 
@@ -553,31 +418,19 @@ updateHomePageSignedIn msg model data user =
             ( model, Cmd.none )
 
 
-handleTakeHover : Take -> HomeData -> User -> HomeData
-handleTakeHover take data user =
-    { data | takes = findAndApply take toggleHover data.takes }
-
-
-
--- if x is found in l, applies f to x and returns the new list
-
-
-findAndApply : a -> (a -> a) -> List a -> List a
-findAndApply x f l =
-    List.map
-        (\e ->
-            if e == x then
-                f x
-
-            else
-                e
-        )
-        l
-
-
-handleFireButtonPress : Take -> HomeData -> User -> HomeData
-handleFireButtonPress take data user =
-    { data | takes = findAndApply take (likeOrUnlike user) data.takes }
+handleComposeMsg : Compose.Msg -> Model -> HomeData -> User -> ( Model, Cmd Msg )
+handleComposeMsg msg model data user =
+    let
+        ( newCompose, newTakes, cmd ) =
+            Compose.update msg data.compose
+    in
+    ( { model
+        | page =
+            Home Hottest
+                { data | compose = newCompose, takes = newTakes ++ data.takes }
+      }
+    , Cmd.map (\m -> ComposeMsg m) cmd
+    )
 
 
 
@@ -600,15 +453,6 @@ view model =
         { title = "ERROR"
         , body = [ four04 model.time model.zone ]
         }
-
-
-isThursday : Time.Posix -> Time.Zone -> Bool
-isThursday time zone =
-    if debug then
-        thursday
-
-    else
-        Time.toWeekday zone time == Time.Thu
 
 
 four04 : Time.Posix -> Time.Zone -> Html Msg
@@ -638,56 +482,6 @@ four04 time zone =
                 )
             ]
         ]
-
-
-toWeekdayString : Time.Weekday -> String
-toWeekdayString weekday =
-    case weekday of
-        Time.Mon ->
-            "Monday"
-
-        Time.Tue ->
-            "Tuesday"
-
-        Time.Wed ->
-            "Wednesday"
-
-        Time.Thu ->
-            "Thursday"
-
-        Time.Fri ->
-            "Friday"
-
-        Time.Sat ->
-            "Saturday"
-
-        Time.Sun ->
-            "Sunday"
-
-
-daysUntilThursday : Time.Weekday -> Int
-daysUntilThursday weekday =
-    case weekday of
-        Time.Mon ->
-            3
-
-        Time.Tue ->
-            2
-
-        Time.Wed ->
-            1
-
-        Time.Thu ->
-            0
-
-        Time.Fri ->
-            6
-
-        Time.Sat ->
-            5
-
-        Time.Sun ->
-            4
 
 
 plural : Int -> String -> String -> String
@@ -754,7 +548,7 @@ body model =
                 ]
 
         Login data ->
-            loginBody data
+            Html.map (\m -> LoginMsg m) (Login.view data)
 
         ForgotPassword email ->
             p []
@@ -768,7 +562,7 @@ body model =
                 ]
 
         Signup data ->
-            signupBody data
+            Html.map (\m -> SignupMsg m) (Signup.view data)
 
         Profile _ user ->
             div [ class "row" ]
@@ -785,62 +579,6 @@ fakeAd =
     img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "/assets/trash-ad.jpg" ] []
 
 
-loginBody : LoginData -> Html Msg
-loginBody data =
-    div [ id "loginBody" ]
-        [ div [ class "container form mx-auto" ]
-            (inputWithLabel "email" "Email" data.email LoginEmailChanged
-                ++ inputWithLabel "password" "Password" data.password LoginPasswordChanged
-                ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
-                   , div [] [ button [ onClick LoginButtonPressed ] [ text "Continue" ] ]
-                   ]
-                ++ (case data.previousInvalidAttempt of
-                        True ->
-                            [ div [] [ p [ class "text-danger" ] [ text "Invalid Username or Password" ] ] ]
-
-                        False ->
-                            []
-                   )
-            )
-        ]
-
-
-signupBody : SignupData -> Html Msg
-signupBody data =
-    div [ class "container" ]
-        ([ h2 [] [ text "Create Account" ]
-         , p [] [ text "Feed us your data" ]
-         ]
-            ++ inputWithLabel "name" "Name" data.name SignupEditName
-            ++ inputWithLabel "username" "Username" data.username SignupEditUsername
-            ++ inputWithLabel "email" "Email" data.email SignupEditEmail
-            ++ inputWithLabel "bday" "Birthday (MM/DD/YYYY)" data.birthday SignupEditBirthday
-            ++ [ div []
-                    [ button
-                        [ onClick SignupButtonPressed
-                        , disabled <| not <| validateSignup data
-                        ]
-                        [ text "Begin" ]
-                    ]
-               ]
-        )
-
-
-inputWithLabel : String -> String -> String -> (String -> Msg) -> List (Html Msg)
-inputWithLabel id_ text_ val msg =
-    let
-        type__ =
-            if id_ == "password" then
-                "password"
-
-            else
-                "input"
-    in
-    [ div [] [ label [ for id_ ] [ text text_ ] ]
-    , div [] [ input [ type_ type__, id id_, onInput msg, value val ] [] ]
-    ]
-
-
 content : Model -> List (Html Msg)
 content model =
     [ ul [ class "nav nav-tabs mb-3 mt-2" ]
@@ -850,7 +588,8 @@ content model =
             Home Hottest data ->
                 case model.profile of
                     Just { user } ->
-                        [ compose user data.newTake
+                        [ Html.map (\m -> ComposeMsg m)
+                            (Compose.view user data.compose)
                         , feed data.takes model.zone (Just user)
                         ]
 
@@ -908,145 +647,11 @@ aboutUser user =
     ]
 
 
-compose : User -> String -> Html Msg
-compose user newTake =
-    div
-        [ style "padding-left" "15px"
-        , style "padding-right" "15px"
-        ]
-        [ div []
-            [ input
-                [ placeholder ("Hi " ++ user.username ++ ". What's your hottest take?")
-                , value newTake
-                , onInput EditNewTake
-                , class "w-100"
-                ]
-                []
-            ]
-        , div []
-            [ button
-                [ onClick PublishNewTakeClick
-                , disabled (String.isEmpty newTake)
-                ]
-                [ text "Publish" ]
-            ]
-        ]
-
-
 feed : List Take -> Time.Zone -> Maybe User -> Html Msg
 feed takes zone user =
-    div [ class "mt-3" ] (List.map (\take -> viewTake take zone user) takes)
+    div [ class "mt-3" ] (List.map (\take -> viewTakeFixMsg take zone user) takes)
 
 
-viewTake : Take -> Time.Zone -> Maybe User -> Html Msg
-viewTake take zone user =
-    div
-        [ class "media border border-warning p-3"
-        , onMouseEnter <| TakeHovered take
-        , onMouseLeave <| TakeHovered take
-        ]
-        [ img [ class "mr-2", width 64, height 64, src "assets/profilepic.jpg" ] []
-        , div [ class "media-body pr-3" ]
-            ([ p [ class "mb-0" ] [ text ("\"" ++ take.content ++ "\"") ]
-             , p [ class "text-right" ] [ text <| "- @" ++ take.postedBy.username ]
-             ]
-                ++ hoverButtons take user
-            )
-        , fireButton take user take.likedBy
-        ]
-
-
-hoverButtons : Take -> Maybe User -> List (Html Msg)
-hoverButtons take user =
-    let
-        buttons =
-            if Just take.postedBy == user then
-                [ takeHoverButton "edit" (EditTake take)
-                , text " | "
-                , takeHoverButton "delete" (DeleteTake take)
-                ]
-
-            else
-                [ takeHoverButton "report" (ReportTake take) ]
-    in
-    if take.hoveredOver then
-        [ div
-            [ class "text-center" ]
-            buttons
-        ]
-
-    else
-        []
-
-
-takeHoverButton : String -> Msg -> Html Msg
-takeHoverButton txt msg =
-    button [ class "btn-link", onClick msg ] [ text txt ]
-
-
-fireButton : Take -> Maybe User -> List User -> Html Msg
-fireButton take maybeUser likers =
-    case maybeUser of
-        Just user ->
-            if List.member user likers then
-                button
-                    [ class "align-self-end align-self-center fire-button"
-                    , onClick (FireButtonPressed take)
-                    ]
-                    [ text <| String.fromInt <| List.length likers ]
-
-            else
-                button
-                    [ class "align-self-end align-self-center fire-button-transparent"
-                    , onClick (FireButtonPressed take)
-                    ]
-                    [ text <| String.fromInt <| List.length likers ]
-
-        Nothing ->
-            button
-                [ class "align-self-end align-self-center fire-button" ]
-                [ text <| String.fromInt <| List.length likers ]
-
-
-formatTime : Time.Posix -> Time.Zone -> String
-formatTime time zone =
-    let
-        weekday =
-            toWeekdayString (Time.toWeekday zone time)
-
-        hour24 =
-            Time.toHour zone time
-
-        hourTmp =
-            String.fromInt (modBy 12 hour24)
-
-        hour =
-            if hourTmp == "0" then
-                "12"
-
-            else
-                hourTmp
-
-        minute =
-            Time.toMinute Time.utc time
-
-        second =
-            Time.toSecond Time.utc time
-
-        xm =
-            if hour24 < 12 then
-                "AM"
-
-            else
-                "PM"
-    in
-    String.join ":" [ hour, leftPad minute, leftPad second ] ++ " " ++ xm
-
-
-leftPad : Int -> String
-leftPad i =
-    if i < 10 then
-        "0" ++ String.fromInt i
-
-    else
-        String.fromInt i
+viewTakeFixMsg : Take -> Time.Zone -> Maybe User -> Html Msg
+viewTakeFixMsg take zone user =
+    Html.map (\m -> TakeMsg m) (viewTake take zone user)
