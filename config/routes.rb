@@ -8,6 +8,11 @@ Rails.application.routes.draw do
       scope :users do
         get 'me', to: 'me#me'
       end
+
+      scope :takes do
+        get 'all', to: 'take#all'
+        post 'create', to: 'take#create'
+      end
     end
   end
 
