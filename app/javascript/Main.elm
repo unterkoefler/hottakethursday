@@ -603,9 +603,9 @@ body model =
     case model.page of
         Home _ _ ->
             div [ class "row" ]
-                [ div [ class "col-3 d-none d-md-block" ] ads
+                [ div [ class "col-3 d-none d-md-block text-center" ] ads
                 , div [ class "col-md-6 col-xs-10" ] (content model)
-                , div [ class "col-3 d-none d-md-block" ] ads
+                , div [ class "col-3 d-none d-md-block text-center" ] ads
                 ]
 
         Login data ->
@@ -637,7 +637,12 @@ ads =
 
 
 fakeAd =
-    img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "/assets/trash-ad.jpg" ] []
+    img
+        [ class "mb-5 mt-5 px-1"
+        , width 160
+        , src "/assets/trash-ad.jpg"
+        ]
+        []
 
 
 content : Model -> List (Html Msg)
