@@ -235,7 +235,7 @@ userById (BearerToken token) userId onFinish =
     httpRequest
 
 
-usersByIds : UserAuth -> List Int -> (Result Http.Error User.User -> msg) -> Cmd msg
+usersByIds : UserAuth -> List Int -> (Result Http.Error (List User.User) -> msg) -> Cmd msg
 usersByIds (BearerToken token) userIds onFinish =
     let
         url =
