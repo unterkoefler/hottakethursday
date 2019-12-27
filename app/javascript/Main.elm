@@ -524,8 +524,8 @@ headerWithToggle links expandToggle =
             else
                 ""
     in
-    nav [ class "navbar navbar-light bg-light navbar-expand-lg" ]
-        [ a [ class "navbar-brand pl-2", href "/" ] [ text "HTT 🔥" ]
+    nav [ class "navbar navbar-light bg-light navbar-expand-sm" ]
+        [ a [ class "navbar-brand pl-2", href "/" ] [ text "HotTakeThursday 🔥" ]
         , button
             [ class "navbar-toggler"
             , onClick NavBarToggled
@@ -554,7 +554,7 @@ navLinks page profile =
         Home _ _ ->
             case profile of
                 Just { user } ->
-                    [ navItem "🔔" "profile#notifications" ""
+                    [ notificationsLink
                     , navItem "Profile" "profile" ""
                     , logoutButton
                     , navItem "Delete Account" "#" ""
@@ -579,6 +579,17 @@ navLinks page profile =
 logoutButton =
     li [ class "nav-item nav-link pl-3" ]
         [ button [ class "btn btn-link", onClick LogoutButtonPressed ] [ text "Logout" ] ]
+
+
+notificationsLink =
+    li [ class "nav-item nav-link pl-3" ]
+        [ a [ href "profile#notifications" ]
+            [ span [ class "d-inline d-sm-none" ]
+                [ text "Notifications" ]
+            , span [ class "d-none d-sm-inline" ]
+                [ text "🔔" ]
+            ]
+        ]
 
 
 navItem : String -> String -> String -> Html Msg
