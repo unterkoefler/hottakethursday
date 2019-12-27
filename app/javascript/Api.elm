@@ -213,3 +213,45 @@ loadUserAuth json onFinish =
 
             Err decodingError ->
                 Task.fail (DecodingProblem decodingError)
+
+
+userById : UserAuth -> Int -> (Result Http.Error User.User -> msg) -> Cmd msg
+userById (BearerToken token) userId onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "users", "by_id" ]) [ Url.Builder.int "id" userId ]
+
+        httpRequest =
+            Http.request
+                { method = "GET"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.emptyBody
+                , expect = Http.expectJson onFinish User.decoder
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+    in
+    httpRequest
+
+
+usersByIds : UserAuth -> List Int -> (Result Http.Error User.User -> msg) -> Cmd msg
+usersByIds (BearerToken token) userIds onFinish =
+    let
+        url =
+            Url.Builder.relative
+                (baseUrlComponents ++ [ "users", "by_ids" ])
+                [ Url.Builder.string "ids" (String.join "," (List.map String.fromInt userIds)) ]
+
+        httpRequest =
+            Http.request
+                { method = "GET"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.emptyBody
+                , expect = Http.expectJson onFinish (Json.Decode.list User.decoder)
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+    in
+    httpRequest
