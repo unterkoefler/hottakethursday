@@ -23,4 +23,8 @@ class User < ApplicationRecord
   end
 
   after_initialize :fill_default_username!
+
+  def make_the_hottest_of_takes!(words)
+    Take.create(contents: words, user: self)
+  end
 end
