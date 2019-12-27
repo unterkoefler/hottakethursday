@@ -7,6 +7,13 @@ Rails.application.routes.draw do
                                 registrations: 'registrations' }
       scope :users do
         get 'me', to: 'me#me'
+        get 'by_id', to: 'me#by_id'
+        get 'by_ids', to: 'me#by_ids'
+      end
+
+      scope :takes do
+        get 'all', to: 'take#all'
+        post 'create', to: 'take#create'
       end
     end
   end
