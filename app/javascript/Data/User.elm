@@ -6,11 +6,13 @@ import Json.Decode
 type alias User =
     { id : Int
     , username : String
+    , avatarUrl : Maybe String
     }
 
 
 decoder : Json.Decode.Decoder User
 decoder =
-    Json.Decode.map2 User
+    Json.Decode.map3 User
         (Json.Decode.field "id" Json.Decode.int)
         (Json.Decode.field "username" Json.Decode.string)
+        (Json.Decode.field "avatar_url" (Json.Decode.nullable Json.Decode.string))

@@ -23,4 +23,12 @@ class User < ApplicationRecord
   end
 
   after_initialize :fill_default_username!
+
+  has_one_attached :avatar
+
+  def avatar_url
+    return nil unless avatar.attached?
+
+    url_for avatar
+  end
 end
