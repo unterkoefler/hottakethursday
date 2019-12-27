@@ -12,8 +12,8 @@ module Api exposing
     , signUp
     )
 
+import Data.Take as Take
 import Data.User as User
-import Debug
 import Dict
 import Http
 import Json.Decode
@@ -250,6 +250,46 @@ usersByIds (BearerToken token) userIds onFinish =
                 , url = url
                 , body = Http.emptyBody
                 , expect = Http.expectJson onFinish (Json.Decode.list User.decoder)
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+    in
+    httpRequest
+
+
+makeTake : UserAuth -> String -> (Result Http.Error () -> msg) -> Cmd msg
+makeTake (BearerToken token) contents onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "takes", "create" ]) []
+
+        httpRequest =
+            Http.request
+                { method = "POST"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.jsonBody (Json.Encode.object [ ( "contents", Json.Encode.string contents ) ])
+                , expect = Http.expectWhatever onFinish
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+    in
+    httpRequest
+
+
+allTakes : UserAuth -> (Result Http.Error Take.Take -> msg) -> Cmd msg
+allTakes (BearerToken token) onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "takes", "all" ]) []
+
+        httpRequest =
+            Http.request
+                { method = "GET"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.emptyBody
+                , expect = Http.expectJson onFinish Take.decoder
                 , timeout = Nothing
                 , tracker = Nothing
                 }
