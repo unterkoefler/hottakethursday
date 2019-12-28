@@ -159,11 +159,16 @@ signOut (BearerToken token) onFinish =
     httpRequest
 
 
-me : UserAuth -> (Result Http.Error User.User -> msg) -> Cmd msg
-me (BearerToken token) onFinish =
+authenticatedGet :
+    { auth : UserAuth
+    , url : String
+    , expect : Http.Expect msg
+    }
+    -> Cmd msg
+authenticatedGet { auth, url, expect } =
     let
-        url =
-            Url.Builder.relative (baseUrlComponents ++ [ "users", "me" ]) []
+        (BearerToken token) =
+            auth
 
         httpRequest =
             Http.request
@@ -171,12 +176,21 @@ me (BearerToken token) onFinish =
                 , headers = [ Http.header "authorization" token ]
                 , url = url
                 , body = Http.emptyBody
-                , expect = Http.expectJson onFinish User.decoder
+                , expect = expect
                 , timeout = Nothing
                 , tracker = Nothing
                 }
     in
     httpRequest
+
+
+me : UserAuth -> (Result Http.Error User.User -> msg) -> Cmd msg
+me auth onFinish =
+    authenticatedGet
+        { auth = auth
+        , url = Url.Builder.relative (baseUrlComponents ++ [ "users", "me" ]) []
+        , expect = Http.expectJson onFinish User.decoder
+        }
 
 
 withoutBearerPrefix : String -> String
@@ -222,45 +236,24 @@ loadUserAuth json onFinish =
 
 
 userById : UserAuth -> Int -> (Result Http.Error User.User -> msg) -> Cmd msg
-userById (BearerToken token) userId onFinish =
-    let
-        url =
-            Url.Builder.relative (baseUrlComponents ++ [ "users", "by_id" ]) [ Url.Builder.int "id" userId ]
-
-        httpRequest =
-            Http.request
-                { method = "GET"
-                , headers = [ Http.header "authorization" token ]
-                , url = url
-                , body = Http.emptyBody
-                , expect = Http.expectJson onFinish User.decoder
-                , timeout = Nothing
-                , tracker = Nothing
-                }
-    in
-    httpRequest
+userById auth userId onFinish =
+    authenticatedGet
+        { auth = auth
+        , url = Url.Builder.relative (baseUrlComponents ++ [ "users", "by_id" ]) [ Url.Builder.int "id" userId ]
+        , expect = Http.expectJson onFinish User.decoder
+        }
 
 
 usersByIds : UserAuth -> List Int -> (Result Http.Error (List User.User) -> msg) -> Cmd msg
-usersByIds (BearerToken token) userIds onFinish =
-    let
-        url =
+usersByIds auth userIds onFinish =
+    authenticatedGet
+        { auth = auth
+        , url =
             Url.Builder.relative
                 (baseUrlComponents ++ [ "users", "by_ids" ])
                 [ Url.Builder.string "ids" (String.join "," (List.map String.fromInt userIds)) ]
-
-        httpRequest =
-            Http.request
-                { method = "GET"
-                , headers = [ Http.header "authorization" token ]
-                , url = url
-                , body = Http.emptyBody
-                , expect = Http.expectJson onFinish (Json.Decode.list User.decoder)
-                , timeout = Nothing
-                , tracker = Nothing
-                }
-    in
-    httpRequest
+        , expect = Http.expectJson onFinish (Json.Decode.list User.decoder)
+        }
 
 
 makeTake : UserAuth -> String -> (Result Http.Error () -> msg) -> Cmd msg
@@ -283,24 +276,22 @@ makeTake (BearerToken token) contents onFinish =
     httpRequest
 
 
-allTakes : UserAuth -> (Result Http.Error Take.Take -> msg) -> Cmd msg
-allTakes (BearerToken token) onFinish =
-    let
-        url =
-            Url.Builder.relative (baseUrlComponents ++ [ "takes", "all" ]) []
+allTakes : UserAuth -> (Result Http.Error (List Take.Take) -> msg) -> Cmd msg
+allTakes auth onFinish =
+    authenticatedGet
+        { auth = auth
+        , url = Url.Builder.relative (baseUrlComponents ++ [ "takes", "all" ]) []
+        , expect = Http.expectJson onFinish (Json.Decode.list Take.decoder)
+        }
 
-        httpRequest =
-            Http.request
-                { method = "GET"
-                , headers = [ Http.header "authorization" token ]
-                , url = url
-                , body = Http.emptyBody
-                , expect = Http.expectJson onFinish Take.decoder
-                , timeout = Nothing
-                , tracker = Nothing
-                }
-    in
-    httpRequest
+
+allTakesFromToday : UserAuth -> (Result Http.Error (List Take.Take) -> msg) -> Cmd msg
+allTakesFromToday auth onFinish =
+    authenticatedGet
+        { auth = auth
+        , url = Url.Builder.relative (baseUrlComponents ++ [ "takes", "all_from_today" ]) []
+        , expect = Http.expectJson onFinish (Json.Decode.list Take.decoder)
+        }
 
 
 like : UserAuth -> Int -> (Result Http.Error () -> msg) -> Cmd msg
