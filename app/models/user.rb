@@ -1,4 +1,7 @@
 class User < ApplicationRecord
+  has_many :takes
+  has_many :votes
+
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
   devise :database_authenticatable, :registerable,
@@ -28,16 +31,13 @@ class User < ApplicationRecord
     Take.create!(contents: words, user: self)
   end
 
-  has_many :takes
-  has_many :votes
-
   def like!(take)
-    unless take.votes.where(:user_id => self.id).any?
+    unless take.votes.where(user_id: id).any?
       Vote.create!(user: self, take: take)
     end
   end
 
   def unlike!(take)
-    take.votes.where(:user_id => self.id).destroy_all
+    take.votes.where(user_id: id).destroy_all
   end
 end

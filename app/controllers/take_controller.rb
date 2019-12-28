@@ -14,14 +14,14 @@ class TakeController < ApplicationController
   end
 
   def like
-    params.require(:post_id)
-    take = Take.find_by(id: params[:post_id])
+    params.require(:take_id)
+    take = Take.find_by(id: params[:take_id])
     current_user.like!(take)
   end
 
   def unlike
-    params.require(:post_id)
-    take = Take.find_by(id: params[:post_id])
+    params.require(:take_id)
+    take = Take.find_by(id: params[:take_id])
     current_user.unlike!(take)
   end
 end

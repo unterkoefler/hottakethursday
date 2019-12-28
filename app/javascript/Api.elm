@@ -4,12 +4,18 @@ module Api exposing
     , SavedUserAuthError(..)
     , SignInError(..)
     , UserAuth
+    , allTakes
     , encodeUserAuth
+    , like
     , loadUserAuth
+    , makeTake
     , me
     , signIn
     , signOut
     , signUp
+    , unlike
+    , userById
+    , usersByIds
     )
 
 import Data.Take as Take
@@ -290,6 +296,46 @@ allTakes (BearerToken token) onFinish =
                 , url = url
                 , body = Http.emptyBody
                 , expect = Http.expectJson onFinish Take.decoder
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+    in
+    httpRequest
+
+
+like : UserAuth -> Int -> (Result Http.Error () -> msg) -> Cmd msg
+like (BearerToken token) takeId onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "takes", "like" ]) []
+
+        httpRequest =
+            Http.request
+                { method = "POST"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.jsonBody (Json.Encode.object [ ( "take_id", Json.Encode.int takeId ) ])
+                , expect = Http.expectWhatever onFinish
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+    in
+    httpRequest
+
+
+unlike : UserAuth -> Int -> (Result Http.Error () -> msg) -> Cmd msg
+unlike (BearerToken token) takeId onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "takes", "unlike" ]) []
+
+        httpRequest =
+            Http.request
+                { method = "POST"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.jsonBody (Json.Encode.object [ ( "take_id", Json.Encode.int takeId ) ])
+                , expect = Http.expectWhatever onFinish
                 , timeout = Nothing
                 , tracker = Nothing
                 }
