@@ -1,9 +1,9 @@
 module Take exposing (Msg, Take, createNewTake, likeOrUnlike, toggleHover, update, viewTake)
 
 import Data.User as User exposing (User)
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onMouseEnter, onMouseLeave)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (onClick, onMouseEnter, onMouseLeave)
 import Thursday exposing (toWeekdayString)
 import Time
 
