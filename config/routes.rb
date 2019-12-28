@@ -14,6 +14,8 @@ Rails.application.routes.draw do
       scope :takes do
         get 'all', to: 'take#all'
         post 'create', to: 'take#create'
+        post 'like', to: 'take#like'
+        post 'unlike', to: 'take#unlike'
       end
     end
   end
