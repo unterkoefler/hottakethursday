@@ -86,21 +86,23 @@ update msg model navKey =
 
 view : Model -> Html Msg
 view model =
-    div [ id "loginBody" ]
-        [ div [ class "container form mx-auto" ]
-            (inputWithLabel "email" "Email" model.email EmailChanged
-                ++ inputWithLabel "password" "Password" model.password PasswordChanged
-                ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
-                   , div [] [ button [ onClick Submit ] [ text "Continue" ] ]
-                   ]
-                ++ (case model.previousInvalidAttempt of
-                        True ->
-                            [ div [] [ p [ class "text-danger" ] [ text "Invalid Username or Password" ] ] ]
+    div [ id "loginBody", class "container-fluid" ]
+        [ div [ class "row justify-content-center" ]
+            [ div [ class "col form" ]
+                (inputWithLabel "email" "Email" model.email EmailChanged
+                    ++ inputWithLabel "password" "Password" model.password PasswordChanged
+                    ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
+                       , div [] [ button [ onClick Submit ] [ text "Continue" ] ]
+                       ]
+                    ++ (case model.previousInvalidAttempt of
+                            True ->
+                                [ div [] [ p [ class "text-danger" ] [ text "Invalid Username or Password" ] ] ]
 
-                        False ->
-                            []
-                   )
-            )
+                            False ->
+                                []
+                       )
+                )
+            ]
         ]
 
 
