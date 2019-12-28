@@ -27,4 +27,17 @@ class User < ApplicationRecord
   def make_the_hottest_of_takes!(words)
     Take.create(contents: words, user: self)
   end
+
+  has_many :takes
+  has_many :votes
+
+  def like!(take)
+    unless take.votes.any? { |vote| vote.user_id == self.id }
+      Vote.create(user: self, take: take)
+    end
+  end
+
+  def unlike!(take)
+    take.votes.where(:user_id => self.id).destroy_all
+  end
 end
