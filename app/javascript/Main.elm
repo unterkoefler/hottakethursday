@@ -410,18 +410,18 @@ updateSignupPage msg model data =
 updateHomePage : Msg -> Model -> HomeData -> ( Model, Cmd Msg )
 updateHomePage msg model data =
     case model.profile of
-        Just { user } ->
-            updateHomePageSignedIn msg model data user
+        Just { user, auth } ->
+            updateHomePageSignedIn msg model data user auth
 
         Nothing ->
             ( model, Cmd.none )
 
 
-updateHomePageSignedIn : Msg -> Model -> HomeData -> User -> ( Model, Cmd Msg )
-updateHomePageSignedIn msg model data user =
+updateHomePageSignedIn : Msg -> Model -> HomeData -> User -> Api.UserAuth -> ( Model, Cmd Msg )
+updateHomePageSignedIn msg model data user auth =
     case msg of
         ComposeMsg m ->
-            handleComposeMsg m model data user
+            handleComposeMsg m model data user auth
 
         TakeMsg m ->
             ( { model
@@ -465,11 +465,11 @@ blaa t =
     }
 
 
-handleComposeMsg : Compose.Msg -> Model -> HomeData -> User -> ( Model, Cmd Msg )
-handleComposeMsg msg model data user =
+handleComposeMsg : Compose.Msg -> Model -> HomeData -> User -> Api.UserAuth -> ( Model, Cmd Msg )
+handleComposeMsg msg model data user auth =
     let
         ( newCompose, newTakes, cmd ) =
-            Compose.update msg data.compose
+            Compose.update msg data.compose auth
     in
     ( { model
         | page =

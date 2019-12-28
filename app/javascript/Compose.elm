@@ -1,9 +1,11 @@
 module Compose exposing (Compose, Msg, update, view)
 
+import Api
 import Data.User as User exposing (User)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (onClick, onInput)
+import Http
 import Take exposing (Take, createNewTake)
 import Task
 import Time
@@ -25,10 +27,11 @@ type Msg
     = EditNewTake String
     | PublishNewTakeClick User
     | PublishNewTake User Time.Posix
+    | TakePublished (Result Http.Error ())
 
 
-update : Msg -> Compose -> ( Compose, List Take, Cmd Msg )
-update msg compose =
+update : Msg -> Compose -> Api.UserAuth -> ( Compose, List Take, Cmd Msg )
+update msg compose auth =
     case msg of
         EditNewTake newTake ->
             ( newTake, [], Cmd.none )
@@ -39,6 +42,12 @@ update msg compose =
         PublishNewTake user time ->
             ( ""
             , List.singleton (createNewTake compose user time)
+            , Api.makeTake auth compose TakePublished
+            )
+
+        TakePublished _ ->
+            ( ""
+            , []
             , Cmd.none
             )
 
