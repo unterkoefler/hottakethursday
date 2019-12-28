@@ -7,7 +7,11 @@ class Take < ApplicationRecord
                       maximum: 140,
                       allow_blank: false
 
-  def number_of_upvotes
+  def number_of_likes
     self.votes.count
+  end
+
+  def users_who_liked
+    self.votes.map(&:user)
   end
 end

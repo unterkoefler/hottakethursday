@@ -10,7 +10,7 @@ type alias Take =
     { content : String
     , postedBy : User
     , timePosted : Time.Posix
-    , numberOfUpVotes : Int
+    , usersWhoUpLiked : List User
     }
 
 
@@ -20,4 +20,4 @@ decoder =
         (Json.Decode.field "contents" Json.Decode.string)
         (Json.Decode.field "user" User.decoder)
         (Json.Decode.field "createdAt" Iso8601.decoder)
-        (Json.Decode.field "number_of_upvotes" Json.Decode.int)
+        (Json.Decode.field "users_who_liked" (Json.Decode.list User.decoder))
