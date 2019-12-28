@@ -32,12 +32,12 @@ class User < ApplicationRecord
   end
 
   def like!(take)
-    unless take.votes.where(user_id: id).any?
+    unless take.likes.where(user_id: id).any?
       Like.create!(user: self, take: take)
     end
   end
 
   def unlike!(take)
-    take.votes.where(user_id: id).destroy_all
+    take.likes.where(user_id: id).destroy_all
   end
 end

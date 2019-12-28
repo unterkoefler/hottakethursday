@@ -8,10 +8,10 @@ class Take < ApplicationRecord
                       allow_blank: false
 
   def number_of_likes
-    self.votes.count
+    likes.count
   end
 
   def users_who_liked
-    self.votes.map(&:user)
+    likes.map(&:user)
   end
 end
