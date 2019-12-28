@@ -12,4 +12,16 @@ class TakeController < ApplicationController
     params.require(:contents)
     current_user.make_the_hottest_of_takes!(params[:contents])
   end
+
+  def like
+    params.require(:take_id)
+    take = Take.find_by(id: params[:take_id])
+    current_user.like!(take)
+  end
+
+  def unlike
+    params.require(:take_id)
+    take = Take.find_by(id: params[:take_id])
+    current_user.unlike!(take)
+  end
 end

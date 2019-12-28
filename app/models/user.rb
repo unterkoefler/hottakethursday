@@ -1,4 +1,7 @@
 class User < ApplicationRecord
+  has_many :takes
+  has_many :votes
+
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
   devise :database_authenticatable, :registerable,
@@ -25,6 +28,16 @@ class User < ApplicationRecord
   after_initialize :fill_default_username!
 
   def make_the_hottest_of_takes!(words)
-    Take.create(contents: words, user: self)
+    Take.create!(contents: words, user: self)
+  end
+
+  def like!(take)
+    unless take.votes.where(user_id: id).any?
+      Vote.create!(user: self, take: take)
+    end
+  end
+
+  def unlike!(take)
+    take.votes.where(user_id: id).destroy_all
   end
 end

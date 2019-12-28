@@ -13,4 +13,6 @@ class MeController < ApplicationController
     params.require(:ids)
     render json: params[:ids].split(',').map { |id| User.find_by(id: id) }
   end
+
+
 end
