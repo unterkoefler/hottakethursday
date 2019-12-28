@@ -3,9 +3,9 @@ module Login exposing (Model, Msg, update, view)
 import Api
 import Browser.Navigation as Nav
 import Data.User as User exposing (User)
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (onClick, onInput)
 import Ports
 
 

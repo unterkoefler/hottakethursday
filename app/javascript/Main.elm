@@ -6,9 +6,9 @@ import Browser.Navigation as Nav
 import Compose exposing (Compose)
 import Data.User as User exposing (User)
 import Flags
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
+import Html.Styled as Html exposing (..)
+import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
 import Http
 import Json.Decode
 import Login
@@ -450,16 +450,17 @@ view model =
     if isThursday model.time model.zone then
         { title = "HTT"
         , body =
-            [ div []
-                [ header model
-                , body model
-                ]
+            [ toUnstyled <|
+                div []
+                    [ header model
+                    , body model
+                    ]
             ]
         }
 
     else
         { title = "ERROR"
-        , body = [ four04 model.time model.zone ]
+        , body = [ toUnstyled <| four04 model.time model.zone ]
         }
 
 
