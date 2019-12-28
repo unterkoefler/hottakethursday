@@ -4,7 +4,9 @@ import Api
 import Browser
 import Browser.Navigation as Nav
 import Compose exposing (Compose)
+import Data.Take
 import Data.User as User exposing (User)
+import Debug
 import Flags
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (..)
@@ -183,7 +185,7 @@ take1 =
 
 
 homePage =
-    Home Hottest { takes = [ take1 ], compose = "" }
+    Home Hottest { takes = [], compose = "" }
 
 
 homePageCold =
@@ -245,6 +247,7 @@ type Msg
     | LoginMsg Login.Msg
     | TakeMsg Take.Msg
     | SignupMsg Signup.Msg
+    | FeedLoaded (Result Http.Error (List Data.Take.Take))
     | AdjustTimeZone Time.Zone
     | Tick Time.Posix
     | LinkClicked Browser.UrlRequest
@@ -309,7 +312,9 @@ update msg model =
             ( model, Ports.clearAuthToken () )
 
         StoredAuthUserReceived ( auth, Ok user ) ->
-            ( { model | profile = Just { auth = auth, user = user } }, Cmd.none )
+            ( { model | profile = Just { auth = auth, user = user } }
+            , Api.allTakes auth FeedLoaded
+            )
 
         _ ->
             updatePage msg model
@@ -319,7 +324,12 @@ handleUrlChange : Model -> Url.Url -> ( Model, Cmd Msg )
 handleUrlChange model url =
     case toRoute <| Url.toString url of
         HomeRoute Hottest ->
-            ( { model | page = homePage }, Cmd.none )
+            case model.profile of
+                Just { auth } ->
+                    ( { model | page = homePage }, Api.allTakes auth FeedLoaded )
+
+                Nothing ->
+                    ( { model | page = homePage }, Cmd.none )
 
         HomeRoute Coldest ->
             ( { model | page = homePageCold }, Cmd.none )
@@ -422,8 +432,37 @@ updateHomePageSignedIn msg model data user =
             , Cmd.none
             )
 
+        FeedLoaded (Ok takes) ->
+            ( { model
+                | page =
+                    Home Hottest { data | takes = List.map blaa takes }
+              }
+            , Cmd.none
+            )
+
+        FeedLoaded (Err m) ->
+            let
+                _ =
+                    Debug.log "FeedLoaded error" m
+            in
+            ( model, Cmd.none )
+
         _ ->
             ( model, Cmd.none )
+
+
+
+-- Converts a Data.Take.Take to a Take. Consolidate these asap
+
+
+blaa : Data.Take.Take -> Take
+blaa t =
+    { content = t.content
+    , postedBy = t.postedBy
+    , timePosted = t.timePosted
+    , likedBy = t.usersWhoUpLiked
+    , hoveredOver = False
+    }
 
 
 handleComposeMsg : Compose.Msg -> Model -> HomeData -> User -> ( Model, Cmd Msg )
