@@ -32,7 +32,7 @@ class User < ApplicationRecord
   has_many :votes
 
   def like!(take)
-    unless take.votes.any? { |vote| vote.user_id == self.id }
+    unless take.votes.where(:user_id => self.id).any?
       Vote.create!(user: self, take: take)
     end
   end
