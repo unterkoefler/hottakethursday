@@ -1,6 +1,6 @@
 class Take < ApplicationRecord
   belongs_to :user
-  has_many :votes
+  has_many :likes
 
   validates_length_of :contents,
                       minimum: 10,
