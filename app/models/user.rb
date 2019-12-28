@@ -25,7 +25,7 @@ class User < ApplicationRecord
   after_initialize :fill_default_username!
 
   def make_the_hottest_of_takes!(words)
-    Take.create(contents: words, user: self)
+    Take.create!(contents: words, user: self)
   end
 
   has_many :takes
@@ -33,7 +33,7 @@ class User < ApplicationRecord
 
   def like!(take)
     unless take.votes.any? { |vote| vote.user_id == self.id }
-      Vote.create(user: self, take: take)
+      Vote.create!(user: self, take: take)
     end
   end
 
