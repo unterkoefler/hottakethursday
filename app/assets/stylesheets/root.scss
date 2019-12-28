@@ -2,6 +2,10 @@
 // They will automatically be included in application.css.
 // You can use Sass (SCSS) here: https://sass-lang.com/
 
+textarea {
+    resize: none;
+}
+
 .btn-link {
   padding: 0px;
   border-width: 0px;
@@ -16,10 +20,18 @@
   height: 500px;
 }
 
+#signupBody {
+  background-image: url("/assets/signup-bg.jpg");
+  background-color: white;
+  background-size: 200px;
+  background-repeat: repeat;
+  height: 500px;
+}
+
 .form {
   padding-top: 30px;
-  width: 50%;
   background-color: #ffffffd1;
+  max-width: 300px;
 }
 
 
