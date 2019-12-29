@@ -167,6 +167,7 @@ type alias Model =
     , url : Url.Url
     , navKey : Nav.Key
     , showNavBar : Bool
+    , expandNavTabs : Bool
     }
 
 
@@ -213,6 +214,7 @@ init flags url key =
             , url = url
             , navKey = key
             , showNavBar = False
+            , expandNavTabs = False
             }
 
         loadAuthCmd =
@@ -253,6 +255,7 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | NavBarToggled
+    | NavTabsToggled
     | LogoutButtonPressed
     | LogoutRequestHandled (Result Http.Error ())
     | StoredAuthReceived Json.Decode.Value -- Got auth that was stored from a previous session.
@@ -287,6 +290,11 @@ update msg model =
 
         NavBarToggled ->
             ( { model | showNavBar = not model.showNavBar }
+            , Cmd.none
+            )
+
+        NavTabsToggled ->
+            ( { model | expandNavTabs = not model.expandNavTabs }
             , Cmd.none
             )
 
@@ -357,7 +365,9 @@ handleUrlChange model url =
 
 handleUrlChangeToProfile : Model -> ProfileSection -> User -> ( Model, Cmd Msg )
 handleUrlChangeToProfile model section user =
-    ( { model | page = Profile section user }, Cmd.none )
+    ( { model | page = Profile section user, expandNavTabs = False }
+    , Cmd.none
+    )
 
 
 updatePage : Msg -> Model -> ( Model, Cmd Msg )
@@ -678,7 +688,7 @@ fakeAd =
 
 content : Model -> List (Html Msg)
 content model =
-    [ navPills model.page
+    [ navTabs model.page model.expandNavTabs
     , div [ class "container" ]
         (case model.page of
             Home Hottest data ->
@@ -701,8 +711,8 @@ content model =
     ]
 
 
-navPills : Page -> Html Msg
-navPills page =
+navTabs : Page -> Bool -> Html Msg
+navTabs page expandNavTabs =
     case page of
         Home Hottest _ ->
             ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
@@ -717,15 +727,22 @@ navPills page =
                 ]
 
         Profile section _ ->
-            navPillsCollapsable section
+            navTabsCollapsable section expandNavTabs
 
         _ ->
             div [] []
 
 
-navPillsCollapsable : ProfileSection -> Html Msg
-navPillsCollapsable section =
+navTabsCollapsable : ProfileSection -> Bool -> Html Msg
+navTabsCollapsable section expand =
     let
+        ( tabsClass, icon ) =
+            if expand then
+                ( "expanded-tabs", "▲" )
+
+            else
+                ( "collapsed-tabs", "▼" )
+
         navItems =
             [ navItem "Your Takes" "/profile" (isActive YourTakes section)
             , navItem "Following" "/profile#following" (isActive Following section)
@@ -737,9 +754,11 @@ navPillsCollapsable section =
     div []
         [ ul [ class "d-none d-sm-flex nav nav-tabs mb-3 mt-2 mx-3" ]
             navItems
-        , div [ class "d-flex d-sm-none collapsed-tabs mb-3 mt-2 mx-3 justify-content-between" ]
+        , div [ class <| "d-flex d-sm-none mb-3 mt-2 mx-3 justify-content-between " ++ tabsClass ]
             (navItems
-                ++ [ span [ class "align-self-center mx-3" ] [ text "▼" ] ]
+                ++ [ span [ class "align-self-center mx-3" ]
+                        [ button [ class "btn-link", onClick NavTabsToggled ] [ text icon ] ]
+                   ]
             )
         ]
 
