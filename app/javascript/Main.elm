@@ -4,7 +4,9 @@ import Api
 import Browser
 import Browser.Navigation as Nav
 import Compose exposing (Compose)
+import Data.Take
 import Data.User as User exposing (User)
+import Debug
 import Flags
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (..)
@@ -14,7 +16,7 @@ import Json.Decode
 import Login
 import Ports
 import Signup
-import Take exposing (Take, createNewTake, likeOrUnlike, toggleHover, viewTake)
+import TakeCard exposing (TakeCard, createNewTake, likeOrUnlike, toggleHover, viewTake)
 import Task
 import Thursday exposing (daysUntilThursday, isThursday, toWeekdayString)
 import Time
@@ -136,7 +138,7 @@ toRoute string =
 
 
 type alias HomeData =
-    { takes : List Take
+    { takes : List TakeCard
     , compose : Compose
     }
 
@@ -183,7 +185,7 @@ take1 =
 
 
 homePage =
-    Home Hottest { takes = [ take1 ], compose = "" }
+    Home Hottest { takes = [], compose = "" }
 
 
 homePageCold =
@@ -243,8 +245,9 @@ init flags url key =
 type Msg
     = ComposeMsg Compose.Msg
     | LoginMsg Login.Msg
-    | TakeMsg Take.Msg
+    | TakeMsg TakeCard.Msg
     | SignupMsg Signup.Msg
+    | FeedLoaded (Result Http.Error (List Data.Take.Take))
     | AdjustTimeZone Time.Zone
     | Tick Time.Posix
     | LinkClicked Browser.UrlRequest
@@ -309,7 +312,9 @@ update msg model =
             ( model, Ports.clearAuthToken () )
 
         StoredAuthUserReceived ( auth, Ok user ) ->
-            ( { model | profile = Just { auth = auth, user = user } }, Cmd.none )
+            ( { model | profile = Just { auth = auth, user = user } }
+            , Api.allTakes auth FeedLoaded
+            )
 
         _ ->
             updatePage msg model
@@ -319,7 +324,12 @@ handleUrlChange : Model -> Url.Url -> ( Model, Cmd Msg )
 handleUrlChange model url =
     case toRoute <| Url.toString url of
         HomeRoute Hottest ->
-            ( { model | page = homePage }, Cmd.none )
+            case model.profile of
+                Just { auth } ->
+                    ( { model | page = homePage }, Api.allTakes auth FeedLoaded )
+
+                Nothing ->
+                    ( { model | page = homePage }, Cmd.none )
 
         HomeRoute Coldest ->
             ( { model | page = homePageCold }, Cmd.none )
@@ -400,37 +410,57 @@ updateSignupPage msg model data =
 updateHomePage : Msg -> Model -> HomeData -> ( Model, Cmd Msg )
 updateHomePage msg model data =
     case model.profile of
-        Just { user } ->
-            updateHomePageSignedIn msg model data user
+        Just { user, auth } ->
+            updateHomePageSignedIn msg model data user auth
 
         Nothing ->
             ( model, Cmd.none )
 
 
-updateHomePageSignedIn : Msg -> Model -> HomeData -> User -> ( Model, Cmd Msg )
-updateHomePageSignedIn msg model data user =
+updateHomePageSignedIn : Msg -> Model -> HomeData -> User -> Api.UserAuth -> ( Model, Cmd Msg )
+updateHomePageSignedIn msg model data user auth =
     case msg of
         ComposeMsg m ->
-            handleComposeMsg m model data user
+            handleComposeMsg m model data user auth
 
         TakeMsg m ->
+            handleTakeMsg m model data user auth
+
+        FeedLoaded (Ok takes) ->
             ( { model
                 | page =
-                    Home Hottest
-                        { data | takes = Take.update m data.takes user }
+                    Home Hottest { data | takes = List.map (\t -> { take = t, hovered = False }) takes }
               }
             , Cmd.none
             )
+
+        FeedLoaded (Err m) ->
+            let
+                _ =
+                    Debug.log "FeedLoaded error" m
+            in
+            ( model, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
 
 
-handleComposeMsg : Compose.Msg -> Model -> HomeData -> User -> ( Model, Cmd Msg )
-handleComposeMsg msg model data user =
+handleTakeMsg : TakeCard.Msg -> Model -> HomeData -> User -> Api.UserAuth -> ( Model, Cmd Msg )
+handleTakeMsg msg model data user auth =
+    let
+        ( newTakes, cmd ) =
+            TakeCard.update msg data.takes user auth
+    in
+    ( { model | page = Home Hottest { data | takes = newTakes } }
+    , Cmd.map (\m -> TakeMsg m) cmd
+    )
+
+
+handleComposeMsg : Compose.Msg -> Model -> HomeData -> User -> Api.UserAuth -> ( Model, Cmd Msg )
+handleComposeMsg msg model data user auth =
     let
         ( newCompose, newTakes, cmd ) =
-            Compose.update msg data.compose
+            Compose.update msg data.compose auth
     in
     ( { model
         | page =
@@ -714,11 +744,11 @@ aboutUser user =
     ]
 
 
-feed : List Take -> Time.Zone -> Maybe User -> Html Msg
+feed : List TakeCard -> Time.Zone -> Maybe User -> Html Msg
 feed takes zone user =
     div [ class "mt-3" ] (List.map (\take -> viewTakeFixMsg take zone user) takes)
 
 
-viewTakeFixMsg : Take -> Time.Zone -> Maybe User -> Html Msg
+viewTakeFixMsg : TakeCard -> Time.Zone -> Maybe User -> Html Msg
 viewTakeFixMsg take zone user =
     Html.map (\m -> TakeMsg m) (viewTake take zone user)

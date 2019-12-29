@@ -3,8 +3,8 @@ class Take < ApplicationRecord
   has_many :likes
 
   validates_length_of :contents,
-                      minimum: 10,
-                      maximum: 140,
+                      minimum: 1,
+                      maximum: 169,
                       allow_blank: false
 
   def number_of_likes
