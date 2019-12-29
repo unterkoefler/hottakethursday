@@ -424,13 +424,7 @@ updateHomePageSignedIn msg model data user auth =
             handleComposeMsg m model data user auth
 
         TakeMsg m ->
-            ( { model
-                | page =
-                    Home Hottest
-                        { data | takes = TakeCard.update m data.takes user }
-              }
-            , Cmd.none
-            )
+            handleTakeMsg m model data user auth
 
         FeedLoaded (Ok takes) ->
             ( { model
@@ -449,6 +443,17 @@ updateHomePageSignedIn msg model data user auth =
 
         _ ->
             ( model, Cmd.none )
+
+
+handleTakeMsg : TakeCard.Msg -> Model -> HomeData -> User -> Api.UserAuth -> ( Model, Cmd Msg )
+handleTakeMsg msg model data user auth =
+    let
+        ( newTakes, cmd ) =
+            TakeCard.update msg data.takes user auth
+    in
+    ( { model | page = Home Hottest { data | takes = newTakes } }
+    , Cmd.map (\m -> TakeMsg m) cmd
+    )
 
 
 handleComposeMsg : Compose.Msg -> Model -> HomeData -> User -> Api.UserAuth -> ( Model, Cmd Msg )

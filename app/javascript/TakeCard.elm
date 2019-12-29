@@ -1,10 +1,13 @@
 module TakeCard exposing (Msg, TakeCard, createNewTake, likeOrUnlike, toggleHover, update, viewTake)
 
+import Api
 import Data.Take as Take exposing (Take)
 import Data.User as User exposing (User)
+import Debug
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (onClick, onMouseEnter, onMouseLeave)
+import Http
 import Thursday exposing (toWeekdayString)
 import Time
 
@@ -29,19 +32,35 @@ type Msg
     | EditTake TakeCard
     | DeleteTake TakeCard
     | ReportTake TakeCard
+    | LikeHandled (Result Http.Error ())
 
 
-update : Msg -> List TakeCard -> User -> List TakeCard
-update msg cards user =
+update : Msg -> List TakeCard -> User -> Api.UserAuth -> ( List TakeCard, Cmd Msg )
+update msg cards user auth =
     case msg of
         FireButtonPressed card ->
-            findAndApply card (likeOrUnlike user) cards
+            ( findAndApply card (likeOrUnlike user) cards
+            , sendLikeOrUnlike user auth card.take
+            )
 
         TakeHovered card ->
-            findAndApply card toggleHover cards
+            ( findAndApply card toggleHover cards
+            , Cmd.none
+            )
+
+        LikeHandled (Err m) ->
+            let
+                _ =
+                    Debug.log "like handled error" m
+            in
+            ( cards
+            , Cmd.none
+            )
 
         _ ->
-            cards
+            ( cards
+            , Cmd.none
+            )
 
 
 
@@ -94,6 +113,15 @@ likeOrUnlikeTake user take =
 
     else
         { take | usersWhoLiked = user :: take.usersWhoLiked }
+
+
+sendLikeOrUnlike : User -> Api.UserAuth -> Take -> Cmd Msg
+sendLikeOrUnlike user auth take =
+    if List.member user take.usersWhoLiked then
+        Api.unlike auth take.id LikeHandled
+
+    else
+        Api.like auth take.id LikeHandled
 
 
 
