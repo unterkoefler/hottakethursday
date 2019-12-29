@@ -4,11 +4,15 @@ class MeController < ApplicationController
     render json: current_user
   end
 
-  # https://cameronbothner.com/activestorage-beyond-rails-views/
-  def upload_avatar
-    params.require(:user).require(:avatar) do |params|
-      avatar = params[:user][:avatar]
-      current_user.avatar.attach(avatar)
-    end
+  def by_id
+    params.require(:id)
+    render json: User.find_by(id: params[:id])
   end
+
+  def by_ids
+    params.require(:ids)
+    render json: params[:ids].split(',').map { |id| User.find_by(id: id) }
+  end
+
+
 end

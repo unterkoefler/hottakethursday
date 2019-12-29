@@ -1,4 +1,7 @@
 class User < ApplicationRecord
+  has_many :takes
+  has_many :likes
+
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
   devise :database_authenticatable, :registerable,
@@ -30,5 +33,18 @@ class User < ApplicationRecord
     return nil unless avatar.attached?
 
     url_for avatar
+    
+  def make_the_hottest_of_takes!(words)
+    Take.create!(contents: words, user: self)
+  end
+
+  def like!(take)
+    unless take.likes.where(user_id: id).any?
+      Like.create!(user: self, take: take)
+    end
+  end
+
+  def unlike!(take)
+    take.likes.where(user_id: id).destroy_all
   end
 end

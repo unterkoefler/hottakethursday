@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_12_19_220521) do
+ActiveRecord::Schema.define(version: 2019_12_28_154432) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -42,6 +42,23 @@ ActiveRecord::Schema.define(version: 2019_12_19_220521) do
     t.index ["jti"], name: "index_jwt_blacklist_on_jti"
   end
 
+  create_table "likes", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "take_id", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["take_id"], name: "index_likes_on_take_id"
+    t.index ["user_id"], name: "index_likes_on_user_id"
+  end
+
+  create_table "takes", force: :cascade do |t|
+    t.string "contents"
+    t.bigint "user_id", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["user_id"], name: "index_takes_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
@@ -57,4 +74,7 @@ ActiveRecord::Schema.define(version: 2019_12_19_220521) do
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "likes", "takes"
+  add_foreign_key "likes", "users"
+  add_foreign_key "takes", "users"
 end

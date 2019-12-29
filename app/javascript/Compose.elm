@@ -1,9 +1,9 @@
 module Compose exposing (Compose, Msg, update, view)
 
 import Data.User as User exposing (User)
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (onClick, onInput)
 import Take exposing (Take, createNewTake)
 import Task
 import Time
@@ -50,9 +50,10 @@ view user newTake =
         , style "padding-right" "15px"
         ]
         [ div []
-            [ input
+            [ textarea
                 [ placeholder ("Hi " ++ user.username ++ ". What's your hottest take?")
                 , value newTake
+                , rows 2
                 , onInput EditNewTake
                 , class "w-100"
                 ]

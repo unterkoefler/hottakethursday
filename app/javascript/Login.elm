@@ -3,9 +3,9 @@ module Login exposing (Model, Msg, update, view)
 import Api
 import Browser.Navigation as Nav
 import Data.User as User exposing (User)
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (onClick, onInput)
 import Ports
 
 
@@ -86,21 +86,23 @@ update msg model navKey =
 
 view : Model -> Html Msg
 view model =
-    div [ id "loginBody" ]
-        [ div [ class "container form mx-auto" ]
-            (inputWithLabel "email" "Email" model.email EmailChanged
-                ++ inputWithLabel "password" "Password" model.password PasswordChanged
-                ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
-                   , div [] [ button [ onClick Submit ] [ text "Continue" ] ]
-                   ]
-                ++ (case model.previousInvalidAttempt of
-                        True ->
-                            [ div [] [ p [ class "text-danger" ] [ text "Invalid Username or Password" ] ] ]
+    div [ id "loginBody", class "container-fluid" ]
+        [ div [ class "row justify-content-center" ]
+            [ div [ class "col form" ]
+                (inputWithLabel "email" "Email" model.email EmailChanged
+                    ++ inputWithLabel "password" "Password" model.password PasswordChanged
+                    ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
+                       , div [] [ button [ onClick Submit ] [ text "Continue" ] ]
+                       ]
+                    ++ (case model.previousInvalidAttempt of
+                            True ->
+                                [ div [] [ p [ class "text-danger" ] [ text "Invalid Username or Password" ] ] ]
 
-                        False ->
-                            []
-                   )
-            )
+                            False ->
+                                []
+                       )
+                )
+            ]
         ]
 
 

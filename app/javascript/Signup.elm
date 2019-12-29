@@ -1,8 +1,8 @@
 module Signup exposing (Model, Msg, update, view)
 
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (onClick, onInput)
 
 
 
@@ -107,23 +107,27 @@ validateSignup model =
 
 view : Model -> Html Msg
 view model =
-    div [ class "container" ]
-        ([ h2 [] [ text "Create Account" ]
-         , p [] [ text "Feed us your data" ]
-         ]
-            ++ inputWithLabel "name" "Name" model.name EditName
-            ++ inputWithLabel "username" "Username" model.username EditUsername
-            ++ inputWithLabel "email" "Email" model.email EditEmail
-            ++ inputWithLabel "bday" "Birthday (MM/DD/YYYY)" model.birthday EditBirthday
-            ++ [ div []
-                    [ button
-                        [ onClick Submit
-                        , disabled <| not <| validateSignup model
-                        ]
-                        [ text "Begin" ]
-                    ]
-               ]
-        )
+    div [ id "signupBody", class "container-fluid" ]
+        [ div [ class "row justify-content-center" ]
+            [ div [ class "col form" ]
+                ([ h2 [] [ text "Create Account" ]
+                 , p [] [ text "Feed us your data" ]
+                 ]
+                    ++ inputWithLabel "name" "Name" model.name EditName
+                    ++ inputWithLabel "username" "Username" model.username EditUsername
+                    ++ inputWithLabel "email" "Email" model.email EditEmail
+                    ++ inputWithLabel "bday" "Birthday (MM/DD/YYYY)" model.birthday EditBirthday
+                    ++ [ div []
+                            [ button
+                                [ onClick Submit
+                                , disabled <| not <| validateSignup model
+                                ]
+                                [ text "Begin" ]
+                            ]
+                       ]
+                )
+            ]
+        ]
 
 
 inputWithLabel : String -> String -> String -> (String -> Msg) -> List (Html Msg)

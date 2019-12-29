@@ -6,9 +6,9 @@ import Browser.Navigation as Nav
 import Compose exposing (Compose)
 import Data.User as User exposing (User)
 import Flags
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
+import Html.Styled as Html exposing (..)
+import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
 import Http
 import Json.Decode
 import Login
@@ -164,6 +164,7 @@ type alias Model =
     , zone : Time.Zone
     , url : Url.Url
     , navKey : Nav.Key
+    , showNavBar : Bool
     }
 
 
@@ -209,6 +210,7 @@ init flags url key =
             , zone = Time.utc
             , url = url
             , navKey = key
+            , showNavBar = False
             }
 
         loadAuthCmd =
@@ -247,6 +249,7 @@ type Msg
     | Tick Time.Posix
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
+    | NavBarToggled
     | LogoutButtonPressed
     | LogoutRequestHandled (Result Http.Error ())
     | StoredAuthReceived Json.Decode.Value -- Got auth that was stored from a previous session.
@@ -278,6 +281,11 @@ update msg model =
 
         UrlChanged url ->
             handleUrlChange model url
+
+        NavBarToggled ->
+            ( { model | showNavBar = not model.showNavBar }
+            , Cmd.none
+            )
 
         LogoutButtonPressed ->
             ( model
@@ -442,16 +450,17 @@ view model =
     if isThursday model.time model.zone then
         { title = "HTT"
         , body =
-            [ div []
-                [ header model
-                , body model
-                ]
+            [ toUnstyled <|
+                div []
+                    [ header model
+                    , body model
+                    ]
             ]
         }
 
     else
         { title = "ERROR"
-        , body = [ four04 model.time model.zone ]
+        , body = [ toUnstyled <| four04 model.time model.zone ]
         }
 
 
@@ -495,40 +504,93 @@ plural n sing plur =
 
 header : Model -> Html Msg
 header model =
+    let
+        links =
+            navLinks model.page model.profile
+    in
+    if List.length links > 2 then
+        headerWithToggle links model.showNavBar
+
+    else
+        headerWithoutToggle links
+
+
+headerWithToggle : List (Html Msg) -> Bool -> Html Msg
+headerWithToggle links expandToggle =
+    let
+        show =
+            if expandToggle then
+                " show"
+
+            else
+                ""
+    in
+    nav [ class "navbar navbar-light bg-light navbar-expand-sm" ]
+        [ a [ class "navbar-brand pl-2", href "/" ] [ text "HotTakeThursday 🔥" ]
+        , button
+            [ class "navbar-toggler"
+            , onClick NavBarToggled
+            ]
+            [ span [ class "navbar-toggler-icon" ] [] ]
+        , div [ class <| "collapse navbar-collapse" ++ show ]
+            [ ul
+                [ class "navbar-nav ml-auto" ]
+                links
+            ]
+        ]
+
+
+headerWithoutToggle : List (Html Msg) -> Html Msg
+headerWithoutToggle links =
     nav [ class "navbar navbar-light bg-light" ]
         [ a [ class "navbar-brand pl-2", href "/" ] [ text "HTT 🔥" ]
         , ul [ class "navbar-nav ml-auto", style "flex-direction" "row" ]
-            (case model.page of
-                Home _ _ ->
-                    case model.profile of
-                        Just { user } ->
-                            [ navItem "🔔" "profile#notifications" ""
-                            , navItem "Profile" "profile" ""
-                            , logoutButton
-                            , navItem "Delete Account" "#" ""
-                            ]
+            links
+        ]
 
-                        Nothing ->
-                            [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
 
-                Login _ ->
-                    [ navItem "Sign Up" "signup" "" ]
+navLinks : Page -> Maybe { a | user : User } -> List (Html Msg)
+navLinks page profile =
+    case page of
+        Home _ _ ->
+            case profile of
+                Just { user } ->
+                    [ notificationsLink
+                    , navItem "Profile" "profile" ""
+                    , logoutButton
+                    , navItem "Delete Account" "#" ""
+                    ]
 
-                ForgotPassword _ ->
+                Nothing ->
                     [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
 
-                Signup _ ->
-                    [ navItem "Login" "login" "" ]
+        Login _ ->
+            [ navItem "Sign Up" "signup" "" ]
 
-                Profile _ _ ->
-                    [ logoutButton, navItem "Delete Account" "" "" ]
-            )
-        ]
+        ForgotPassword _ ->
+            [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
+
+        Signup _ ->
+            [ navItem "Login" "login" "" ]
+
+        Profile _ _ ->
+            [ logoutButton, navItem "Delete Account" "" "" ]
 
 
 logoutButton =
     li [ class "nav-item nav-link pl-3" ]
         [ button [ class "btn btn-link", onClick LogoutButtonPressed ] [ text "Logout" ] ]
+
+
+notificationsLink =
+    li [ class "nav-item nav-link pl-3" ]
+        [ a [ href "profile#notifications" ]
+            [ span [ class "d-inline d-sm-none" ]
+                [ text "Notifications" ]
+            , span [ class "d-none d-sm-inline" ]
+                [ text "🔔" ]
+            ]
+        ]
 
 
 navItem : String -> String -> String -> Html Msg
@@ -542,9 +604,9 @@ body model =
     case model.page of
         Home _ _ ->
             div [ class "row" ]
-                [ div [ class "col-3" ] ads
-                , div [ class "col-6" ] (content model)
-                , div [ class "col-3" ] ads
+                [ div [ class "col-3 d-none d-md-block text-center" ] ads
+                , div [ class "col-md-6 col-xs-10" ] (content model)
+                , div [ class "col-3 d-none d-md-block text-center" ] ads
                 ]
 
         Login data ->
@@ -576,14 +638,19 @@ ads =
 
 
 fakeAd =
-    img [ class "w-100 mb-5 mt-5 pl-5 pr-5", height 200, src "/assets/trash-ad.jpg" ] []
+    img
+        [ class "mb-5 mt-5 px-1"
+        , width 160
+        , src "/assets/trash-ad.jpg"
+        ]
+        []
 
 
 content : Model -> List (Html Msg)
 content model =
-    [ ul [ class "nav nav-tabs mb-3 mt-2" ]
+    [ ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
         (navPills model.page)
-    , div [ class "container px-0" ]
+    , div [ class "container" ]
         (case model.page of
             Home Hottest data ->
                 case model.profile of
