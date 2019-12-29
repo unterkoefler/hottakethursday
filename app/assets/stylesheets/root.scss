@@ -50,3 +50,20 @@ textarea {
     background-repeat: no-repeat;
     border-style: none;
 }
+
+
+.collapsed-tabs {
+    border: 1px solid #dee2e6;
+}
+
+
+.collapsed-tabs > .nav-item {
+    display : none;
+}
+
+.collapsed-tabs > .nav-item.active {
+    display : block;
+    margin-left: auto;
+    margin-right: auto;
+}
+

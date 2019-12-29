@@ -659,7 +659,7 @@ body model =
         Profile _ user ->
             div [ class "row" ]
                 [ div [ class "col-3" ] (aboutUser user)
-                , div [ class "col-9" ] (content model)
+                , div [ class "col-md-9" ] (content model)
                 ]
 
 
@@ -678,8 +678,7 @@ fakeAd =
 
 content : Model -> List (Html Msg)
 content model =
-    [ ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
-        (navPills model.page)
+    [ navPills model.page
     , div [ class "container" ]
         (case model.page of
             Home Hottest data ->
@@ -702,29 +701,47 @@ content model =
     ]
 
 
-navPills : Page -> List (Html Msg)
+navPills : Page -> Html Msg
 navPills page =
     case page of
         Home Hottest _ ->
-            [ navItem "Hottest" "#hottest" "active"
-            , navItem "Coldest" "#coldest" ""
-            ]
+            ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
+                [ navItem "Hottest" "#hottest" "active"
+                , navItem "Coldest" "#coldest" ""
+                ]
 
         Home Coldest _ ->
-            [ navItem "Hottest" "#hottest" ""
-            , navItem "Coldest" "#coldest" "active"
-            ]
+            ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
+                [ navItem "Hottest" "#hottest" ""
+                , navItem "Coldest" "#coldest" "active"
+                ]
 
         Profile section _ ->
+            navPillsCollapsable section
+
+        _ ->
+            div [] []
+
+
+navPillsCollapsable : ProfileSection -> Html Msg
+navPillsCollapsable section =
+    let
+        navItems =
             [ navItem "Your Takes" "/profile" (isActive YourTakes section)
             , navItem "Following" "/profile#following" (isActive Following section)
             , navItem "Followers" "/profile#followers" (isActive Followers section)
             , navItem "Notifications" "/profile#notifications" (isActive Notifications section)
             , navItem "Settings" "/profile#settings" (isActive Settings section)
             ]
-
-        _ ->
-            []
+    in
+    div []
+        [ ul [ class "d-none d-sm-flex nav nav-tabs mb-3 mt-2 mx-3" ]
+            navItems
+        , div [ class "d-flex d-sm-none collapsed-tabs mb-3 mt-2 mx-3 justify-content-between" ]
+            (navItems
+                ++ [ span [ class "align-self-center mx-3" ] [ text "▼" ] ]
+            )
+        ]
 
 
 isActive : ProfileSection -> ProfileSection -> String
@@ -738,7 +755,7 @@ isActive thisSection currentSection =
 
 aboutUser : User -> List (Html Msg)
 aboutUser user =
-    [ h3 [] [ text <| "@" ++ user.username ]
+    [ h5 [] [ text <| "@" ++ user.username ]
     , img [ src "/assets/profilepic.jpg", width 100 ] []
     , p [] [ text user.username ]
     ]
