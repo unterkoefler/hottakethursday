@@ -1,5 +1,6 @@
-module Take exposing (Msg, Take, createNewTake, likeOrUnlike, toggleHover, update, viewTake)
+module TakeCard exposing (Msg, TakeCard, createNewTake, likeOrUnlike, toggleHover, update, viewTake)
 
+import Data.Take as Take exposing (Take)
 import Data.User as User exposing (User)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
@@ -12,12 +13,9 @@ import Time
 -- MODEL
 
 
-type alias Take =
-    { content : String
-    , postedBy : User
-    , timePosted : Time.Posix
-    , likedBy : List User
-    , hoveredOver : Bool
+type alias TakeCard =
+    { take : Take
+    , hovered : Bool
     }
 
 
@@ -26,24 +24,24 @@ type alias Take =
 
 
 type Msg
-    = FireButtonPressed Take
-    | TakeHovered Take
-    | EditTake Take
-    | DeleteTake Take
-    | ReportTake Take
+    = FireButtonPressed TakeCard
+    | TakeHovered TakeCard
+    | EditTake TakeCard
+    | DeleteTake TakeCard
+    | ReportTake TakeCard
 
 
-update : Msg -> List Take -> User -> List Take
-update msg takes user =
+update : Msg -> List TakeCard -> User -> List TakeCard
+update msg cards user =
     case msg of
-        FireButtonPressed take ->
-            findAndApply take (likeOrUnlike user) takes
+        FireButtonPressed card ->
+            findAndApply card (likeOrUnlike user) cards
 
-        TakeHovered take ->
-            findAndApply take toggleHover takes
+        TakeHovered card ->
+            findAndApply card toggleHover cards
 
         _ ->
-            takes
+            cards
 
 
 
@@ -63,66 +61,77 @@ findAndApply x f l =
         l
 
 
-createNewTake : String -> User -> Time.Posix -> Take
+createNewTake : String -> User -> Time.Posix -> TakeCard
 createNewTake newTake user time =
-    { content = newTake
-    , postedBy = user
-    , timePosted = time
-    , likedBy = []
-    , hoveredOver = False
+    let
+        take =
+            { id = 0
+            , content = newTake
+            , postedBy = user
+            , timePosted = time
+            , usersWhoLiked = []
+            }
+    in
+    { take = take
+    , hovered = False
     }
 
 
-toggleHover : Take -> Take
+toggleHover : TakeCard -> TakeCard
 toggleHover t =
-    { t | hoveredOver = not t.hoveredOver }
+    { t | hovered = not t.hovered }
 
 
-likeOrUnlike : User -> Take -> Take
-likeOrUnlike user take =
-    if List.member user take.likedBy then
-        { take | likedBy = List.filter (\u -> u /= user) take.likedBy }
+likeOrUnlike : User -> TakeCard -> TakeCard
+likeOrUnlike user card =
+    { card | take = likeOrUnlikeTake user card.take }
+
+
+likeOrUnlikeTake : User -> Take -> Take
+likeOrUnlikeTake user take =
+    if List.member user take.usersWhoLiked then
+        { take | usersWhoLiked = List.filter (\u -> u /= user) take.usersWhoLiked }
 
     else
-        { take | likedBy = user :: take.likedBy }
+        { take | usersWhoLiked = user :: take.usersWhoLiked }
 
 
 
 -- VIEW
 
 
-viewTake : Take -> Time.Zone -> Maybe User -> Html Msg
-viewTake take zone user =
+viewTake : TakeCard -> Time.Zone -> Maybe User -> Html Msg
+viewTake card zone user =
     div
         [ class "media border border-warning p-3"
-        , onMouseEnter <| TakeHovered take
-        , onMouseLeave <| TakeHovered take
+        , onMouseEnter <| TakeHovered card
+        , onMouseLeave <| TakeHovered card
         ]
         [ img [ class "mr-2", width 64, height 64, src "assets/profilepic.jpg" ] []
         , div [ class "media-body pr-3" ]
-            ([ p [ class "mb-0" ] [ text ("\"" ++ take.content ++ "\"") ]
-             , p [ class "text-right" ] [ text <| "- @" ++ take.postedBy.username ]
+            ([ p [ class "mb-0" ] [ text ("\"" ++ card.take.content ++ "\"") ]
+             , p [ class "text-right" ] [ text <| "- @" ++ card.take.postedBy.username ]
              ]
-                ++ hoverButtons take user
+                ++ hoverButtons card user
             )
-        , fireButton take user take.likedBy
+        , fireButton card user card.take.usersWhoLiked
         ]
 
 
-hoverButtons : Take -> Maybe User -> List (Html Msg)
-hoverButtons take user =
+hoverButtons : TakeCard -> Maybe User -> List (Html Msg)
+hoverButtons card user =
     let
         buttons =
-            if Just take.postedBy == user then
-                [ takeHoverButton "edit" (EditTake take)
+            if Just card.take.postedBy == user then
+                [ takeHoverButton "edit" (EditTake card)
                 , text " | "
-                , takeHoverButton "delete" (DeleteTake take)
+                , takeHoverButton "delete" (DeleteTake card)
                 ]
 
             else
-                [ takeHoverButton "report" (ReportTake take) ]
+                [ takeHoverButton "report" (ReportTake card) ]
     in
-    if take.hoveredOver then
+    if card.hovered then
         [ div
             [ class "text-center" ]
             buttons
@@ -137,21 +146,21 @@ takeHoverButton txt msg =
     button [ class "btn-link", onClick msg ] [ text txt ]
 
 
-fireButton : Take -> Maybe User -> List User -> Html Msg
-fireButton take maybeUser likers =
+fireButton : TakeCard -> Maybe User -> List User -> Html Msg
+fireButton card maybeUser likers =
     case maybeUser of
         Just user ->
             if List.member user likers then
                 button
                     [ class "align-self-end align-self-center fire-button"
-                    , onClick (FireButtonPressed take)
+                    , onClick (FireButtonPressed card)
                     ]
                     [ text <| String.fromInt <| List.length likers ]
 
             else
                 button
                     [ class "align-self-end align-self-center fire-button-transparent"
-                    , onClick (FireButtonPressed take)
+                    , onClick (FireButtonPressed card)
                     ]
                     [ text <| String.fromInt <| List.length likers ]
 

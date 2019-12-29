@@ -6,7 +6,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (onClick, onInput)
 import Http
-import Take exposing (Take, createNewTake)
+import TakeCard exposing (TakeCard, createNewTake)
 import Task
 import Time
 
@@ -30,7 +30,7 @@ type Msg
     | TakePublished (Result Http.Error ())
 
 
-update : Msg -> Compose -> Api.UserAuth -> ( Compose, List Take, Cmd Msg )
+update : Msg -> Compose -> Api.UserAuth -> ( Compose, List TakeCard, Cmd Msg )
 update msg compose auth =
     case msg of
         EditNewTake newTake ->

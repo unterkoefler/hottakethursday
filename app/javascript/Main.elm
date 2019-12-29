@@ -16,7 +16,7 @@ import Json.Decode
 import Login
 import Ports
 import Signup
-import Take exposing (Take, createNewTake, likeOrUnlike, toggleHover, viewTake)
+import TakeCard exposing (TakeCard, createNewTake, likeOrUnlike, toggleHover, viewTake)
 import Task
 import Thursday exposing (daysUntilThursday, isThursday, toWeekdayString)
 import Time
@@ -138,7 +138,7 @@ toRoute string =
 
 
 type alias HomeData =
-    { takes : List Take
+    { takes : List TakeCard
     , compose : Compose
     }
 
@@ -245,7 +245,7 @@ init flags url key =
 type Msg
     = ComposeMsg Compose.Msg
     | LoginMsg Login.Msg
-    | TakeMsg Take.Msg
+    | TakeMsg TakeCard.Msg
     | SignupMsg Signup.Msg
     | FeedLoaded (Result Http.Error (List Data.Take.Take))
     | AdjustTimeZone Time.Zone
@@ -427,7 +427,7 @@ updateHomePageSignedIn msg model data user auth =
             ( { model
                 | page =
                     Home Hottest
-                        { data | takes = Take.update m data.takes user }
+                        { data | takes = TakeCard.update m data.takes user }
               }
             , Cmd.none
             )
@@ -435,7 +435,7 @@ updateHomePageSignedIn msg model data user auth =
         FeedLoaded (Ok takes) ->
             ( { model
                 | page =
-                    Home Hottest { data | takes = List.map blaa takes }
+                    Home Hottest { data | takes = List.map (\t -> { take = t, hovered = False }) takes }
               }
             , Cmd.none
             )
@@ -449,20 +449,6 @@ updateHomePageSignedIn msg model data user auth =
 
         _ ->
             ( model, Cmd.none )
-
-
-
--- Converts a Data.Take.Take to a Take. Consolidate these asap
-
-
-blaa : Data.Take.Take -> Take
-blaa t =
-    { content = t.content
-    , postedBy = t.postedBy
-    , timePosted = t.timePosted
-    , likedBy = t.usersWhoUpLiked
-    , hoveredOver = False
-    }
 
 
 handleComposeMsg : Compose.Msg -> Model -> HomeData -> User -> Api.UserAuth -> ( Model, Cmd Msg )
@@ -753,11 +739,11 @@ aboutUser user =
     ]
 
 
-feed : List Take -> Time.Zone -> Maybe User -> Html Msg
+feed : List TakeCard -> Time.Zone -> Maybe User -> Html Msg
 feed takes zone user =
     div [ class "mt-3" ] (List.map (\take -> viewTakeFixMsg take zone user) takes)
 
 
-viewTakeFixMsg : Take -> Time.Zone -> Maybe User -> Html Msg
+viewTakeFixMsg : TakeCard -> Time.Zone -> Maybe User -> Html Msg
 viewTakeFixMsg take zone user =
     Html.map (\m -> TakeMsg m) (viewTake take zone user)
