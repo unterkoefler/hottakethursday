@@ -167,6 +167,7 @@ type alias Model =
     , url : Url.Url
     , navKey : Nav.Key
     , showNavBar : Bool
+    , expandNavTabs : Bool
     }
 
 
@@ -213,6 +214,7 @@ init flags url key =
             , url = url
             , navKey = key
             , showNavBar = False
+            , expandNavTabs = False
             }
 
         loadAuthCmd =
@@ -253,6 +255,7 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | NavBarToggled
+    | NavTabsToggled
     | LogoutButtonPressed
     | LogoutRequestHandled (Result Http.Error ())
     | StoredAuthReceived Json.Decode.Value -- Got auth that was stored from a previous session.
@@ -287,6 +290,11 @@ update msg model =
 
         NavBarToggled ->
             ( { model | showNavBar = not model.showNavBar }
+            , Cmd.none
+            )
+
+        NavTabsToggled ->
+            ( { model | expandNavTabs = not model.expandNavTabs }
             , Cmd.none
             )
 
@@ -357,7 +365,9 @@ handleUrlChange model url =
 
 handleUrlChangeToProfile : Model -> ProfileSection -> User -> ( Model, Cmd Msg )
 handleUrlChangeToProfile model section user =
-    ( { model | page = Profile section user }, Cmd.none )
+    ( { model | page = Profile section user, expandNavTabs = False }
+    , Cmd.none
+    )
 
 
 updatePage : Msg -> Model -> ( Model, Cmd Msg )
@@ -659,7 +669,7 @@ body model =
         Profile _ user ->
             div [ class "row" ]
                 [ div [ class "col-3" ] (aboutUser user)
-                , div [ class "col-9" ] (content model)
+                , div [ class "col-md-9" ] (content model)
                 ]
 
 
@@ -678,8 +688,7 @@ fakeAd =
 
 content : Model -> List (Html Msg)
 content model =
-    [ ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
-        (navPills model.page)
+    [ navTabs model.page model.expandNavTabs
     , div [ class "container" ]
         (case model.page of
             Home Hottest data ->
@@ -702,29 +711,56 @@ content model =
     ]
 
 
-navPills : Page -> List (Html Msg)
-navPills page =
+navTabs : Page -> Bool -> Html Msg
+navTabs page expandNavTabs =
     case page of
         Home Hottest _ ->
-            [ navItem "Hottest" "#hottest" "active"
-            , navItem "Coldest" "#coldest" ""
-            ]
+            ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
+                [ navItem "Hottest" "#hottest" "active"
+                , navItem "Coldest" "#coldest" ""
+                ]
 
         Home Coldest _ ->
-            [ navItem "Hottest" "#hottest" ""
-            , navItem "Coldest" "#coldest" "active"
-            ]
+            ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
+                [ navItem "Hottest" "#hottest" ""
+                , navItem "Coldest" "#coldest" "active"
+                ]
 
         Profile section _ ->
+            navTabsCollapsable section expandNavTabs
+
+        _ ->
+            div [] []
+
+
+navTabsCollapsable : ProfileSection -> Bool -> Html Msg
+navTabsCollapsable section expand =
+    let
+        ( tabsClass, icon ) =
+            if expand then
+                ( "expanded-tabs", "▲" )
+
+            else
+                ( "collapsed-tabs", "▼" )
+
+        navItems =
             [ navItem "Your Takes" "/profile" (isActive YourTakes section)
             , navItem "Following" "/profile#following" (isActive Following section)
             , navItem "Followers" "/profile#followers" (isActive Followers section)
             , navItem "Notifications" "/profile#notifications" (isActive Notifications section)
             , navItem "Settings" "/profile#settings" (isActive Settings section)
             ]
-
-        _ ->
-            []
+    in
+    div []
+        [ ul [ class "d-none d-sm-flex nav nav-tabs mb-3 mt-2 mx-3" ]
+            navItems
+        , div [ class <| "d-flex d-sm-none mb-3 mt-2 mx-3 justify-content-between " ++ tabsClass ]
+            (navItems
+                ++ [ span [ class "align-self-center mx-3" ]
+                        [ button [ class "btn-link", onClick NavTabsToggled ] [ text icon ] ]
+                   ]
+            )
+        ]
 
 
 isActive : ProfileSection -> ProfileSection -> String
@@ -738,7 +774,7 @@ isActive thisSection currentSection =
 
 aboutUser : User -> List (Html Msg)
 aboutUser user =
-    [ h3 [] [ text <| "@" ++ user.username ]
+    [ h5 [] [ text <| "@" ++ user.username ]
     , img [ src "/assets/profilepic.jpg", width 100 ] []
     , p [] [ text user.username ]
     ]
