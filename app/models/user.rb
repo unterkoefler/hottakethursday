@@ -31,9 +31,9 @@ class User < ApplicationRecord
 
   def avatar_url
     return nil unless avatar.attached?
-
     url_for avatar
-    
+  end
+
   def make_the_hottest_of_takes!(words)
     Take.create!(contents: words, user: self)
   end
