@@ -21,6 +21,9 @@ Rails.application.routes.draw do
     end
   end
 
+  # https://medium.com/@goncalvesjoao/rails-special-route-for-single-page-applications-de9e6bf32199
   root 'root#spa'
-  get '*route', to: 'root#spa'
+  get '*route', to: 'root#spa', constraints: ->(request) do
+    !request.xhr? && request.format.html?
+  end
 end
