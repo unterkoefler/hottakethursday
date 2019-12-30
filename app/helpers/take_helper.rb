@@ -1,5 +1,5 @@
 module TakeHelper
-  def thursday?(time)
+  def self.thursday?(time)
     time.wday == 4
   end
 
