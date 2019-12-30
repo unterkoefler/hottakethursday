@@ -18,8 +18,8 @@ class TakeController < ApplicationController
   def all_from_today
     now = Time.now
     render json: Take
-                     .where(created_at: (now - 27.hours)..(now + 3.hours)) # bit of leeway
-                     .sort_by { |t| -t.created_at.to_i }
+      .where(created_at: (now - 27.hours)..(now + 3.hours)) # bit of leeway
+      .sort_by { |t| -t.created_at.to_i }
   end
 
   def create
