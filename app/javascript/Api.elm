@@ -5,6 +5,7 @@ module Api exposing
     , SignInError(..)
     , UserAuth
     , allTakes
+    , allTakesFromToday
     , encodeUserAuth
     , like
     , loadUserAuth

@@ -321,7 +321,7 @@ update msg model =
 
         StoredAuthUserReceived ( auth, Ok user ) ->
             ( { model | profile = Just { auth = auth, user = user } }
-            , Api.allTakes auth FeedLoaded
+            , Api.allTakesFromToday auth FeedLoaded
             )
 
         _ ->
