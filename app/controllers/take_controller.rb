@@ -3,23 +3,23 @@ class TakeController < ApplicationController
   respond_to :json
   before_action :authenticate_user!
 
-  include TakeHelper
-
   before_action :confirm_thursday!
   def confirm_thursday!
-    unless thursday?(Time.now) || Rails.env == 'development'
+    unless TakeHelper.thursday?(Time.now) || Rails.env == 'development'
       render json: 'ITS NOT THURSDAY'
     end
   end
 
   def all
     # TODO: perf. probably need to add an index also
-    render json: Take.all.sort_by(&:created_at)
+    render json: Take.all.sort_by { |t| -t.created_at.to_i }
   end
 
   def all_from_today
     now = Time.now
-    Take.where(created_at: (now - 27.hours)..(now + 3.hours)) # bit of leeway
+    render json: Take
+                     .where(created_at: (now - 27.hours)..(now + 3.hours)) # bit of leeway
+                     .sort_by { |t| -t.created_at.to_i }
   end
 
   def create
