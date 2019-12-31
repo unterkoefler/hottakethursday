@@ -50,8 +50,8 @@ subscriptions model =
         , case ( model.profile, model.page ) of
             ( Just _, Home _ _ ) ->
                 Ports.newTakeInfo
-                    (\v ->
-                        TakeUpdate <| Json.Decode.decodeValue Data.Take.decoder v
+                    (TakeUpdate
+                        << Json.Decode.decodeValue Data.Take.decoder
                     )
 
             _ ->
