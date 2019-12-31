@@ -24,18 +24,21 @@ class TakeController < ApplicationController
 
   def create
     params.require(:contents)
-    current_user.make_the_hottest_of_takes!(params[:contents])
+    take = current_user.make_the_hottest_of_takes!(params[:contents])
+    ActionCable.server.broadcast 'take_feed_channel', TakeSerializer.new(take).as_json
   end
 
   def like
     params.require(:take_id)
     take = Take.find_by(id: params[:take_id])
     current_user.like!(take)
+    ActionCable.server.broadcast 'take_feed_channel', TakeSerializer.new(take).as_json
   end
 
   def unlike
     params.require(:take_id)
     take = Take.find_by(id: params[:take_id])
     current_user.unlike!(take)
+    ActionCable.server.broadcast 'take_feed_channel', TakeSerializer.new(take).as_json
   end
 end

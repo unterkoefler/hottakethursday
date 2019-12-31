@@ -45,7 +45,18 @@ main =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Time.every (15 * 60 * 1000) Tick
+    Sub.batch
+        [ Time.every (15 * 60 * 1000) Tick
+        , case ( model.profile, model.page ) of
+            ( Just _, Home _ _ ) ->
+                Ports.newTakeInfo
+                    (TakeUpdate
+                        << Json.Decode.decodeValue Data.Take.decoder
+                    )
+
+            _ ->
+                Sub.none
+        ]
 
 
 
@@ -261,6 +272,7 @@ type Msg
     | StoredAuthReceived Json.Decode.Value -- Got auth that was stored from a previous session.
     | StoredAuthValidated (Result Api.SavedUserAuthError Api.UserAuth)
     | StoredAuthUserReceived ( Api.UserAuth, Result Http.Error User )
+    | TakeUpdate (Result Json.Decode.Error Data.Take.Take)
     | NoOp
 
 

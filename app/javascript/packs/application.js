@@ -19,6 +19,8 @@ import {
     Elm
 } from '../Main.elm'
 
+import consumer from '../channels/consumer';
+
 document.addEventListener('DOMContentLoaded', () => {
     const target = document.createElement('div');
 
@@ -36,5 +38,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     app.ports.clearAuthToken.subscribe(() => {
         window.localStorage.removeItem("jwt");
+    });
+
+    consumer.subscriptions.create("TakeFeedChannel", {
+        connected() {
+            // Called when the subscription is ready for use on the server
+            console.debug("Connected to Action Cable")
+        },
+
+        disconnected() {
+            // Called when the subscription has been terminated by the server
+            console.debug("Disconnected from Action Cable")
+        },
+
+        received(data) {
+            // Called when there's incoming data on the websocket for this channel
+            console.debug(`Got data from Action Cable`, JSON.stringify(data))
+            try {
+                app.ports.newTakeInfo.send(data);
+            }
+            catch (e) {
+                console.error("Failed to send info from the take feed to elm", e);
+            }
+        }
     });
 });
