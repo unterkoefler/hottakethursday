@@ -31,7 +31,8 @@ class User < ApplicationRecord
 
   def avatar_url
     return nil unless avatar.attached?
-    url_for avatar
+
+    Rails.application.routes.url_helpers.rails_blob_path(avatar, only_path: true)
   end
 
   def make_the_hottest_of_takes!(words)
