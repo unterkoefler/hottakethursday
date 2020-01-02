@@ -168,6 +168,8 @@ type Page
     | ForgotPassword String
     | Signup Signup.Model
     | Profile ProfileSection User
+    | Loading Url.Url
+    | Forbidden
 
 
 type alias Model =
@@ -246,6 +248,18 @@ init flags url key =
             ( { model | page = Signup blankSignupData }
             , Cmd.batch [ loadAuthCmd, setTimeZone ]
             )
+
+        ProfileRoute section ->
+            case parsedFlags.storedJWT of
+                Just _ ->
+                    ( { model | page = Loading url }
+                    , Cmd.batch [ loadAuthCmd, setTimeZone ]
+                    )
+
+                Nothing ->
+                    ( { model | page = Forbidden }
+                    , setTimeZone
+                    )
 
         _ ->
             ( model, Cmd.batch [ loadAuthCmd, setTimeZone ] )
@@ -332,8 +346,20 @@ update msg model =
             ( model, Ports.clearAuthToken () )
 
         StoredAuthUserReceived ( auth, Ok user ) ->
+            let
+                cmd =
+                    case model.page of
+                        Loading next ->
+                            Nav.pushUrl model.navKey (Url.toString next)
+
+                        Home Hottest _ ->
+                            Api.allTakesFromToday auth FeedLoaded
+
+                        _ ->
+                            Cmd.none
+            in
             ( { model | profile = Just { auth = auth, user = user } }
-            , Api.allTakesFromToday auth FeedLoaded
+            , cmd
             )
 
         _ ->
@@ -398,6 +424,12 @@ updatePage msg model =
             updateSignupPage msg model data
 
         Profile _ _ ->
+            ( model, Cmd.none )
+
+        Loading _ ->
+            ( model, Cmd.none )
+
+        Forbidden ->
             ( model, Cmd.none )
 
 
@@ -628,6 +660,12 @@ navLinks page profile =
         Profile _ _ ->
             [ logoutButton, navItem "Delete Account" "" "" ]
 
+        Loading _ ->
+            []
+
+        Forbidden ->
+            [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
+
 
 logoutButton =
     li [ class "nav-item nav-link pl-3" ]
@@ -683,6 +721,26 @@ body model =
                 [ div [ class "col-3" ] (aboutUser user)
                 , div [ class "col-md-9" ] (content model)
                 ]
+
+        Loading next ->
+            p [] [ text "Loading..." ]
+
+        Forbidden ->
+            case model.profile of
+                Just _ ->
+                    p []
+                        [ text <|
+                            "Sorry! You don't have permission to view this"
+                                ++ " page. If you think this is an error, please"
+                                ++ " report it to noonecares@yahoo.net"
+                        ]
+
+                Nothing ->
+                    p []
+                        [ text <|
+                            "Sorry! You don't have permission to view this"
+                                ++ " page. Please login or signup using the links above"
+                        ]
 
 
 ads =
