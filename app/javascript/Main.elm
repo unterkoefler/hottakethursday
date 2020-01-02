@@ -718,7 +718,7 @@ body model =
 
         Profile _ user ->
             div [ class "row" ]
-                [ div [ class "col-3" ] (aboutUser user)
+                [ div [ class "col-md-3" ] (aboutUser user userDetailEx1)
                 , div [ class "col-md-9" ] (content model)
                 ]
 
@@ -842,12 +842,52 @@ isActive thisSection currentSection =
         ""
 
 
-aboutUser : User -> List (Html Msg)
-aboutUser user =
-    [ h5 [] [ text <| "@" ++ user.username ]
-    , img [ src "/assets/profilepic.jpg", width 100 ] []
-    , p [] [ text user.username ]
+type Gender
+    = Neutral
+    | Feminine
+    | Masculine
+
+
+type alias UserDetail =
+    { fullName : String
+    , bio : String
+    , pronouns : Gender
+    , birthday : String -- TODO : find a reasonable type for dates
+    , leastFavoriteColor : String
+    , userId : Int
+    }
+
+
+userDetailEx1 =
+    { fullName = "George Lopez"
+    , bio = "Is any of this real?"
+    , pronouns = Masculine
+    , birthday = "May 17th"
+    , leastFavoriteColor = "Olive green"
+    , userId = 1
+    }
+
+
+aboutUser : User -> UserDetail -> List (Html Msg)
+aboutUser user detail =
+    [ div [ class "container" ]
+        [ div [ class "row" ]
+            (List.map aboutUserElem
+                [ h5 [] [ text <| "@" ++ user.username ]
+                , img [ src "/assets/profilepic.jpg", width 100 ] []
+                , p [] [ text detail.fullName ]
+                , p [] [ text detail.bio ]
+                , p [] [ text <| "🎂: " ++ detail.birthday ]
+                , p [] [ text <| "Least favorite color: " ++ detail.leastFavoriteColor ]
+                ]
+            )
+        ]
     ]
+
+
+aboutUserElem : Html Msg -> Html Msg
+aboutUserElem elem =
+    div [ class "col col-md-12" ] [ elem ]
 
 
 feed : List TakeCard -> Time.Zone -> Maybe User -> Html Msg
