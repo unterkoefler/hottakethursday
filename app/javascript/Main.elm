@@ -184,7 +184,7 @@ type alias Model =
 
 george : User
 george =
-    { id = 3, username = "starwars4lyfe" }
+    { id = 3, username = "starwars4lyfe", avatarUrl = Nothing }
 
 
 take1 =

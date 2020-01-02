@@ -15,6 +15,7 @@ module Api exposing
     , signOut
     , signUp
     , unlike
+    , uploadProfileImage
     , userById
     , usersByIds
     )
@@ -22,6 +23,7 @@ module Api exposing
 import Data.Take as Take
 import Data.User as User
 import Dict
+import File
 import Http
 import Json.Decode
 import Json.Encode
@@ -328,6 +330,26 @@ unlike (BearerToken token) takeId onFinish =
                 , url = url
                 , body = Http.jsonBody (Json.Encode.object [ ( "take_id", Json.Encode.int takeId ) ])
                 , expect = Http.expectWhatever onFinish
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+    in
+    httpRequest
+
+
+uploadProfileImage : UserAuth -> File.File -> (Result Http.Error User.User -> msg) -> Cmd msg
+uploadProfileImage (BearerToken token) file onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "users", "me", "change_avatar" ]) []
+
+        httpRequest =
+            Http.request
+                { method = "POST"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.multipartBody [ Http.filePart "avatar" file ]
+                , expect = Http.expectJson onFinish User.decoder
                 , timeout = Nothing
                 , tracker = Nothing
                 }

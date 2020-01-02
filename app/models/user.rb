@@ -27,6 +27,14 @@ class User < ApplicationRecord
 
   after_initialize :fill_default_username!
 
+  has_one_attached :avatar
+
+  def avatar_url
+    return nil unless avatar.attached?
+
+    Rails.application.routes.url_helpers.rails_blob_path(avatar, only_path: true)
+  end
+
   def make_the_hottest_of_takes!(words)
     Take.create!(contents: words, user: self)
   end

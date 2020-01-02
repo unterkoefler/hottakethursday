@@ -9,6 +9,9 @@ Rails.application.routes.draw do
         get 'me', to: 'me#me'
         get 'by_id', to: 'me#by_id'
         get 'by_ids', to: 'me#by_ids'
+        scope 'me' do
+          post 'change_avatar', to: 'me#change_avatar'
+        end
       end
 
       scope :takes do
