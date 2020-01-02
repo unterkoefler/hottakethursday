@@ -717,8 +717,18 @@ body model =
             Html.map (\m -> SignupMsg m) (Signup.view data)
 
         Profile _ user ->
+            let
+                ownProfile =
+                    case model.profile of
+                        Just profile ->
+                            user == profile.user
+
+                        Nothing ->
+                            False
+            in
             div [ class "row" ]
-                [ div [ class "col-md-3" ] (aboutUser user userDetailEx1)
+                [ div [ class "col-md-3" ]
+                    (aboutUser user userDetailEx1 ownProfile)
                 , div [ class "col-md-9" ] (content model)
                 ]
 
@@ -868,26 +878,50 @@ userDetailEx1 =
     }
 
 
-aboutUser : User -> UserDetail -> List (Html Msg)
-aboutUser user detail =
-    [ div [ class "container" ]
+aboutUser : User -> UserDetail -> Bool -> List (Html Msg)
+aboutUser user detail editable =
+    [ div [ class "container mt-2" ]
         [ div [ class "row" ]
-            (List.map aboutUserElem
-                [ h5 [] [ text <| "@" ++ user.username ]
-                , img [ src "/assets/profilepic.jpg", width 100 ] []
-                , p [] [ text detail.fullName ]
-                , p [] [ text detail.bio ]
-                , p [] [ text <| "🎂: " ++ detail.birthday ]
-                , p [] [ text <| "Least favorite color: " ++ detail.leastFavoriteColor ]
+            ([ h5 [ class "col col-md-12" ] [ text <| "@" ++ user.username ]
+             , img
+                [ src "/assets/profilepic.jpg"
+                , width 100
+                , class "col col-md-12"
                 ]
+                []
+             ]
+                ++ List.map (\( a, b ) -> aboutUserElem a b editable)
+                    [ ( detail.fullName, "" )
+                    , ( detail.bio, "Bio" )
+                    , ( detail.birthday, "Birthday" )
+                    , ( detail.leastFavoriteColor, "Least favorite color" )
+                    ]
             )
         ]
     ]
 
 
-aboutUserElem : Html Msg -> Html Msg
-aboutUserElem elem =
-    div [ class "col col-md-12" ] [ elem ]
+aboutUserElem : String -> String -> Bool -> Html Msg
+aboutUserElem info label editable =
+    div [ class "col col-md-12" ]
+        [ div [ class "border pl-1" ]
+            ([ span [ class "text-black-50" ] [ text <| label ++ " " ]
+             , p [ class "my-0" ] [ span [] [ text info ] ]
+             ]
+                ++ (if editable then
+                        [ aboutEditButton ]
+
+                    else
+                        []
+                   )
+            )
+        ]
+
+
+aboutEditButton : Html Msg
+aboutEditButton =
+    p [ class "my-0 text-right pr-1" ]
+        [ button [ class "btn-link" ] [ text "edit" ] ]
 
 
 feed : List TakeCard -> Time.Zone -> Maybe User -> Html Msg
