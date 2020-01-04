@@ -442,7 +442,7 @@ updateLoginPage msg model data =
                     Login.update lm data model.navKey
             in
             ( { model | page = Login newData, profile = profile }
-            , Cmd.map (\m -> LoginMsg m) cmd
+            , Cmd.map LoginMsg cmd
             )
 
         _ ->
@@ -506,7 +506,7 @@ handleTakeMsg msg model data user auth =
             TakeCard.update msg data.takes user auth
     in
     ( { model | page = Home Hottest { data | takes = newTakes } }
-    , Cmd.map (\m -> TakeMsg m) cmd
+    , Cmd.map TakeMsg cmd
     )
 
 
@@ -521,7 +521,7 @@ handleComposeMsg msg model data user auth =
             Home Hottest
                 { data | compose = newCompose, takes = newTakes ++ data.takes }
       }
-    , Cmd.map (\m -> ComposeMsg m) cmd
+    , Cmd.map ComposeMsg cmd
     )
 
 
@@ -700,7 +700,7 @@ body model =
                 ]
 
         Login data ->
-            Html.map (\m -> LoginMsg m) (Login.view data)
+            Html.map LoginMsg (Login.view data)
 
         ForgotPassword email ->
             p []
@@ -714,7 +714,7 @@ body model =
                 ]
 
         Signup data ->
-            Html.map (\m -> SignupMsg m) (Signup.view data)
+            Html.map SignupMsg (Signup.view data)
 
         Profile _ user ->
             let
@@ -774,7 +774,7 @@ content model =
             Home Hottest data ->
                 case model.profile of
                     Just { user } ->
-                        [ Html.map (\m -> ComposeMsg m)
+                        [ Html.map ComposeMsg
                             (Compose.view user data.compose)
                         , feed data.takes model.zone (Just user)
                         ]
@@ -944,4 +944,4 @@ feed takes zone user =
 
 viewTakeFixMsg : TakeCard -> Time.Zone -> Maybe User -> Html Msg
 viewTakeFixMsg take zone user =
-    Html.map (\m -> TakeMsg m) (viewTake take zone user)
+    Html.map TakeMsg (viewTake take zone user)
