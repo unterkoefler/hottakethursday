@@ -442,7 +442,7 @@ updateLoginPage msg model data =
                     Login.update lm data model.navKey
             in
             ( { model | page = Login newData, profile = profile }
-            , Cmd.map (\m -> LoginMsg m) cmd
+            , Cmd.map LoginMsg cmd
             )
 
         _ ->
@@ -506,7 +506,7 @@ handleTakeMsg msg model data user auth =
             TakeCard.update msg data.takes user auth
     in
     ( { model | page = Home Hottest { data | takes = newTakes } }
-    , Cmd.map (\m -> TakeMsg m) cmd
+    , Cmd.map TakeMsg cmd
     )
 
 
@@ -521,7 +521,7 @@ handleComposeMsg msg model data user auth =
             Home Hottest
                 { data | compose = newCompose, takes = newTakes ++ data.takes }
       }
-    , Cmd.map (\m -> ComposeMsg m) cmd
+    , Cmd.map ComposeMsg cmd
     )
 
 
@@ -700,7 +700,7 @@ body model =
                 ]
 
         Login data ->
-            Html.map (\m -> LoginMsg m) (Login.view data)
+            Html.map LoginMsg (Login.view data)
 
         ForgotPassword email ->
             p []
@@ -714,11 +714,21 @@ body model =
                 ]
 
         Signup data ->
-            Html.map (\m -> SignupMsg m) (Signup.view data)
+            Html.map SignupMsg (Signup.view data)
 
         Profile _ user ->
+            let
+                ownProfile =
+                    case model.profile of
+                        Just profile ->
+                            user == profile.user
+
+                        Nothing ->
+                            False
+            in
             div [ class "row" ]
-                [ div [ class "col-3" ] (aboutUser user)
+                [ div [ class "col-md-3" ]
+                    (aboutUser user userDetailEx1 ownProfile)
                 , div [ class "col-md-9" ] (content model)
                 ]
 
@@ -764,7 +774,7 @@ content model =
             Home Hottest data ->
                 case model.profile of
                     Just { user } ->
-                        [ Html.map (\m -> ComposeMsg m)
+                        [ Html.map ComposeMsg
                             (Compose.view user data.compose)
                         , feed data.takes model.zone (Just user)
                         ]
@@ -842,12 +852,99 @@ isActive thisSection currentSection =
         ""
 
 
-aboutUser : User -> List (Html Msg)
-aboutUser user =
-    [ h5 [] [ text <| "@" ++ user.username ]
-    , img [ src "/assets/profilepic.jpg", width 100 ] []
-    , p [] [ text user.username ]
+type Gender
+    = Neutral
+    | Feminine
+    | Masculine
+
+
+type alias UserDetail =
+    { fullName : String
+    , bio : String
+    , pronouns : Gender
+    , birthday : String -- TODO : find a reasonable type for dates
+    , leastFavoriteColor : String
+    , userId : Int
+    }
+
+
+userDetailEx1 =
+    { fullName = "George Lopez"
+    , bio = "Is any of this real?"
+    , pronouns = Masculine
+    , birthday = "May 17th"
+    , leastFavoriteColor = "Olive green"
+    , userId = 1
+    }
+
+
+aboutUser : User -> UserDetail -> Bool -> List (Html Msg)
+aboutUser user detail editable =
+    [ div [ class "container mt-2 ml-3" ]
+        [ div [ class "row" ]
+            [ div [ class "col-xs-6 pr-3" ]
+                [ div [ class "row" ]
+                    [ h5 [ class "col col-md-12" ] [ text <| "@" ++ user.username ] ]
+                , div [ class "row" ]
+                    [ profilePicture user ]
+                , aboutUserElem detail.fullName "" editable
+                ]
+            , div [ class "col-xs-6" ]
+                (div [ class "row hidden" ]
+                    -- hacky css
+                    [ h5 [ class "col col-md-12" ] [ text <| "@" ++ user.username ] ]
+                    :: List.map (\( a, b ) -> aboutUserElem a b editable)
+                        [ ( detail.bio, "Bio" )
+                        , ( detail.birthday, "Birthday" )
+                        , ( detail.leastFavoriteColor, "Least favorite color" )
+                        ]
+                )
+            ]
+        ]
     ]
+
+
+profilePicture : User -> Html Msg
+profilePicture user =
+    let
+        src_ =
+            Maybe.withDefault "/assets/profilepic.jpg" user.avatarUrl
+    in
+    div
+        [ class "col col-md-12 text-center" ]
+        [ div [ class "bg-light py-1" ]
+            [ img
+                [ src src_
+                , class "profile-page-profile-pic"
+                ]
+                []
+            ]
+        ]
+
+
+aboutUserElem : String -> String -> Bool -> Html Msg
+aboutUserElem info label editable =
+    div [ class "row" ]
+        [ div [ class "col col-md-12" ]
+            [ div [ class "border pl-1" ]
+                ([ span [ class "text-black-50" ] [ text <| label ++ " " ]
+                 , p [ class "my-0" ] [ span [] [ text info ] ]
+                 ]
+                    ++ (if editable then
+                            [ aboutEditButton ]
+
+                        else
+                            []
+                       )
+                )
+            ]
+        ]
+
+
+aboutEditButton : Html Msg
+aboutEditButton =
+    p [ class "my-0 text-right pr-1" ]
+        [ button [ class "btn-link" ] [ text "edit" ] ]
 
 
 feed : List TakeCard -> Time.Zone -> Maybe User -> Html Msg
@@ -857,4 +954,4 @@ feed takes zone user =
 
 viewTakeFixMsg : TakeCard -> Time.Zone -> Maybe User -> Html Msg
 viewTakeFixMsg take zone user =
-    Html.map (\m -> TakeMsg m) (viewTake take zone user)
+    Html.map TakeMsg (viewTake take zone user)
