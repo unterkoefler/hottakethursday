@@ -883,12 +883,7 @@ aboutUser user detail editable =
     [ div [ class "container mt-2" ]
         [ div [ class "row" ]
             ([ h5 [ class "col col-md-12" ] [ text <| "@" ++ user.username ]
-             , img
-                [ src "/assets/profilepic.jpg"
-                , width 100
-                , class "col col-md-12"
-                ]
-                []
+             , profilePicture user
              ]
                 ++ List.map (\( a, b ) -> aboutUserElem a b editable)
                     [ ( detail.fullName, "" )
@@ -899,6 +894,24 @@ aboutUser user detail editable =
             )
         ]
     ]
+
+
+profilePicture : User -> Html Msg
+profilePicture user =
+    let
+        src_ =
+            Maybe.withDefault "/assets/profilepic.jpg" user.avatarUrl
+    in
+    div
+        [ class "col col-md-12 text-center" ]
+        [ div [ class "bg-light py-1" ]
+            [ img
+                [ src src_
+                , class "profile-page-profile-pic"
+                ]
+                []
+            ]
+        ]
 
 
 aboutUserElem : String -> String -> Bool -> Html Msg
