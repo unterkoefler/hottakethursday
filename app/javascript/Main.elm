@@ -880,18 +880,26 @@ userDetailEx1 =
 
 aboutUser : User -> UserDetail -> Bool -> List (Html Msg)
 aboutUser user detail editable =
-    [ div [ class "container mt-2" ]
+    [ div [ class "container mt-2 ml-3" ]
         [ div [ class "row" ]
-            ([ h5 [ class "col col-md-12" ] [ text <| "@" ++ user.username ]
-             , profilePicture user
-             ]
-                ++ List.map (\( a, b ) -> aboutUserElem a b editable)
-                    [ ( detail.fullName, "" )
-                    , ( detail.bio, "Bio" )
-                    , ( detail.birthday, "Birthday" )
-                    , ( detail.leastFavoriteColor, "Least favorite color" )
-                    ]
-            )
+            [ div [ class "col-xs-6 pr-3" ]
+                [ div [ class "row" ]
+                    [ h5 [ class "col col-md-12" ] [ text <| "@" ++ user.username ] ]
+                , div [ class "row" ]
+                    [ profilePicture user ]
+                , aboutUserElem detail.fullName "" editable
+                ]
+            , div [ class "col-xs-6" ]
+                (div [ class "row hidden" ]
+                    -- hacky css
+                    [ h5 [ class "col col-md-12" ] [ text <| "@" ++ user.username ] ]
+                    :: List.map (\( a, b ) -> aboutUserElem a b editable)
+                        [ ( detail.bio, "Bio" )
+                        , ( detail.birthday, "Birthday" )
+                        , ( detail.leastFavoriteColor, "Least favorite color" )
+                        ]
+                )
+            ]
         ]
     ]
 
@@ -916,18 +924,20 @@ profilePicture user =
 
 aboutUserElem : String -> String -> Bool -> Html Msg
 aboutUserElem info label editable =
-    div [ class "col col-md-12" ]
-        [ div [ class "border pl-1" ]
-            ([ span [ class "text-black-50" ] [ text <| label ++ " " ]
-             , p [ class "my-0" ] [ span [] [ text info ] ]
-             ]
-                ++ (if editable then
-                        [ aboutEditButton ]
+    div [ class "row" ]
+        [ div [ class "col col-md-12" ]
+            [ div [ class "border pl-1" ]
+                ([ span [ class "text-black-50" ] [ text <| label ++ " " ]
+                 , p [ class "my-0" ] [ span [] [ text info ] ]
+                 ]
+                    ++ (if editable then
+                            [ aboutEditButton ]
 
-                    else
-                        []
-                   )
-            )
+                        else
+                            []
+                       )
+                )
+            ]
         ]
 
 
