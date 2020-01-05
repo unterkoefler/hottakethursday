@@ -135,7 +135,7 @@ viewTake card zone user =
         , onMouseEnter <| TakeHovered card
         , onMouseLeave <| TakeHovered card
         ]
-        [ img [ class "mr-2", width 64, height 64, src "assets/profilepic.jpg" ] []
+        [ img [ class "mr-2", width 64, height 64, src (Maybe.withDefault "/assets/profilepic.jpg" card.take.postedBy.avatarUrl) ] []
         , div [ class "media-body pr-3" ]
             ([ p [ class "mb-0" ] [ text ("\"" ++ card.take.content ++ "\"") ]
              , p [ class "text-right" ] [ text <| "- @" ++ card.take.postedBy.username ]
