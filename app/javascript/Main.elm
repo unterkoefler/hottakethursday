@@ -48,7 +48,7 @@ subscriptions model =
     Sub.batch
         [ Time.every (15 * 60 * 1000) Tick
         , case ( model.profile, model.page ) of
-            ( Just _, Home _ _ ) ->
+            ( Just _, Home _ ) ->
                 Ports.newTakeInfo
                     (TakeUpdate
                         << Json.Decode.decodeValue Data.Take.decoder
@@ -63,11 +63,6 @@ subscriptions model =
 -- ROUTES
 
 
-type HomeSection
-    = Hottest
-    | Coldest
-
-
 type ProfileSection
     = YourTakes
     | Notifications
@@ -75,7 +70,7 @@ type ProfileSection
 
 
 type Route
-    = HomeRoute HomeSection
+    = HomeRoute
     | LoginRoute
     | ForgotPasswordRoute
     | SignupRoute
@@ -86,28 +81,12 @@ type Route
 routeParser : Parser.Parser (Route -> a) a
 routeParser =
     Parser.oneOf
-        [ Parser.map HomeRoute (Parser.fragment toHomeSection)
+        [ Parser.map HomeRoute (Parser.s "hottest")
         , Parser.map LoginRoute (Parser.s "login")
         , Parser.map ForgotPasswordRoute (Parser.s "forgot-password")
         , Parser.map SignupRoute (Parser.s "signup")
         , Parser.map ProfileRoute (Parser.s "profile" </> Parser.fragment toProfileSection)
         ]
-
-
-toHomeSection : Maybe String -> HomeSection
-toHomeSection frag =
-    case frag of
-        Just "hottest" ->
-            Hottest
-
-        Just "coldest" ->
-            Coldest
-
-        Just str ->
-            Hottest
-
-        Nothing ->
-            Hottest
 
 
 toProfileSection : Maybe String -> ProfileSection
@@ -155,7 +134,7 @@ blankSignupData =
 
 
 type Page
-    = Home HomeSection HomeData
+    = Home HomeData
     | Login Login.Model
     | ForgotPassword String
     | Signup Signup.Model
@@ -176,26 +155,8 @@ type alias Model =
     }
 
 
-george : User
-george =
-    { id = 3, username = "starwars4lyfe", avatarUrl = Nothing }
-
-
-take1 =
-    { content = "Birds are not real"
-    , postedBy = george
-    , timePosted = Time.millisToPosix 10000
-    , likedBy = []
-    , hoveredOver = False
-    }
-
-
 homePage =
-    Home Hottest { takes = [], compose = "" }
-
-
-homePageCold =
-    Home Coldest { takes = [], compose = "" }
+    Home { takes = [], compose = "" }
 
 
 loginPage =
@@ -344,7 +305,7 @@ update msg model =
                         Loading next ->
                             Nav.pushUrl model.navKey (Url.toString next)
 
-                        Home Hottest _ ->
+                        Home _ ->
                             Api.allTakesFromToday auth FeedLoaded
 
                         _ ->
@@ -361,16 +322,13 @@ update msg model =
 handleUrlChange : Model -> Url.Url -> ( Model, Cmd Msg )
 handleUrlChange model url =
     case toRoute <| Url.toString url of
-        HomeRoute Hottest ->
+        HomeRoute ->
             case model.profile of
                 Just { auth } ->
                     ( { model | page = homePage }, Api.allTakes auth FeedLoaded )
 
                 Nothing ->
                     ( { model | page = homePage }, Cmd.none )
-
-        HomeRoute Coldest ->
-            ( { model | page = homePageCold }, Cmd.none )
 
         LoginRoute ->
             ( { model | page = loginPage }, Cmd.none )
@@ -403,7 +361,7 @@ handleUrlChangeToProfile model section user =
 updatePage : Msg -> Model -> ( Model, Cmd Msg )
 updatePage msg model =
     case model.page of
-        Home _ data ->
+        Home data ->
             updateHomePage msg model data
 
         Login data ->
@@ -475,7 +433,7 @@ updateHomePageSignedIn msg model data user auth =
         FeedLoaded (Ok takes) ->
             ( { model
                 | page =
-                    Home Hottest { data | takes = List.map (\t -> { take = t, hovered = False }) takes }
+                    Home { data | takes = List.map (\t -> { take = t, hovered = False }) takes }
               }
             , Cmd.none
             )
@@ -497,7 +455,7 @@ handleTakeMsg msg model data user auth =
         ( newTakes, cmd ) =
             TakeCard.update msg data.takes user auth
     in
-    ( { model | page = Home Hottest { data | takes = newTakes } }
+    ( { model | page = Home { data | takes = newTakes } }
     , Cmd.map TakeMsg cmd
     )
 
@@ -510,7 +468,7 @@ handleComposeMsg msg model data user auth =
     in
     ( { model
         | page =
-            Home Hottest
+            Home
                 { data | compose = newCompose, takes = newTakes ++ data.takes }
       }
     , Cmd.map ComposeMsg cmd
@@ -628,7 +586,7 @@ headerWithoutToggle links =
 navLinks : Page -> Maybe { a | user : User } -> List (Html Msg)
 navLinks page profile =
     case page of
-        Home _ _ ->
+        Home _ ->
             case profile of
                 Just { user } ->
                     [ notificationsLink
@@ -684,7 +642,7 @@ navItem txt link classes =
 body : Model -> Html Msg
 body model =
     case model.page of
-        Home _ _ ->
+        Home _ ->
             div [ class "row" ]
                 [ div [ class "col-3 d-none d-md-block text-center" ] ads
                 , div [ class "col-md-6 col-xs-10" ] (content model)
@@ -763,7 +721,7 @@ content model =
     [ navTabs model.page model.expandNavTabs
     , div [ class "container" ]
         (case model.page of
-            Home Hottest data ->
+            Home data ->
                 case model.profile of
                     Just { user } ->
                         [ Html.map ComposeMsg
@@ -774,9 +732,6 @@ content model =
                     Nothing ->
                         [ feed data.takes model.zone Nothing ]
 
-            Home Coldest data ->
-                [ p [] [ text "Sorry, we don't have any cold takes here" ] ]
-
             _ ->
                 []
         )
@@ -786,16 +741,9 @@ content model =
 navTabs : Page -> Bool -> Html Msg
 navTabs page expandNavTabs =
     case page of
-        Home Hottest _ ->
+        Home _ ->
             ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
                 [ navItem "Hottest" "#hottest" "active"
-                , navItem "Coldest" "#coldest" ""
-                ]
-
-        Home Coldest _ ->
-            ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
-                [ navItem "Hottest" "#hottest" ""
-                , navItem "Coldest" "#coldest" "active"
                 ]
 
         Profile section _ ->
