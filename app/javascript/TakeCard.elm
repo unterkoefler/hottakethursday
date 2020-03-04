@@ -149,8 +149,12 @@ viewTake card zone user =
 hoverButtons : TakeCard -> Maybe User -> List (Html Msg)
 hoverButtons card user =
     let
+        isPostedBySameUser =
+            Maybe.map (User.isSameUser card.take.postedBy) user
+                |> Maybe.withDefault False
+
         buttons =
-            if Just card.take.postedBy == user then
+            if isPostedBySameUser then
                 [ takeHoverButton "edit" (EditTake card)
                 , text " | "
                 , takeHoverButton "delete" (DeleteTake card)

@@ -53,7 +53,7 @@ update msg model navKey =
     case msg of
         Submit ->
             if model.email /= "" && model.password /= "" then
-                ( model
+                ( { model | previousAttempt = NotAttempted }
                 , Nothing
                 , Api.signIn model AttemptCompleted
                 )
@@ -86,7 +86,6 @@ update msg model navKey =
             )
 
         AttemptCompleted (Err (Api.HttpError (Http.BadStatus 401))) ->
-            -- TODO Determine based on error whether it was actually invalid creds
             ( { model | previousAttempt = IncorrectInfo }
             , Nothing
             , Cmd.none

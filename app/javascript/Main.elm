@@ -671,7 +671,7 @@ body model =
                 ownProfile =
                     case model.profile of
                         Just profile ->
-                            user == profile.user
+                            User.isSameUser user profile.user
 
                         Nothing ->
                             False
