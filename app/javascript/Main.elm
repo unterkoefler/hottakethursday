@@ -441,7 +441,7 @@ updateHomePageSignedIn msg model data user auth =
         FeedLoaded (Ok takes) ->
             ( { model
                 | page =
-                    Home Hottest { data | takes = List.map (\t -> { take = t, hovered = False }) takes }
+                    Home { data | takes = List.map (\t -> { take = t, hovered = False }) takes }
               }
             , Cmd.none
             )
@@ -463,7 +463,7 @@ handleTakeMsg msg model data user auth =
         ( newTakes, cmd ) =
             TakeCard.update msg data.takes user auth
     in
-    ( { model | page = Home Hottest { data | takes = newTakes } }
+    ( { model | page = Home { data | takes = newTakes } }
     , Cmd.map TakeMsg cmd
     )
 
@@ -476,7 +476,7 @@ handleComposeMsg msg model data user auth =
     in
     ( { model
         | page =
-            Home Hottest
+            Home
                 { data | compose = newCompose, takes = newTakes ++ data.takes }
       }
     , Cmd.map ComposeMsg cmd
@@ -594,7 +594,7 @@ headerWithoutToggle links =
 navLinks : Page -> Maybe { a | user : User } -> List (Html Msg)
 navLinks page profile =
     case page of
-        Home _ _ ->
+        Home _ ->
             case profile of
                 Just { user } ->
                     [ notificationsLink
@@ -650,7 +650,7 @@ navItem txt link classes =
 body : Model -> Html Msg
 body model =
     case model.page of
-        Home _ _ ->
+        Home _ ->
             div [ class "row" ]
                 [ div [ class "col-3 d-none d-md-block text-center" ] ads
                 , div [ class "col-md-6 col-xs-10" ] (content model)
@@ -729,7 +729,7 @@ content model =
     [ navTabs model.page model.expandNavTabs
     , div [ class "container" ]
         (case model.page of
-            Home Hottest data ->
+            Home data ->
                 case model.profile of
                     Just { user } ->
                         [ Html.map ComposeMsg
@@ -749,10 +749,9 @@ content model =
 navTabs : Page -> Bool -> Html Msg
 navTabs page expandNavTabs =
     case page of
-        Home Hottest _ ->
+        Home _ ->
             ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
                 [ navItem "Hottest" "#hottest" "active"
-                , navItem "Coldest" "#coldest" ""
                 ]
 
         Profile section _ ->
