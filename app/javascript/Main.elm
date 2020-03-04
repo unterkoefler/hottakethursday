@@ -160,7 +160,7 @@ homePage =
 
 
 loginPage =
-    Login { email = "", password = "", previousInvalidAttempt = False }
+    Login Login.emptyForm
 
 
 init : Json.Decode.Value -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
