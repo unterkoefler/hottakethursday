@@ -92,7 +92,7 @@ update msg model navKey =
             , Cmd.none
             )
 
-        AttemptCompleted (Err (Api.HttpError _)) ->
+        AttemptCompleted (Err _) ->
             ( { model | previousAttempt = SomethingWentWrong }
             , Nothing
             , Cmd.none
