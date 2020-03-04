@@ -1,4 +1,4 @@
-module Login exposing (Model, Msg, update, view)
+module Login exposing (LoginAttempt(..), Model, Msg, emptyForm, update, view)
 
 import Api
 import Browser.Navigation as Nav
@@ -6,6 +6,7 @@ import Data.User as User exposing (User)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (onClick, onInput)
+import Http
 import Ports
 
 
@@ -13,15 +14,27 @@ import Ports
 -- MODEL
 
 
+type LoginAttempt
+    = NotAttempted
+    | InvalidInfo -- Didn't fill out all boxes
+    | IncorrectInfo -- Server doesn't like you
+    | SomethingWentWrong
+
+
 type alias Model =
     { email : String
     , password : String
-    , previousInvalidAttempt : Bool
+    , previousAttempt : LoginAttempt
     }
 
 
 type alias Profile =
     Maybe { user : User, auth : Api.UserAuth }
+
+
+emptyForm : Model
+emptyForm =
+    { email = "", password = "", previousAttempt = NotAttempted }
 
 
 
@@ -46,7 +59,7 @@ update msg model navKey =
                 )
 
             else
-                ( { model | previousInvalidAttempt = True }
+                ( { model | previousAttempt = InvalidInfo }
                 , Nothing
                 , Cmd.none
                 )
@@ -72,9 +85,15 @@ update msg model navKey =
                 ]
             )
 
-        AttemptCompleted (Err _) ->
+        AttemptCompleted (Err (Api.HttpError (Http.BadStatus 401))) ->
             -- TODO Determine based on error whether it was actually invalid creds
-            ( { model | previousInvalidAttempt = True }
+            ( { model | previousAttempt = IncorrectInfo }
+            , Nothing
+            , Cmd.none
+            )
+
+        AttemptCompleted (Err _) ->
+            ( { model | previousAttempt = SomethingWentWrong }
             , Nothing
             , Cmd.none
             )
@@ -94,12 +113,22 @@ view model =
                     ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
                        , div [] [ button [ onClick Submit ] [ text "Continue" ] ]
                        ]
-                    ++ (case model.previousInvalidAttempt of
-                            True ->
+                    ++ (case model.previousAttempt of
+                            NotAttempted ->
+                                []
+
+                            InvalidInfo ->
                                 [ div [] [ p [ class "text-danger" ] [ text "Invalid Username or Password" ] ] ]
 
-                            False ->
-                                []
+                            IncorrectInfo ->
+                                [ div [] [ p [ class "text-danger" ] [ text "Invalid Username or Password" ] ] ]
+
+                            SomethingWentWrong ->
+                                [ div []
+                                    [ p [ class "text-danger" ]
+                                        [ text "Something went wrong handling your request. Try again later." ]
+                                    ]
+                                ]
                        )
                 )
             ]

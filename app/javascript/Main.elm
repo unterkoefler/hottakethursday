@@ -65,8 +65,6 @@ subscriptions model =
 
 type ProfileSection
     = YourTakes
-    | Following
-    | Followers
     | Notifications
     | Settings
 
@@ -94,12 +92,6 @@ routeParser =
 toProfileSection : Maybe String -> ProfileSection
 toProfileSection frag =
     case frag of
-        Just "following" ->
-            Following
-
-        Just "followers" ->
-            Followers
-
         Just "notifications" ->
             Notifications
 
@@ -168,7 +160,7 @@ homePage =
 
 
 loginPage =
-    Login { email = "", password = "", previousInvalidAttempt = False }
+    Login Login.emptyForm
 
 
 init : Json.Decode.Value -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -773,8 +765,6 @@ navTabsCollapsable section expand =
 
         navItems =
             [ navItem "Your Takes" "/profile" (isActive YourTakes section)
-            , navItem "Following" "/profile#following" (isActive Following section)
-            , navItem "Followers" "/profile#followers" (isActive Followers section)
             , navItem "Notifications" "/profile#notifications" (isActive Notifications section)
             , navItem "Settings" "/profile#settings" (isActive Settings section)
             ]
