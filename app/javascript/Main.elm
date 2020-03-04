@@ -70,8 +70,6 @@ type HomeSection
 
 type ProfileSection
     = YourTakes
-    | Following
-    | Followers
     | Notifications
     | Settings
 
@@ -115,12 +113,6 @@ toHomeSection frag =
 toProfileSection : Maybe String -> ProfileSection
 toProfileSection frag =
     case frag of
-        Just "following" ->
-            Following
-
-        Just "followers" ->
-            Followers
-
         Just "notifications" ->
             Notifications
 
@@ -825,8 +817,6 @@ navTabsCollapsable section expand =
 
         navItems =
             [ navItem "Your Takes" "/profile" (isActive YourTakes section)
-            , navItem "Following" "/profile#following" (isActive Following section)
-            , navItem "Followers" "/profile#followers" (isActive Followers section)
             , navItem "Notifications" "/profile#notifications" (isActive Notifications section)
             , navItem "Settings" "/profile#settings" (isActive Settings section)
             ]
