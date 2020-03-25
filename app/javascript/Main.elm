@@ -82,6 +82,7 @@ routeParser : Parser.Parser (Route -> a) a
 routeParser =
     Parser.oneOf
         [ Parser.map HomeRoute (Parser.s "hottest")
+        , Parser.map HomeRoute top
         , Parser.map LoginRoute (Parser.s "login")
         , Parser.map ForgotPasswordRoute (Parser.s "forgot-password")
         , Parser.map SignupRoute (Parser.s "signup")
