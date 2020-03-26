@@ -7,10 +7,11 @@ import Compose exposing (Compose)
 import Data.Take
 import Data.User as User exposing (User)
 import Debug
+import Element exposing (..)
+import Element.Input as Input
+import Element.Region as Region
 import Flags
-import Html.Styled as Html exposing (..)
-import Html.Styled.Attributes exposing (..)
-import Html.Styled.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
+import Html exposing (Html)
 import Http
 import Json.Decode
 import Login
@@ -485,8 +486,10 @@ view model =
     if isThursday model.time model.zone then
         { title = "HTT"
         , body =
-            [ toUnstyled <|
-                div []
+            [ layout
+                []
+              <|
+                column []
                     [ header model
                     , body model
                     ]
@@ -495,11 +498,11 @@ view model =
 
     else
         { title = "ERROR"
-        , body = [ toUnstyled <| four04 model.time model.zone ]
+        , body = [ Element.layout [] (four04 model.time model.zone) ]
         }
 
 
-four04 : Time.Posix -> Time.Zone -> Html Msg
+four04 : Time.Posix -> Time.Zone -> Element Msg
 four04 time zone =
     let
         weekday =
@@ -511,10 +514,14 @@ four04 time zone =
         daysLeft =
             daysUntilThursday weekday
     in
-    div [ class "container" ]
-        [ h1 [] [ text ("Error (404): Site Unavaible on " ++ weekdayString) ]
-        , img [ width 300, height 300, src "/assets/404.jpg" ] []
-        , p []
+    column []
+        [ el [ Region.heading 1 ] <| text ("Error (404): Site Unavaible on " ++ weekdayString)
+        , image
+            [ width (px 300), height (px 300) ]
+            { src = "/assets/404.jpg"
+            , description = "Image failed to load"
+            }
+        , row []
             [ text
                 ("Hi. Welcome to HotTakeThursday.com, where "
                     ++ "you can voice your hottest takes, but only on Thursdays. "
@@ -537,7 +544,7 @@ plural n sing plur =
         plur
 
 
-header : Model -> Html Msg
+header : Model -> Element Msg
 header model =
     let
         links =
@@ -550,7 +557,7 @@ header model =
         headerWithoutToggle links
 
 
-headerWithToggle : List (Html Msg) -> Bool -> Html Msg
+headerWithToggle : List (Element Msg) -> Bool -> Element Msg
 headerWithToggle links expandToggle =
     let
         show =
@@ -560,31 +567,31 @@ headerWithToggle links expandToggle =
             else
                 ""
     in
-    nav [ class "navbar navbar-light bg-light navbar-expand-sm" ]
-        [ a [ class "navbar-brand pl-2", href "/" ] [ text "HotTakeThursday 🔥" ]
-        , button
-            [ class "navbar-toggler"
-            , onClick NavBarToggled
-            ]
-            [ span [ class "navbar-toggler-icon" ] [] ]
-        , div [ class <| "collapse navbar-collapse" ++ show ]
-            [ ul
-                [ class "navbar-nav ml-auto" ]
+    row []
+        [ link [] { url = "/", label = text "HotTakeThursday 🔥" }
+        , Input.button
+            []
+            { onPress = Just NavBarToggled
+            , label = text "\\/"
+            }
+        , column []
+            [ row
+                []
                 links
             ]
         ]
 
 
-headerWithoutToggle : List (Html Msg) -> Html Msg
+headerWithoutToggle : List (Element Msg) -> Element Msg
 headerWithoutToggle links =
-    nav [ class "navbar navbar-light bg-light" ]
-        [ a [ class "navbar-brand pl-2", href "/" ] [ text "HTT 🔥" ]
-        , ul [ class "navbar-nav ml-auto", style "flex-direction" "row" ]
+    row []
+        [ link [] { url = "/", label = text "HTT 🔥" }
+        , row []
             links
         ]
 
 
-navLinks : Page -> Maybe { a | user : User } -> List (Html Msg)
+navLinks : Page -> Maybe { a | user : User } -> List (Element Msg)
 navLinks page profile =
     case page of
         Home _ ->
@@ -619,42 +626,38 @@ navLinks page profile =
 
 
 logoutButton =
-    li [ class "nav-item nav-link pl-3" ]
-        [ button [ class "btn btn-link", onClick LogoutButtonPressed ] [ text "Logout" ] ]
+    Input.button
+        []
+        { onPress = Just LogoutButtonPressed
+        , label = text "Logout"
+        }
 
 
 notificationsLink =
-    li [ class "nav-item nav-link pl-3" ]
-        [ a [ href "profile#notifications" ]
-            [ span [ class "d-inline d-sm-none" ]
-                [ text "Notifications" ]
-            , span [ class "d-none d-sm-inline" ]
-                [ text "🔔" ]
-            ]
-        ]
+    link [] { url = "profile#notifications", label = text "Notifications 🔔" }
 
 
-navItem : String -> String -> String -> Html Msg
-navItem txt link classes =
-    li [ class ("nav-item nav-link pl-3 " ++ classes) ]
-        [ a [ href link ] [ text txt ] ]
+navItem : String -> String -> String -> Element Msg
+navItem txt link_ classes =
+    link []
+        { url = link_, label = text txt }
 
 
-body : Model -> Html Msg
+body : Model -> Element Msg
 body model =
     case model.page of
         Home _ ->
-            div [ class "row" ]
-                [ div [ class "col-3 d-none d-md-block text-center" ] ads
-                , div [ class "col-md-6 col-xs-10" ] (content model)
-                , div [ class "col-3 d-none d-md-block text-center" ] ads
+            column []
+                [ column [] ads
+                , column [] (content model)
+                , column [] ads
                 ]
 
         Login data ->
-            Html.map LoginMsg (Login.view data)
+            Element.map LoginMsg (Login.view data)
 
         ForgotPassword email ->
-            p []
+            row []
                 [ text <|
                     "We've sent an email to "
                         ++ email
@@ -665,7 +668,7 @@ body model =
                 ]
 
         Signup data ->
-            Html.map SignupMsg (Signup.view data)
+            Element.map SignupMsg (Signup.view data)
 
         Profile _ user ->
             let
@@ -677,19 +680,19 @@ body model =
                         Nothing ->
                             False
             in
-            div [ class "row" ]
-                [ div [ class "col-md-3" ]
+            column []
+                [ column []
                     (aboutUser user userDetailEx1 ownProfile)
-                , div [ class "col-md-9" ] (content model)
+                , column [] (content model)
                 ]
 
         Loading next ->
-            p [] [ text "Loading..." ]
+            row [] [ text "Loading..." ]
 
         Forbidden ->
             case model.profile of
                 Just _ ->
-                    p []
+                    row []
                         [ text <|
                             "Sorry! You don't have permission to view this"
                                 ++ " page. If you think this is an error, please"
@@ -697,7 +700,7 @@ body model =
                         ]
 
                 Nothing ->
-                    p []
+                    row []
                         [ text <|
                             "Sorry! You don't have permission to view this"
                                 ++ " page. Please login or signup using the links above"
@@ -709,23 +712,23 @@ ads =
 
 
 fakeAd =
-    img
-        [ class "mb-5 mt-5 px-1"
-        , width 160
-        , src "/assets/trash-ad.jpg"
+    image
+        [ width (px 160)
         ]
-        []
+        { src = "/assets/trash-ad.jpg"
+        , description = "An advertisement for a trash can"
+        }
 
 
-content : Model -> List (Html Msg)
+content : Model -> List (Element Msg)
 content model =
     [ navTabs model.page model.expandNavTabs
-    , div [ class "container" ]
+    , column []
         (case model.page of
             Home data ->
                 case model.profile of
                     Just { user } ->
-                        [ Html.map ComposeMsg
+                        [ Element.map ComposeMsg
                             (Compose.view user data.compose)
                         , feed data.takes model.zone (Just user)
                         ]
@@ -739,11 +742,11 @@ content model =
     ]
 
 
-navTabs : Page -> Bool -> Html Msg
+navTabs : Page -> Bool -> Element Msg
 navTabs page expandNavTabs =
     case page of
         Home _ ->
-            ul [ class "nav nav-tabs mb-3 mt-2 mx-3" ]
+            row []
                 [ navItem "Hottest" "#hottest" "active"
                 ]
 
@@ -751,10 +754,10 @@ navTabs page expandNavTabs =
             navTabsCollapsable section expandNavTabs
 
         _ ->
-            div [] []
+            column [] []
 
 
-navTabsCollapsable : ProfileSection -> Bool -> Html Msg
+navTabsCollapsable : ProfileSection -> Bool -> Element Msg
 navTabsCollapsable section expand =
     let
         ( tabsClass, icon ) =
@@ -770,13 +773,16 @@ navTabsCollapsable section expand =
             , navItem "Settings" "/profile#settings" (isActive Settings section)
             ]
     in
-    div []
-        [ ul [ class "d-none d-sm-flex nav nav-tabs mb-3 mt-2 mx-3" ]
+    column []
+        [ row []
             navItems
-        , div [ class <| "d-flex d-sm-none mb-3 mt-2 mx-3 justify-content-between " ++ tabsClass ]
+        , column []
             (navItems
-                ++ [ span [ class "align-self-center mx-3" ]
-                        [ button [ class "btn-link", onClick NavTabsToggled ] [ text icon ] ]
+                ++ [ Input.button
+                        []
+                        { onPress = Just NavTabsToggled
+                        , label = text icon
+                        }
                    ]
             )
         ]
@@ -817,21 +823,21 @@ userDetailEx1 =
     }
 
 
-aboutUser : User -> UserDetail -> Bool -> List (Html Msg)
+aboutUser : User -> UserDetail -> Bool -> List (Element Msg)
 aboutUser user detail editable =
-    [ div [ class "container mt-2 ml-3" ]
-        [ div [ class "row" ]
-            [ div [ class "col-xs-6 pr-3" ]
-                [ div [ class "row" ]
-                    [ h5 [ class "col col-md-12" ] [ text <| "@" ++ user.username ] ]
-                , div [ class "row" ]
+    [ column []
+        [ column []
+            [ column []
+                [ column []
+                    [ el [ Region.heading 5 ] (text <| "@" ++ user.username) ]
+                , column []
                     [ profilePicture user ]
                 , aboutUserElem detail.fullName "" editable
                 ]
-            , div [ class "col-xs-6" ]
-                (div [ class "row hidden" ]
+            , column []
+                (column []
                     -- hacky css
-                    [ h5 [ class "col col-md-12" ] [ text <| "@" ++ user.username ] ]
+                    [ el [ Region.heading 5 ] (text <| "@" ++ user.username) ]
                     :: List.map (\( a, b ) -> aboutUserElem a b editable)
                         [ ( detail.bio, "Bio" )
                         , ( detail.birthday, "Birthday" )
@@ -843,31 +849,31 @@ aboutUser user detail editable =
     ]
 
 
-profilePicture : User -> Html Msg
+profilePicture : User -> Element Msg
 profilePicture user =
     let
         src_ =
             Maybe.withDefault "/assets/profilepic.jpg" user.avatarUrl
     in
-    div
-        [ class "col col-md-12 text-center" ]
-        [ div [ class "bg-light py-1" ]
-            [ img
-                [ src src_
-                , class "profile-page-profile-pic"
-                ]
+    column
+        []
+        [ column []
+            [ image
                 []
+                { src = src_
+                , description = "Profile picture"
+                }
             ]
         ]
 
 
-aboutUserElem : String -> String -> Bool -> Html Msg
+aboutUserElem : String -> String -> Bool -> Element Msg
 aboutUserElem info label editable =
-    div [ class "row" ]
-        [ div [ class "col col-md-12" ]
-            [ div [ class "border pl-1" ]
-                ([ span [ class "text-black-50" ] [ text <| label ++ " " ]
-                 , p [ class "my-0" ] [ span [] [ text info ] ]
+    column []
+        [ column []
+            [ column []
+                ([ text <| label ++ " "
+                 , row [] [ text info ]
                  ]
                     ++ (if editable then
                             [ aboutEditButton ]
@@ -880,17 +886,17 @@ aboutUserElem info label editable =
         ]
 
 
-aboutEditButton : Html Msg
+aboutEditButton : Element Msg
 aboutEditButton =
-    p [ class "my-0 text-right pr-1" ]
-        [ button [ class "btn-link" ] [ text "edit" ] ]
+    row []
+        [ Input.button [] { onPress = Nothing, label = text "edit" } ]
 
 
-feed : List TakeCard -> Time.Zone -> Maybe User -> Html Msg
+feed : List TakeCard -> Time.Zone -> Maybe User -> Element Msg
 feed takes zone user =
-    div [ class "mt-3" ] (List.map (\take -> viewTakeFixMsg take zone user) takes)
+    column [] (List.map (\take -> viewTakeFixMsg take zone user) takes)
 
 
-viewTakeFixMsg : TakeCard -> Time.Zone -> Maybe User -> Html Msg
+viewTakeFixMsg : TakeCard -> Time.Zone -> Maybe User -> Element Msg
 viewTakeFixMsg take zone user =
-    Html.map TakeMsg (viewTake take zone user)
+    Element.map TakeMsg (viewTake take zone user)

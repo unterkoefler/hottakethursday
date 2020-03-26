@@ -3,9 +3,8 @@ module Login exposing (LoginAttempt(..), Model, Msg, emptyForm, update, view)
 import Api
 import Browser.Navigation as Nav
 import Data.User as User exposing (User)
-import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (..)
-import Html.Styled.Events exposing (onClick, onInput)
+import Element exposing (..)
+import Element.Input as Input
 import Http
 import Ports
 
@@ -103,48 +102,51 @@ update msg model navKey =
 -- VIEW
 
 
-view : Model -> Html Msg
+view : Model -> Element Msg
 view model =
-    div [ id "loginBody", class "container-fluid" ]
-        [ div [ class "row justify-content-center" ]
-            [ div [ class "col form" ]
-                (inputWithLabel "email" "Email" model.email EmailChanged
-                    ++ inputWithLabel "password" "Password" model.password PasswordChanged
-                    ++ [ div [] [ a [ href "forgot-password" ] [ text "Forgot password?" ] ]
-                       , div [] [ button [ onClick Submit ] [ text "Continue" ] ]
-                       ]
-                    ++ (case model.previousAttempt of
-                            NotAttempted ->
-                                []
-
-                            InvalidInfo ->
-                                [ div [] [ p [ class "text-danger" ] [ text "Invalid Username or Password" ] ] ]
-
-                            IncorrectInfo ->
-                                [ div [] [ p [ class "text-danger" ] [ text "Invalid Username or Password" ] ] ]
-
-                            SomethingWentWrong ->
-                                [ div []
-                                    [ p [ class "text-danger" ]
-                                        [ text "Something went wrong handling your request. Try again later." ]
-                                    ]
-                                ]
-                       )
-                )
-            ]
+    column []
+        [ inputWithLabel "Email" model.email EmailChanged
+        , passwordWithLabel "Password" model.password PasswordChanged
+        , link [] { url = "forgot-password", label = text "Forgot password?" }
+        , Input.button [] { onPress = Just Submit, label = text "Continue" }
+        , row [] [ text <| failureMessage model.previousAttempt ]
         ]
 
 
-inputWithLabel : String -> String -> String -> (String -> Msg) -> List (Html Msg)
-inputWithLabel id_ text_ val msg =
-    let
-        type__ =
-            if id_ == "password" then
-                "password"
+failureMessage : LoginAttempt -> String
+failureMessage attempt =
+    case attempt of
+        NotAttempted ->
+            ""
 
-            else
-                "input"
-    in
-    [ div [] [ label [ for id_ ] [ text text_ ] ]
-    , div [] [ input [ type_ type__, id id_, onInput msg, value val ] [] ]
-    ]
+        InvalidInfo ->
+            "Invalid Username or Password"
+
+        IncorrectInfo ->
+            "Invalid Username or Password"
+
+        SomethingWentWrong ->
+            "Something went wrong. Try again later"
+
+
+inputWithLabel : String -> String -> (String -> Msg) -> Element Msg
+inputWithLabel lbl val msg =
+    Input.text
+        []
+        { onChange = msg
+        , text = val
+        , placeholder = Nothing
+        , label = Input.labelAbove [] (text lbl)
+        }
+
+
+passwordWithLabel : String -> String -> (String -> Msg) -> Element Msg
+passwordWithLabel lbl val msg =
+    Input.currentPassword
+        []
+        { onChange = msg
+        , text = val
+        , placeholder = Nothing
+        , label = Input.labelAbove [] (text lbl)
+        , show = False
+        }

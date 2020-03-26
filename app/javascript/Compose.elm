@@ -2,9 +2,8 @@ module Compose exposing (Compose, Msg, update, view)
 
 import Api
 import Data.User as User exposing (User)
-import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (..)
-import Html.Styled.Events exposing (onClick, onInput)
+import Element exposing (..)
+import Element.Input as Input
 import Http
 import TakeCard exposing (TakeCard, createNewTake)
 import Task
@@ -52,27 +51,21 @@ update msg compose auth =
             )
 
 
-view : User -> String -> Html Msg
+view : User -> String -> Element Msg
 view user newTake =
-    div
-        [ style "padding-left" "15px"
-        , style "padding-right" "15px"
-        ]
-        [ div []
-            [ textarea
-                [ placeholder ("Hi " ++ user.username ++ ". What's your hottest take?")
-                , value newTake
-                , rows 2
-                , onInput EditNewTake
-                , class "w-100"
-                ]
-                []
-            ]
-        , div []
-            [ button
-                [ onClick <| PublishNewTakeClick user
-                , disabled (String.isEmpty newTake)
-                ]
-                [ text "Publish" ]
-            ]
+    column
+        []
+        [ Input.multiline
+            []
+            { onChange = EditNewTake
+            , text = newTake
+            , placeholder = Just <| Input.placeholder [] (text ("Hi " ++ user.username ++ ". What's your hottest take?"))
+            , label = Input.labelHidden "What's your hottest take?"
+            , spellcheck = False
+            }
+        , Input.button
+            []
+            { onPress = Just <| PublishNewTakeClick user
+            , label = text "Publish"
+            }
         ]
