@@ -1,8 +1,8 @@
 module Signup exposing (Model, Msg, update, view)
 
-import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (..)
-import Html.Styled.Events exposing (onClick, onInput)
+import Element exposing (..)
+import Element.Input as Input
+import Element.Region as Region
 
 
 
@@ -105,41 +105,26 @@ validateSignup model =
 -- VIEW
 
 
-view : Model -> Html Msg
+view : Model -> Element Msg
 view model =
-    div [ id "signupBody", class "container-fluid" ]
-        [ div [ class "row justify-content-center" ]
-            [ div [ class "col form" ]
-                ([ h2 [] [ text "Create Account" ]
-                 , p [] [ text "Feed us your data" ]
-                 ]
-                    ++ inputWithLabel "name" "Name" model.name EditName
-                    ++ inputWithLabel "username" "Username" model.username EditUsername
-                    ++ inputWithLabel "email" "Email" model.email EditEmail
-                    ++ inputWithLabel "bday" "Birthday (MM/DD/YYYY)" model.birthday EditBirthday
-                    ++ [ div []
-                            [ button
-                                [ onClick Submit
-                                , disabled <| not <| validateSignup model
-                                ]
-                                [ text "Begin" ]
-                            ]
-                       ]
-                )
-            ]
+    column
+        []
+        [ el [ Region.heading 2 ] (text "Create Account")
+        , row [] [ text "Feed us your data" ]
+        , inputWithLabel "Name" model.name EditName
+        , inputWithLabel "Username" model.username EditUsername
+        , inputWithLabel "Email" model.email EditEmail
+        , inputWithLabel "Birthday (MM/DD/YYY)" model.birthday EditBirthday
+        , Input.button [] { onPress = Just Submit, label = text "Begin" }
         ]
 
 
-inputWithLabel : String -> String -> String -> (String -> Msg) -> List (Html Msg)
-inputWithLabel id_ text_ val msg =
-    let
-        type__ =
-            if id_ == "password" then
-                "password"
-
-            else
-                "input"
-    in
-    [ div [] [ label [ for id_ ] [ text text_ ] ]
-    , div [] [ input [ type_ type__, id id_, onInput msg, value val ] [] ]
-    ]
+inputWithLabel : String -> String -> (String -> Msg) -> Element Msg
+inputWithLabel lbl val msg =
+    Input.text
+        []
+        { onChange = msg
+        , text = val
+        , placeholder = Nothing
+        , label = Input.labelAbove [] (text lbl)
+        }

@@ -4,9 +4,9 @@ import Api
 import Data.Take as Take exposing (Take)
 import Data.User as User exposing (User)
 import Debug
-import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (..)
-import Html.Styled.Events exposing (onClick, onMouseEnter, onMouseLeave)
+import Element exposing (..)
+import Element.Input as Input
+import Html exposing (Html)
 import Http
 import Thursday exposing (toWeekdayString)
 import Time
@@ -128,17 +128,16 @@ sendLikeOrUnlike user auth take =
 -- VIEW
 
 
-viewTake : TakeCard -> Time.Zone -> Maybe User -> Html Msg
+viewTake : TakeCard -> Time.Zone -> Maybe User -> Element Msg
 viewTake card zone user =
-    div
-        [ class "media border border-warning p-3"
-        , onMouseEnter <| TakeHovered card
-        , onMouseLeave <| TakeHovered card
-        ]
-        [ img [ class "mr-2", width 64, height 64, src (Maybe.withDefault "/assets/profilepic.jpg" card.take.postedBy.avatarUrl) ] []
-        , div [ class "media-body pr-3" ]
-            ([ p [ class "mb-0" ] [ text ("\"" ++ card.take.content ++ "\"") ]
-             , p [ class "text-right" ] [ text <| "- @" ++ card.take.postedBy.username ]
+    column
+        []
+        [ image
+            [ width (px 64), height (px 64) ]
+            { src = Maybe.withDefault "/assets/profilepic.jpg" card.take.postedBy.avatarUrl, description = "User's profile picture" }
+        , column []
+            ([ el [] (text <| ("\"" ++ card.take.content ++ "\""))
+             , el [] (text <| "- @" ++ card.take.postedBy.username)
              ]
                 ++ hoverButtons card user
             )
@@ -146,7 +145,7 @@ viewTake card zone user =
         ]
 
 
-hoverButtons : TakeCard -> Maybe User -> List (Html Msg)
+hoverButtons : TakeCard -> Maybe User -> List (Element Msg)
 hoverButtons card user =
     let
         buttons =
@@ -160,8 +159,8 @@ hoverButtons card user =
                 [ takeHoverButton "report" (ReportTake card) ]
     in
     if card.hovered then
-        [ div
-            [ class "text-center" ]
+        [ column
+            []
             buttons
         ]
 
@@ -169,33 +168,34 @@ hoverButtons card user =
         []
 
 
-takeHoverButton : String -> Msg -> Html Msg
+takeHoverButton : String -> Msg -> Element Msg
 takeHoverButton txt msg =
-    button [ class "btn-link", onClick msg ] [ text txt ]
+    Input.button []
+        { onPress = Just msg, label = text txt }
 
 
-fireButton : TakeCard -> Maybe User -> List User -> Html Msg
+fireButton : TakeCard -> Maybe User -> List User -> Element Msg
 fireButton card maybeUser likers =
     case maybeUser of
         Just user ->
             if List.member user likers then
-                button
-                    [ class "align-self-end align-self-center fire-button"
-                    , onClick (FireButtonPressed card)
-                    ]
-                    [ text <| String.fromInt <| List.length likers ]
+                Input.button []
+                    { onPress = Just <| FireButtonPressed card
+                    , label = text <| String.fromInt <| List.length likers
+                    }
 
             else
-                button
-                    [ class "align-self-end align-self-center fire-button-transparent"
-                    , onClick (FireButtonPressed card)
-                    ]
-                    [ text <| String.fromInt <| List.length likers ]
+                Input.button []
+                    { onPress = Just <| FireButtonPressed card
+                    , label = text <| String.fromInt <| List.length likers
+                    }
 
         Nothing ->
-            button
-                [ class "align-self-end align-self-center fire-button" ]
-                [ text <| String.fromInt <| List.length likers ]
+            Input.button
+                []
+                { onPress = Nothing
+                , label = text <| String.fromInt <| List.length likers
+                }
 
 
 formatTime : Time.Posix -> Time.Zone -> String
