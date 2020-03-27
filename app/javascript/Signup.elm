@@ -1,6 +1,7 @@
 module Signup exposing (Model, Msg, update, view)
 
 import Element exposing (..)
+import Element.Font as Font
 import Element.Input as Input
 import Element.Region as Region
 
@@ -108,8 +109,8 @@ validateSignup model =
 view : Model -> Element Msg
 view model =
     column
-        []
-        [ el [ Region.heading 2 ] (text "Create Account")
+        [ centerX, padding 48, spacing 12 ]
+        [ el [ Region.heading 2, Font.size 36 ] (text "Create Account")
         , row [] [ text "Feed us your data" ]
         , inputWithLabel "Name" model.name EditName
         , inputWithLabel "Username" model.username EditUsername
