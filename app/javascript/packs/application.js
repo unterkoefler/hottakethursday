@@ -28,7 +28,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const app = Elm.Main.init({
         node: target,
         flags: {
-            storedJWT: window.localStorage.getItem("jwt")
+            storedJWT: window.localStorage.getItem("jwt"),
+            dimensions: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+            },
         }
     });
 
