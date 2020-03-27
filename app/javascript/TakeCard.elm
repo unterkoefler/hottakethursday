@@ -5,6 +5,8 @@ import Data.Take as Take exposing (Take)
 import Data.User as User exposing (User)
 import Debug
 import Element exposing (..)
+import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import Html exposing (Html)
 import Http
@@ -130,22 +132,28 @@ sendLikeOrUnlike user auth take =
 
 viewTake : TakeCard -> Time.Zone -> Maybe User -> Element Msg
 viewTake card zone user =
-    column
-        []
-        [ image
-            [ width (px 64), height (px 64) ]
-            { src = Maybe.withDefault "/assets/profilepic.jpg" card.take.postedBy.avatarUrl, description = "User's profile picture" }
-        , column []
-            ([ el [] (text <| ("\"" ++ card.take.content ++ "\""))
-             , el [] (text <| "- @" ++ card.take.postedBy.username)
-             ]
-                ++ hoverButtons card user
-            )
+    row []
+        [ column
+            [ spacing 12, padding 12, width (px 600) ]
+            [ paragraph [ spacing 12, padding 5 ]
+                [ profilePicThumbnail card
+                , text <| "\"" ++ card.take.content ++ "\""
+                ]
+            , paragraph [ Font.alignRight ] [ text <| "- @" ++ card.take.postedBy.username ]
+            , hoverButtons card user
+            ]
         , fireButton card user card.take.usersWhoLiked
         ]
 
 
-hoverButtons : TakeCard -> Maybe User -> List (Element Msg)
+profilePicThumbnail : TakeCard -> Element Msg
+profilePicThumbnail card =
+    image
+        [ width (px 64), height (px 64), alignLeft, clip, Border.rounded 500 ]
+        { src = Maybe.withDefault "/assets/profilepic.jpg" card.take.postedBy.avatarUrl, description = "User's profile picture" }
+
+
+hoverButtons : TakeCard -> Maybe User -> Element Msg
 hoverButtons card user =
     let
         buttons =
@@ -159,13 +167,10 @@ hoverButtons card user =
                 [ takeHoverButton "report" (ReportTake card) ]
     in
     if card.hovered then
-        [ column
-            []
-            buttons
-        ]
+        row [] buttons
 
     else
-        []
+        none
 
 
 takeHoverButton : String -> Msg -> Element Msg
