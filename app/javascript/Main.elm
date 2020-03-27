@@ -11,7 +11,6 @@ import Debug
 import Element exposing (..)
 import Element.Input as Input
 import Element.Region as Region
-import Flags
 import Flags exposing (Dimensions)
 import Html exposing (Html)
 import Http
@@ -59,7 +58,7 @@ subscriptions model =
 
             _ ->
                 Sub.none
-        , onResize (\w h -> WindowResized { width = w, height = h } )
+        , onResize (\w h -> WindowResized { width = w, height = h })
         ]
 
 
@@ -525,7 +524,7 @@ four04 time zone =
             , description = "Image failed to load"
             }
         , paragraph []
-            [ text 
+            [ text
                 ("Hi. Welcome to HotTakeThursday.com, where "
                     ++ "you can voice your hottest takes, but only on Thursdays. "
                     ++ "Today is "
@@ -546,86 +545,55 @@ plural n sing plur =
     else
         plur
 
+
 viewForThursday : Model -> Html Msg
 viewForThursday model =
     let
-        { class, orientation } = classifyDevice model.dimensions
+        { class, orientation } =
+            classifyDevice model.dimensions
     in
-    case (class, orientation) of
-        (Desktop, _) ->
+    case ( class, orientation ) of
+        ( Desktop, _ ) ->
             largeDeviceView model
-        
-        (BigDesktop, _) ->
+
+        ( BigDesktop, _ ) ->
             largeDeviceView model
-        
-        (Tablet, _) ->
+
+        ( Tablet, _ ) ->
+            largeDeviceView model
+
+        ( Phone, _ ) ->
             smallDeviceView model
 
-        (Phone, _) ->
-            smallDeviceView model
-         
+
 largeDeviceView : Model -> Html Msg
 largeDeviceView model =
     layout
-       []
-       <|
-       column []
-           [ header model
-           , body model
-           ]
+        []
+    <|
+        column []
+            [ largeDeviceHeader model
+            , largeDeviceBody model
+            ]
+
 
 smallDeviceView : Model -> Html Msg
 smallDeviceView model =
     layout
         []
-        <|
+    <|
         paragraph [] [ text "Website under construction for this screen size. Try stretching your screen a lil bit" ]
 
 
-header : Model -> Element Msg
-header model =
+largeDeviceHeader : Model -> Element Msg
+largeDeviceHeader model =
     let
         links =
             navLinks model.page model.profile
     in
-    if List.length links > 2 then
-        headerWithToggle links model.showNavBar
-
-    else
-        headerWithoutToggle links
-
-
-headerWithToggle : List (Element Msg) -> Bool -> Element Msg
-headerWithToggle links expandToggle =
-    let
-        show =
-            if expandToggle then
-                " show"
-
-            else
-                ""
-    in
-    row []
+    row [ width <| fullWidth model.dimensions, padding 15 ]
         [ link [] { url = "/", label = text "HotTakeThursday 🔥" }
-        , Input.button
-            []
-            { onPress = Just NavBarToggled
-            , label = text "\\/"
-            }
-        , column []
-            [ row
-                []
-                links
-            ]
-        ]
-
-
-headerWithoutToggle : List (Element Msg) -> Element Msg
-headerWithoutToggle links =
-    row []
-        [ link [] { url = "/", label = text "HTT 🔥" }
-        , row []
-            links
+        , el [ alignRight ] (row [ spacing 12 ] links)
         ]
 
 
@@ -681,14 +649,19 @@ navItem txt link_ classes =
         { url = link_, label = text txt }
 
 
-body : Model -> Element Msg
-body model =
+fullWidth : Dimensions -> Length
+fullWidth dim =
+    px <| dim.width - 20
+
+
+largeDeviceBody : Model -> Element Msg
+largeDeviceBody model =
     case model.page of
         Home _ ->
-            column []
-                [ column [] ads
-                , column [] (content model)
-                , column [] ads
+            row [ spacing 20, width <| fullWidth model.dimensions ]
+                [ ads alignLeft
+                , content model
+                , ads alignRight
                 ]
 
         Login data ->
@@ -719,9 +692,8 @@ body model =
                             False
             in
             column []
-                [ column []
-                    (aboutUser user userDetailEx1 ownProfile)
-                , column [] (content model)
+                [ aboutUser user userDetailEx1 ownProfile
+                , content model
                 ]
 
         Loading next ->
@@ -745,8 +717,9 @@ body model =
                         ]
 
 
-ads =
-    [ fakeAd, fakeAd, fakeAd ]
+ads : Attribute Msg -> Element Msg
+ads alignment =
+    column [ spacing 20, padding 12, alignment ] [ fakeAd, fakeAd, fakeAd ]
 
 
 fakeAd =
@@ -758,26 +731,26 @@ fakeAd =
         }
 
 
-content : Model -> List (Element Msg)
+content : Model -> Element Msg
 content model =
-    [ navTabs model.page model.expandNavTabs
-    , column []
-        (case model.page of
-            Home data ->
-                case model.profile of
-                    Just { user } ->
-                        [ Element.map ComposeMsg
-                            (Compose.view user data.compose)
-                        , feed data.takes model.zone (Just user)
-                        ]
+    column [ alignTop, centerX ]
+        ([ navTabs model.page model.expandNavTabs ]
+            ++ (case model.page of
+                    Home data ->
+                        case model.profile of
+                            Just { user } ->
+                                [ Element.map ComposeMsg
+                                    (Compose.view user data.compose)
+                                , feed data.takes model.zone (Just user)
+                                ]
 
-                    Nothing ->
-                        [ feed data.takes model.zone Nothing ]
+                            Nothing ->
+                                [ feed data.takes model.zone Nothing ]
 
-            _ ->
-                []
+                    _ ->
+                        []
+               )
         )
-    ]
 
 
 navTabs : Page -> Bool -> Element Msg
@@ -861,9 +834,9 @@ userDetailEx1 =
     }
 
 
-aboutUser : User -> UserDetail -> Bool -> List (Element Msg)
+aboutUser : User -> UserDetail -> Bool -> Element Msg
 aboutUser user detail editable =
-    [ column []
+    column []
         [ column []
             [ column []
                 [ column []
@@ -884,7 +857,6 @@ aboutUser user detail editable =
                 )
             ]
         ]
-    ]
 
 
 profilePicture : User -> Element Msg
