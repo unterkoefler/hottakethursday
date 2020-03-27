@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Api
 import Browser
+import Browser.Events exposing (onResize)
 import Browser.Navigation as Nav
 import Compose exposing (Compose)
 import Data.Take
@@ -11,6 +12,7 @@ import Element exposing (..)
 import Element.Input as Input
 import Element.Region as Region
 import Flags
+import Flags exposing (Dimensions)
 import Html exposing (Html)
 import Http
 import Json.Decode
@@ -57,6 +59,7 @@ subscriptions model =
 
             _ ->
                 Sub.none
+        , onResize (\w h -> WindowResized { width = w, height = h } )
         ]
 
 
@@ -154,6 +157,7 @@ type alias Model =
     , navKey : Nav.Key
     , showNavBar : Bool
     , expandNavTabs : Bool
+    , dimensions : Dimensions
     }
 
 
@@ -183,6 +187,7 @@ init flags url key =
             , navKey = key
             , showNavBar = False
             , expandNavTabs = False
+            , dimensions = parsedFlags.dimensions
             }
 
         loadAuthCmd =
@@ -242,6 +247,7 @@ type Msg
     | StoredAuthValidated (Result Api.SavedUserAuthError Api.UserAuth)
     | StoredAuthUserReceived ( Api.UserAuth, Result Http.Error User )
     | TakeUpdate (Result Json.Decode.Error Data.Take.Take)
+    | WindowResized Dimensions
     | NoOp
 
 
@@ -315,6 +321,11 @@ update msg model =
             in
             ( { model | profile = Just { auth = auth, user = user } }
             , cmd
+            )
+
+        WindowResized dim ->
+            ( { model | dimensions = dim }
+            , Cmd.none
             )
 
         _ ->
@@ -485,15 +496,7 @@ view : Model -> Browser.Document Msg
 view model =
     if isThursday model.time model.zone then
         { title = "HTT"
-        , body =
-            [ layout
-                []
-              <|
-                column []
-                    [ header model
-                    , body model
-                    ]
-            ]
+        , body = [ viewForThursday model ]
         }
 
     else
@@ -514,15 +517,15 @@ four04 time zone =
         daysLeft =
             daysUntilThursday weekday
     in
-    column []
+    column [ padding 15 ]
         [ el [ Region.heading 1 ] <| text ("Error (404): Site Unavaible on " ++ weekdayString)
         , image
             [ width (px 300), height (px 300) ]
             { src = "/assets/404.jpg"
             , description = "Image failed to load"
             }
-        , row []
-            [ text
+        , paragraph []
+            [ text 
                 ("Hi. Welcome to HotTakeThursday.com, where "
                     ++ "you can voice your hottest takes, but only on Thursdays. "
                     ++ "Today is "
@@ -542,6 +545,41 @@ plural n sing plur =
 
     else
         plur
+
+viewForThursday : Model -> Html Msg
+viewForThursday model =
+    let
+        { class, orientation } = classifyDevice model.dimensions
+    in
+    case (class, orientation) of
+        (Desktop, _) ->
+            largeDeviceView model
+        
+        (BigDesktop, _) ->
+            largeDeviceView model
+        
+        (Tablet, _) ->
+            smallDeviceView model
+
+        (Phone, _) ->
+            smallDeviceView model
+         
+largeDeviceView : Model -> Html Msg
+largeDeviceView model =
+    layout
+       []
+       <|
+       column []
+           [ header model
+           , body model
+           ]
+
+smallDeviceView : Model -> Html Msg
+smallDeviceView model =
+    layout
+        []
+        <|
+        paragraph [] [ text "Website under construction for this screen size. Try stretching your screen a lil bit" ]
 
 
 header : Model -> Element Msg
