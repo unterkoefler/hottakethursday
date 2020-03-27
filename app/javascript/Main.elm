@@ -9,6 +9,8 @@ import Data.Take
 import Data.User as User exposing (User)
 import Debug
 import Element exposing (..)
+import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import Element.Region as Region
 import Flags exposing (Dimensions)
@@ -660,7 +662,7 @@ largeDeviceBody model =
         Home _ ->
             row [ spacing 20, width <| fullWidth model.dimensions ]
                 [ ads alignLeft
-                , content model
+                , content model centerX
                 , ads alignRight
                 ]
 
@@ -691,9 +693,9 @@ largeDeviceBody model =
                         Nothing ->
                             False
             in
-            column []
+            row [ spacing 36, width <| fullWidth model.dimensions ]
                 [ aboutUser user userDetailEx1 ownProfile
-                , content model
+                , content model alignLeft
                 ]
 
         Loading next ->
@@ -731,10 +733,12 @@ fakeAd =
         }
 
 
-content : Model -> Element Msg
-content model =
-    column [ alignTop, centerX ]
-        ([ navTabs model.page model.expandNavTabs ]
+content : Model -> Attribute Msg -> Element Msg
+content model horizontalAlignment =
+    column [ alignTop, horizontalAlignment ]
+        ([ row [ alignLeft, spacing 12, padding 12 ] <|
+            navTabs model.page
+         ]
             ++ (case model.page of
                     Home data ->
                         case model.profile of
@@ -753,50 +757,20 @@ content model =
         )
 
 
-navTabs : Page -> Bool -> Element Msg
-navTabs page expandNavTabs =
+navTabs : Page -> List (Element Msg)
+navTabs page =
     case page of
         Home _ ->
-            row []
-                [ navItem "Hottest" "#hottest" "active"
-                ]
+            [ navItem "Hottest" "#hottest" "active" ]
 
         Profile section _ ->
-            navTabsCollapsable section expandNavTabs
-
-        _ ->
-            column [] []
-
-
-navTabsCollapsable : ProfileSection -> Bool -> Element Msg
-navTabsCollapsable section expand =
-    let
-        ( tabsClass, icon ) =
-            if expand then
-                ( "expanded-tabs", "▲" )
-
-            else
-                ( "collapsed-tabs", "▼" )
-
-        navItems =
             [ navItem "Your Takes" "/profile" (isActive YourTakes section)
             , navItem "Notifications" "/profile#notifications" (isActive Notifications section)
             , navItem "Settings" "/profile#settings" (isActive Settings section)
             ]
-    in
-    column []
-        [ row []
-            navItems
-        , column []
-            (navItems
-                ++ [ Input.button
-                        []
-                        { onPress = Just NavTabsToggled
-                        , label = text icon
-                        }
-                   ]
-            )
-        ]
+
+        _ ->
+            []
 
 
 isActive : ProfileSection -> ProfileSection -> String
@@ -826,7 +800,7 @@ type alias UserDetail =
 
 userDetailEx1 =
     { fullName = "George Lopez"
-    , bio = "Is any of this real?"
+    , bio = "Is any of this real? Plus a super ridiculously long bio to test the text wrapping and spacing andseehowreallylongwordsaresplitoriftheyreevensplitornot"
     , pronouns = Masculine
     , birthday = "May 17th"
     , leastFavoriteColor = "Olive green"
@@ -836,27 +810,18 @@ userDetailEx1 =
 
 aboutUser : User -> UserDetail -> Bool -> Element Msg
 aboutUser user detail editable =
-    column []
-        [ column []
-            [ column []
-                [ column []
-                    [ el [ Region.heading 5 ] (text <| "@" ++ user.username) ]
-                , column []
-                    [ profilePicture user ]
-                , aboutUserElem detail.fullName "" editable
+    column [ spacing 12, width (px 300) ]
+        ([ el [ Region.heading 5 ] (text <| "@" ++ user.username)
+         , profilePicture user
+         , aboutUserElem detail.fullName "" editable
+         , el [ Region.heading 5 ] (text <| "@" ++ user.username)
+         ]
+            ++ List.map (\( a, b ) -> aboutUserElem a b editable)
+                [ ( detail.bio, "Bio" )
+                , ( detail.birthday, "Birthday" )
+                , ( detail.leastFavoriteColor, "Least favorite color" )
                 ]
-            , column []
-                (column []
-                    -- hacky css
-                    [ el [ Region.heading 5 ] (text <| "@" ++ user.username) ]
-                    :: List.map (\( a, b ) -> aboutUserElem a b editable)
-                        [ ( detail.bio, "Bio" )
-                        , ( detail.birthday, "Birthday" )
-                        , ( detail.leastFavoriteColor, "Least favorite color" )
-                        ]
-                )
-            ]
-        ]
+        )
 
 
 profilePicture : User -> Element Msg
@@ -865,41 +830,35 @@ profilePicture user =
         src_ =
             Maybe.withDefault "/assets/profilepic.jpg" user.avatarUrl
     in
-    column
-        []
-        [ column []
-            [ image
-                []
-                { src = src_
-                , description = "Profile picture"
-                }
-            ]
+    image
+        [ width (px 200)
+        , height (px 200)
+        , Border.rounded 500
+        , clip
         ]
+        { src = src_
+        , description = "Profile picture"
+        }
 
 
 aboutUserElem : String -> String -> Bool -> Element Msg
 aboutUserElem info label editable =
-    column []
-        [ column []
-            [ column []
-                ([ text <| label ++ " "
-                 , row [] [ text info ]
-                 ]
-                    ++ (if editable then
-                            [ aboutEditButton ]
+    column [ spacing 6, width fill, padding 6, scrollbarX, clipY ]
+        ([ el [ Font.bold ] <| text label
+         , paragraph [] [ text info ]
+         ]
+            ++ (if editable then
+                    [ aboutEditButton ]
 
-                        else
-                            []
-                       )
-                )
-            ]
-        ]
+                else
+                    []
+               )
+        )
 
 
 aboutEditButton : Element Msg
 aboutEditButton =
-    row []
-        [ Input.button [] { onPress = Nothing, label = text "edit" } ]
+    Input.button [ alignRight ] { onPress = Nothing, label = text "edit" }
 
 
 feed : List TakeCard -> Time.Zone -> Maybe User -> Element Msg

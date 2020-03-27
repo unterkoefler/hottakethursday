@@ -104,7 +104,7 @@ update msg model navKey =
 
 view : Model -> Element Msg
 view model =
-    column []
+    column [ centerX, padding 48, spacing 12 ]
         [ inputWithLabel "Email" model.email EmailChanged
         , passwordWithLabel "Password" model.password PasswordChanged
         , link [] { url = "forgot-password", label = text "Forgot password?" }
