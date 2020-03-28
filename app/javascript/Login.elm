@@ -9,6 +9,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import Element.Region as Region
 import Http
 import Ports
 
@@ -109,11 +110,13 @@ update msg model navKey =
 view : Model -> Element Msg
 view model =
     column
-        [ paddingXY 48 96
-        , spacing 12
+        [ spacing 12
         , centerX
+        , paddingEach { left = 15, right = 15, top = 64, bottom = 15 }
         ]
-        [ inputWithLabel "Email" model.email EmailChanged
+        [ el [ Region.heading 2, Font.size 36, Font.color Colors.secondary ] (text "Welcome Back")
+        , row [ Font.size 14 ] [ text "I've missed you" ]
+        , inputWithLabel "Email" model.email EmailChanged
         , passwordWithLabel "Password" model.password PasswordChanged
         , forgotPasswordLink
         , submitButton

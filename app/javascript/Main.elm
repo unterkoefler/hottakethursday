@@ -225,7 +225,9 @@ init flags url key =
                     )
 
         ForgotPasswordRoute ->
-            ( { model | page = ForgotPassword }, Cmd.none )
+            ( { model | page = ForgotPassword }
+            , Cmd.batch [ loadAuthCmd, setTimeZone ]
+            )
 
         _ ->
             ( model, Cmd.batch [ loadAuthCmd, setTimeZone ] )
@@ -579,8 +581,11 @@ viewForThursday model =
 largeDeviceView : Model -> Html Msg
 largeDeviceView model =
     let
+        shouldShowAds =
+            showAds model
+
         maybeAds =
-            if showAds model then
+            if shouldShowAds then
                 [ inFront <| ads alignLeft, inFront <| ads alignRight ]
 
             else
@@ -592,7 +597,39 @@ largeDeviceView model =
             ++ [ inFront <| largeDeviceHeader model ]
         )
     <|
-        largeDeviceBody model
+        largeDeviceBody model.dimensions shouldShowAds <|
+            largeDeviceContent model
+
+
+largeDeviceBody : Dimensions -> Bool -> Element Msg -> Element Msg
+largeDeviceBody dim shouldShowAds elmt =
+    el
+        [ paddingXY 12 76
+        , centerX
+        , width <| fullWidth dim shouldShowAds
+        ]
+        elmt
+
+
+fullWidth : Dimensions -> Bool -> Length
+fullWidth dim shouldShowAds =
+    if shouldShowAds then
+        fill |> (maximum <| dim.width - (2 * adsWidth))
+
+    else
+        fill
+
+
+adsWidth =
+    adWidth + 2 * adsPaddingX
+
+
+adWidth =
+    160
+
+
+adsPaddingX =
+    15
 
 
 smallDeviceView : Model -> Html Msg
@@ -610,7 +647,7 @@ largeDeviceHeader model =
             navLinks model.page model.profile
     in
     row
-        [ width <| fullWidth model.dimensions
+        [ width fill
         , padding 15
         , Background.color Colors.primary
         , Font.color Colors.textOnPrimary
@@ -658,7 +695,7 @@ showAds : Model -> Bool
 showAds model =
     case model.page of
         Home _ ->
-            True
+            model.dimensions.width > 5 * adsWidth
 
         _ ->
             False
@@ -682,32 +719,23 @@ navItem txt link_ classes =
         { url = link_, label = text txt }
 
 
-fullWidth : Dimensions -> Length
-fullWidth dim =
-    fill
+largeDeviceContent : Model -> Element Msg
+largeDeviceContent model =
+    case ( model.page, model.profile ) of
+        ( Home data, Just { user } ) ->
+            homeFeed model data (Just user)
 
+        ( Home data, Nothing ) ->
+            homeFeed model data Nothing
 
-
---    px <| dim.width - 0
-
-
-largeDeviceBody : Model -> Element Msg
-largeDeviceBody model =
-    case model.page of
-        Home _ ->
-            el
-                [ spacing 20
-                , width fill
-                , paddingXY 6 96
-                ]
-            <|
-                content model centerX
-
-        Login data ->
+        ( Login data, Nothing ) ->
             Element.map LoginMsg (Login.view data)
 
-        ForgotPassword ->
-            paragraph [ paddingXY 48 96, spacing 12, Font.size 24 ]
+        ( Login data, Just { user } ) ->
+            alreadySignedIn user.username
+
+        ( ForgotPassword, Nothing ) ->
+            paragraph [ spacing 12, Font.size 24 ]
                 [ text <|
                     "We've sent you an email"
                         ++ " with a link to reset "
@@ -716,97 +744,117 @@ largeDeviceBody model =
                         ++ "to write mine on my forehead!"
                 ]
 
-        Signup data ->
+        ( ForgotPassword, Just { user } ) ->
+            alreadySignedIn user.username
+
+        ( Signup data, Nothing ) ->
             Element.map SignupMsg (Signup.view data)
 
-        Profile _ user ->
-            let
-                ownProfile =
-                    case model.profile of
-                        Just profile ->
-                            user == profile.user
+        ( Signup data, Just { user } ) ->
+            alreadySignedIn user.username
 
-                        Nothing ->
-                            False
-            in
-            row [ spacing 36, width <| fullWidth model.dimensions ]
-                [ aboutUser user userDetailEx1 ownProfile
-                , content model alignLeft
-                ]
+        ( Profile data subject, Just { user } ) ->
+            viewProfile model data subject (subject == user)
 
-        Loading next ->
+        ( Profile data subject, Nothing ) ->
+            viewProfile model data subject False
+
+        ( Loading next, _ ) ->
             row [] [ text "Loading..." ]
 
-        Forbidden ->
-            case model.profile of
-                Just _ ->
-                    row []
-                        [ text <|
-                            "Sorry! You don't have permission to view this"
-                                ++ " page. If you think this is an error, please"
-                                ++ " report it to noonecares@yahoo.net"
-                        ]
+        ( Forbidden, Just _ ) ->
+            row []
+                [ text <|
+                    "Sorry! You don't have permission to view this"
+                        ++ " page. If you think this is an error, please"
+                        ++ " report it to noonecares@yahoo.net"
+                ]
 
-                Nothing ->
-                    row []
-                        [ text <|
-                            "Sorry! You don't have permission to view this"
-                                ++ " page. Please login or signup using the links above"
-                        ]
+        ( Forbidden, Nothing ) ->
+            row []
+                [ text <|
+                    "Sorry! You don't have permission to view this"
+                        ++ " page. Please login or signup using the links above"
+                ]
+
+
+alreadySignedIn : String -> Element Msg
+alreadySignedIn username =
+    paragraph [ spacing 12, Font.size 24 ]
+        [ text <|
+            "You're already signed in as "
+                ++ username
+                ++ " . Go back home."
+        ]
 
 
 ads : Attribute Msg -> Element Msg
 ads alignment =
-    column [ spacing 30, paddingXY 15 84, alignment, alignTop ] [ fakeAd, fakeAd, fakeAd ]
+    column
+        [ spacing 30
+        , paddingXY adsPaddingX 84
+        , alignment
+        , alignTop
+        ]
+        [ fakeAd, fakeAd, fakeAd ]
 
 
 fakeAd =
     image
-        [ width (px 160)
+        [ width (px adWidth)
         ]
         { src = "/assets/trash-ad.jpg"
         , description = "An advertisement for a trash can"
         }
 
 
-content : Model -> Attribute Msg -> Element Msg
-content model horizontalAlignment =
-    column [ alignTop, horizontalAlignment ]
-        ([ row [ alignLeft, spacing 12, padding 12 ] <|
-            navTabs model.page
-         ]
-            ++ (case model.page of
-                    Home data ->
-                        case model.profile of
-                            Just { user } ->
-                                [ Element.map ComposeMsg
-                                    (Compose.view user data.compose)
-                                , feed data.takes model.zone (Just user)
-                                ]
-
-                            Nothing ->
-                                [ feed data.takes model.zone Nothing ]
-
-                    _ ->
-                        []
-               )
-        )
+viewProfile : Model -> ProfileSection -> User -> Bool -> Element Msg
+viewProfile model section user ownProfile =
+    row [ spacing 36, width fill ]
+        [ aboutUser user userDetailEx1 ownProfile
+        , navTabs model.page
+        ]
 
 
-navTabs : Page -> List (Element Msg)
+homeFeed : Model -> HomeData -> Maybe User -> Element Msg
+homeFeed model data maybeUser =
+    let
+        maybeCompose =
+            case maybeUser of
+                Just user ->
+                    Element.map ComposeMsg (Compose.view user data.compose)
+
+                Nothing ->
+                    Element.none
+    in
+    column
+        [ spacing 24
+        , centerX
+        ]
+        [ navTabs model.page
+        , maybeCompose
+        , feed data.takes model.zone maybeUser
+        ]
+
+
+navTabs : Page -> Element Msg
 navTabs page =
-    case page of
-        Home _ ->
-            [ navItem "Hottest" "#hottest" "active" ]
+    let
+        tabs =
+            case page of
+                Home _ ->
+                    [ navItem "Hottest" "#hottest" "active" ]
 
-        Profile section _ ->
-            [ navItem "Your Takes" "/profile" (isActive YourTakes section)
-            , navItem "Notifications" "/profile#notifications" (isActive Notifications section)
-            , navItem "Settings" "/profile#settings" (isActive Settings section)
-            ]
+                Profile section _ ->
+                    [ navItem "Your Takes" "/profile" (isActive YourTakes section)
+                    , navItem "Notifications" "/profile#notifications" (isActive Notifications section)
+                    , navItem "Settings" "/profile#settings" (isActive Settings section)
+                    ]
 
-        _ ->
-            []
+                _ ->
+                    []
+    in
+    row [ alignLeft, alignTop, spacing 12 ] tabs
 
 
 isActive : ProfileSection -> ProfileSection -> String

@@ -112,7 +112,10 @@ validateSignup model =
 view : Model -> Element Msg
 view model =
     column
-        [ centerX, paddingXY 48 96, spacing 12 ]
+        [ centerX
+        , paddingEach { left = 15, right = 15, top = 64, bottom = 15 }
+        , spacing 12
+        ]
         [ el [ Region.heading 2, Font.size 36, Font.color Colors.secondary ] (text "Create Your Account")
         , paragraph [ Font.size 16 ] [ text "Feed us your data" ]
         , inputWithLabel "Name" model.name EditName
