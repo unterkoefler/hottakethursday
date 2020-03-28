@@ -4,11 +4,13 @@ import Api
 import Browser
 import Browser.Events exposing (onResize)
 import Browser.Navigation as Nav
+import Colors
 import Compose exposing (Compose)
 import Data.Take
 import Data.User as User exposing (User)
 import Debug
 import Element exposing (..)
+import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
@@ -142,7 +144,7 @@ blankSignupData =
 type Page
     = Home HomeData
     | Login Login.Model
-    | ForgotPassword String
+    | ForgotPassword
     | Signup Signup.Model
     | Profile ProfileSection User
     | Loading Url.Url
@@ -221,6 +223,9 @@ init flags url key =
                     ( { model | page = Forbidden }
                     , setTimeZone
                     )
+
+        ForgotPasswordRoute ->
+            ( { model | page = ForgotPassword }, Cmd.none )
 
         _ ->
             ( model, Cmd.batch [ loadAuthCmd, setTimeZone ] )
@@ -348,7 +353,7 @@ handleUrlChange model url =
             ( { model | page = loginPage }, Cmd.none )
 
         ForgotPasswordRoute ->
-            ( { model | page = ForgotPassword "yahoo@gmail.com" }, Cmd.none )
+            ( { model | page = ForgotPassword }, Cmd.none )
 
         SignupRoute ->
             ( { model | page = Signup blankSignupData }, Cmd.none )
@@ -381,7 +386,7 @@ updatePage msg model =
         Login data ->
             updateLoginPage msg model data
 
-        ForgotPassword _ ->
+        ForgotPassword ->
             ( model, Cmd.none )
 
         Signup data ->
@@ -561,8 +566,11 @@ viewForThursday model =
         ( BigDesktop, _ ) ->
             largeDeviceView model
 
-        ( Tablet, _ ) ->
+        ( Tablet, Landscape ) ->
             largeDeviceView model
+
+        ( Tablet, Portrait ) ->
+            smallDeviceView model
 
         ( Phone, _ ) ->
             smallDeviceView model
@@ -570,13 +578,21 @@ viewForThursday model =
 
 largeDeviceView : Model -> Html Msg
 largeDeviceView model =
+    let
+        maybeAds =
+            if showAds model then
+                [ inFront <| ads alignLeft, inFront <| ads alignRight ]
+
+            else
+                []
+    in
     layout
-        []
+        ([ width fill ]
+            ++ maybeAds
+            ++ [ inFront <| largeDeviceHeader model ]
+        )
     <|
-        column []
-            [ largeDeviceHeader model
-            , largeDeviceBody model
-            ]
+        largeDeviceBody model
 
 
 smallDeviceView : Model -> Html Msg
@@ -593,9 +609,14 @@ largeDeviceHeader model =
         links =
             navLinks model.page model.profile
     in
-    row [ width <| fullWidth model.dimensions, padding 15 ]
-        [ link [] { url = "/", label = text "HotTakeThursday 🔥" }
-        , el [ alignRight ] (row [ spacing 12 ] links)
+    row
+        [ width <| fullWidth model.dimensions
+        , padding 15
+        , Background.color Colors.primary
+        , Font.color Colors.textOnPrimary
+        ]
+        [ link [ Font.size 24 ] { url = "/", label = text "HotTakeThursday 🔥" }
+        , el [ alignRight ] (row [ spacing 18 ] links)
         ]
 
 
@@ -617,7 +638,7 @@ navLinks page profile =
         Login _ ->
             [ navItem "Sign Up" "signup" "" ]
 
-        ForgotPassword _ ->
+        ForgotPassword ->
             [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
 
         Signup _ ->
@@ -631,6 +652,16 @@ navLinks page profile =
 
         Forbidden ->
             [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
+
+
+showAds : Model -> Bool
+showAds model =
+    case model.page of
+        Home _ ->
+            True
+
+        _ ->
+            False
 
 
 logoutButton =
@@ -653,27 +684,32 @@ navItem txt link_ classes =
 
 fullWidth : Dimensions -> Length
 fullWidth dim =
-    px <| dim.width - 20
+    fill
+
+
+
+--    px <| dim.width - 0
 
 
 largeDeviceBody : Model -> Element Msg
 largeDeviceBody model =
     case model.page of
         Home _ ->
-            row [ spacing 20, width <| fullWidth model.dimensions ]
-                [ ads alignLeft
-                , content model centerX
-                , ads alignRight
+            el
+                [ spacing 20
+                , width fill
+                , paddingXY 6 96
                 ]
+            <|
+                content model centerX
 
         Login data ->
             Element.map LoginMsg (Login.view data)
 
-        ForgotPassword email ->
-            row []
+        ForgotPassword ->
+            paragraph [ paddingXY 48 96, spacing 12, Font.size 24 ]
                 [ text <|
-                    "We've sent an email to "
-                        ++ email
+                    "We've sent you an email"
                         ++ " with a link to reset "
                         ++ "your password. Remember to not "
                         ++ "forget your password again! I like "
@@ -721,7 +757,7 @@ largeDeviceBody model =
 
 ads : Attribute Msg -> Element Msg
 ads alignment =
-    column [ spacing 20, padding 12, alignment ] [ fakeAd, fakeAd, fakeAd ]
+    column [ spacing 30, paddingXY 15 84, alignment, alignTop ] [ fakeAd, fakeAd, fakeAd ]
 
 
 fakeAd =

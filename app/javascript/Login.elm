@@ -2,8 +2,12 @@ module Login exposing (LoginAttempt(..), Model, Msg, emptyForm, update, view)
 
 import Api
 import Browser.Navigation as Nav
+import Colors
 import Data.User as User exposing (User)
 import Element exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import Http
 import Ports
@@ -104,13 +108,36 @@ update msg model navKey =
 
 view : Model -> Element Msg
 view model =
-    column [ centerX, padding 48, spacing 12 ]
+    column
+        [ paddingXY 48 96
+        , spacing 12
+        , centerX
+        ]
         [ inputWithLabel "Email" model.email EmailChanged
         , passwordWithLabel "Password" model.password PasswordChanged
-        , link [] { url = "forgot-password", label = text "Forgot password?" }
-        , Input.button [] { onPress = Just Submit, label = text "Continue" }
-        , row [] [ text <| failureMessage model.previousAttempt ]
+        , forgotPasswordLink
+        , submitButton
+        , paragraph [] [ text <| failureMessage model.previousAttempt ]
         ]
+
+
+submitButton : Element Msg
+submitButton =
+    Input.button
+        [ Background.color Colors.secondary
+        , Border.rounded 7
+        , padding 10
+        , centerX
+        , Font.size 24
+        ]
+        { onPress = Just Submit, label = text "Continue" }
+
+
+forgotPasswordLink : Element Msg
+forgotPasswordLink =
+    link
+        [ Font.size 14, Font.color Colors.link ]
+        { url = "forgot-password", label = text "Forgot password?" }
 
 
 failureMessage : LoginAttempt -> String
@@ -132,7 +159,7 @@ failureMessage attempt =
 inputWithLabel : String -> String -> (String -> Msg) -> Element Msg
 inputWithLabel lbl val msg =
     Input.text
-        []
+        textInputAttributes
         { onChange = msg
         , text = val
         , placeholder = Nothing
@@ -143,10 +170,17 @@ inputWithLabel lbl val msg =
 passwordWithLabel : String -> String -> (String -> Msg) -> Element Msg
 passwordWithLabel lbl val msg =
     Input.currentPassword
-        []
+        textInputAttributes
         { onChange = msg
         , text = val
         , placeholder = Nothing
         , label = Input.labelAbove [] (text lbl)
         , show = False
         }
+
+
+textInputAttributes : List (Attribute Msg)
+textInputAttributes =
+    [ width (fill |> maximum 300)
+    , Border.color Colors.secondary
+    ]

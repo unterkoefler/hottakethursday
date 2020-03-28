@@ -1,6 +1,9 @@
 module Signup exposing (Model, Msg, update, view)
 
+import Colors
 import Element exposing (..)
+import Element.Background as Background
+import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Element.Region as Region
@@ -109,23 +112,37 @@ validateSignup model =
 view : Model -> Element Msg
 view model =
     column
-        [ centerX, padding 48, spacing 12 ]
-        [ el [ Region.heading 2, Font.size 36 ] (text "Create Account")
-        , row [] [ text "Feed us your data" ]
+        [ centerX, paddingXY 48 96, spacing 12 ]
+        [ el [ Region.heading 2, Font.size 36, Font.color Colors.secondary ] (text "Create Your Account")
+        , paragraph [ Font.size 16 ] [ text "Feed us your data" ]
         , inputWithLabel "Name" model.name EditName
         , inputWithLabel "Username" model.username EditUsername
         , inputWithLabel "Email" model.email EditEmail
         , inputWithLabel "Birthday (MM/DD/YYY)" model.birthday EditBirthday
-        , Input.button [] { onPress = Just Submit, label = text "Begin" }
+        , submitButton
         ]
 
 
 inputWithLabel : String -> String -> (String -> Msg) -> Element Msg
 inputWithLabel lbl val msg =
     Input.text
-        []
+        [ width <| (fill |> maximum 300) ]
         { onChange = msg
         , text = val
         , placeholder = Nothing
         , label = Input.labelAbove [] (text lbl)
+        }
+
+
+submitButton : Element Msg
+submitButton =
+    Input.button
+        [ Font.size 24
+        , Border.rounded 7
+        , Background.color Colors.secondary
+        , padding 10
+        , centerX
+        ]
+        { onPress = Just Submit
+        , label = text "Begin"
         }
