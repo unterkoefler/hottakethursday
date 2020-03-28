@@ -77,7 +77,7 @@ type ProfileSection
 
 
 type Route
-    = HomeRoute
+    = HomeRoute HomeSection
     | LoginRoute
     | ForgotPasswordRoute
     | SignupRoute
@@ -88,13 +88,25 @@ type Route
 routeParser : Parser.Parser (Route -> a) a
 routeParser =
     Parser.oneOf
-        [ Parser.map HomeRoute (Parser.s "hottest")
-        , Parser.map HomeRoute top
+        [ Parser.map HomeRoute (Parser.fragment toHomeSection)
         , Parser.map LoginRoute (Parser.s "login")
         , Parser.map ForgotPasswordRoute (Parser.s "forgot-password")
         , Parser.map SignupRoute (Parser.s "signup")
         , Parser.map ProfileRoute (Parser.s "profile" </> Parser.fragment toProfileSection)
         ]
+
+
+toHomeSection : Maybe String -> HomeSection
+toHomeSection frag =
+    case frag of
+        Just "hottest" ->
+            Hottest
+
+        Just "coldest" ->
+            Coldest
+
+        _ ->
+            Hottest
 
 
 toProfileSection : Maybe String -> ProfileSection
@@ -130,7 +142,13 @@ toRoute string =
 type alias HomeData =
     { takes : List TakeCard
     , compose : Compose
+    , section : HomeSection
     }
+
+
+type HomeSection
+    = Hottest
+    | Coldest
 
 
 blankSignupData =
@@ -164,8 +182,8 @@ type alias Model =
     }
 
 
-homePage =
-    Home { takes = [], compose = "" }
+initHomePageData =
+    { takes = [], compose = "", section = Hottest }
 
 
 loginPage =
@@ -182,7 +200,7 @@ init flags url key =
             Task.perform AdjustTimeZone Time.here
 
         model =
-            { page = homePage
+            { page = Home initHomePageData
             , profile = Nothing
             , time = Time.millisToPosix 0
             , zone = Time.utc
@@ -226,6 +244,11 @@ init flags url key =
 
         ForgotPasswordRoute ->
             ( { model | page = ForgotPassword }
+            , Cmd.batch [ loadAuthCmd, setTimeZone ]
+            )
+
+        HomeRoute section ->
+            ( { model | page = Home { initHomePageData | section = section } }
             , Cmd.batch [ loadAuthCmd, setTimeZone ]
             )
 
@@ -343,13 +366,15 @@ update msg model =
 handleUrlChange : Model -> Url.Url -> ( Model, Cmd Msg )
 handleUrlChange model url =
     case toRoute <| Url.toString url of
-        HomeRoute ->
+        HomeRoute section ->
             case model.profile of
                 Just { auth } ->
-                    ( { model | page = homePage }, Api.allTakes auth FeedLoaded )
+                    ( { model | page = homePage model section }
+                    , Api.allTakes auth FeedLoaded
+                    )
 
                 Nothing ->
-                    ( { model | page = homePage }, Cmd.none )
+                    ( { model | page = homePage model section }, Cmd.none )
 
         LoginRoute ->
             ( { model | page = loginPage }, Cmd.none )
@@ -377,6 +402,16 @@ handleUrlChangeToProfile model section user =
     ( { model | page = Profile section user, expandNavTabs = False }
     , Cmd.none
     )
+
+
+homePage : Model -> HomeSection -> Page
+homePage model section =
+    case model.page of
+        Home data ->
+            Home { data | section = section }
+
+        _ ->
+            Home { initHomePageData | section = section }
 
 
 updatePage : Msg -> Model -> ( Model, Cmd Msg )
@@ -728,6 +763,30 @@ navItem txt link_ classes =
         { url = link_, label = text txt }
 
 
+navTab : String -> String -> Bool -> Element Msg
+navTab txt link_ active =
+    let
+        ( bgColor, fontColor ) =
+            if active then
+                ( Colors.secondary, Colors.textOnSecondary )
+
+            else
+                ( Colors.white, Colors.secondary )
+    in
+    link
+        [ Border.widthEach { top = 1, right = 1, left = 1, bottom = 0 }
+        , paddingXY 24 6
+        , Font.size 24
+        , Border.color Colors.secondary
+        , Background.color bgColor
+        , Font.color fontColor
+        , Border.roundEach { topLeft = 7, topRight = 7, bottomLeft = 0, bottomRight = 0 }
+        ]
+        { url = link_
+        , label = text txt
+        }
+
+
 largeDeviceContent : Model -> Element Msg
 largeDeviceContent model =
     case ( model.page, model.profile ) of
@@ -821,7 +880,7 @@ viewProfile : Model -> ProfileSection -> User -> Bool -> Element Msg
 viewProfile model section user ownProfile =
     row [ spacing 36, width fill ]
         [ aboutUser user userDetailEx1 ownProfile
-        , navTabs model.page
+        , profileNavTabs section
         ]
 
 
@@ -829,50 +888,50 @@ homeFeed : Model -> HomeData -> Maybe User -> Element Msg
 homeFeed model data maybeUser =
     let
         maybeCompose =
-            case maybeUser of
-                Just user ->
+            case ( maybeUser, data.section ) of
+                ( Just user, Hottest ) ->
                     Element.map ComposeMsg (Compose.view user data.compose)
 
-                Nothing ->
+                _ ->
                     Element.none
     in
     column
         [ spacing 24
         , centerX
         ]
-        [ navTabs model.page
+        [ homeNavTabs data.section
         , maybeCompose
-        , feed data.takes model.zone maybeUser
+        , feed data.section data.takes model.zone maybeUser
         ]
 
 
-navTabs : Page -> Element Msg
-navTabs page =
-    let
-        tabs =
-            case page of
-                Home _ ->
-                    [ navItem "Hottest" "#hottest" "active" ]
-
-                Profile section _ ->
-                    [ navItem "Your Takes" "/profile" (isActive YourTakes section)
-                    , navItem "Notifications" "/profile#notifications" (isActive Notifications section)
-                    , navItem "Settings" "/profile#settings" (isActive Settings section)
-                    ]
-
-                _ ->
-                    []
-    in
-    row [ alignLeft, alignTop, spacing 12 ] tabs
+homeNavTabs : HomeSection -> Element Msg
+homeNavTabs section =
+    row
+        [ alignLeft
+        , alignTop
+        , Border.widthEach { top = 0, bottom = 1, left = 0, right = 0 }
+        , width fill
+        , Border.color Colors.secondary
+        ]
+        [ navTab "Hottest" "#hottest" (section == Hottest)
+        , navTab "Coldest" "#coldest" (section == Coldest)
+        ]
 
 
-isActive : ProfileSection -> ProfileSection -> String
-isActive thisSection currentSection =
-    if thisSection == currentSection then
-        "active"
-
-    else
-        ""
+profileNavTabs : ProfileSection -> Element Msg
+profileNavTabs section =
+    row
+        [ alignLeft
+        , alignTop
+        , Border.widthEach { top = 0, bottom = 1, left = 0, right = 0 }
+        , width fill
+        , Border.color Colors.secondary
+        ]
+        [ navTab "Your Takes" "/profile" (YourTakes == section)
+        , navTab "Notifications" "/profile#notifications" (Notifications == section)
+        , navTab "Settings" "/profile#settings" (Settings == section)
+        ]
 
 
 type Gender
@@ -954,11 +1013,21 @@ aboutEditButton =
     Input.button [ alignRight ] { onPress = Nothing, label = text "edit" }
 
 
-feed : List TakeCard -> Time.Zone -> Maybe User -> Element Msg
-feed takes zone user =
-    column
-        [ spacing 12 ]
-        (List.map (\take -> viewTakeFixMsg take zone user) takes)
+feed : HomeSection -> List TakeCard -> Time.Zone -> Maybe User -> Element Msg
+feed section takes zone user =
+    case section of
+        Hottest ->
+            column
+                [ spacing 12 ]
+                (List.map (\take -> viewTakeFixMsg take zone user) takes)
+
+        Coldest ->
+            paragraph
+                [ Font.size 24
+                , padding 36
+                , width (px TakeCard.minCardWidth)
+                ]
+                [ text <| "Just kidding! We don't have any cold takes here." ]
 
 
 viewTakeFixMsg : TakeCard -> Time.Zone -> Maybe User -> Element Msg
