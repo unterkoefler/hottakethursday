@@ -774,7 +774,7 @@ navTab txt link_ active =
                 ( Colors.white, Colors.secondary )
     in
     link
-        [ Border.widthEach { top = 1, right = 1, left = 1, bottom = 0 }
+        [ Border.widthEach { top = 1, right = 1, left = 1, bottom = 1 }
         , paddingXY 24 6
         , Font.size 24
         , Border.color Colors.secondary
@@ -880,7 +880,24 @@ viewProfile : Model -> ProfileSection -> User -> Bool -> Element Msg
 viewProfile model section user ownProfile =
     row [ spacing 36, width fill ]
         [ aboutUser user userDetailEx1 ownProfile
-        , profileNavTabs section
+        , profileContent section
+        ]
+
+
+profileContent : ProfileSection -> Element Msg
+profileContent section =
+    column
+        [ alignTop
+        , alignLeft
+        , padding 12
+        , width fill
+        , spacing 12
+        ]
+        [ profileNavTabs section
+        , paragraph
+            [ Font.size 24
+            ]
+            [ text "Under construction" ]
         ]
 
 
@@ -894,6 +911,14 @@ homeFeed model data maybeUser =
 
                 _ ->
                     Element.none
+
+        maybeFeed =
+            case data.section of
+                Hottest ->
+                    feed data.takes model.zone maybeUser
+
+                Coldest ->
+                    noColdTakes
     in
     column
         [ spacing 24
@@ -901,7 +926,7 @@ homeFeed model data maybeUser =
         ]
         [ homeNavTabs data.section
         , maybeCompose
-        , feed data.section data.takes model.zone maybeUser
+        , maybeFeed
         ]
 
 
@@ -910,7 +935,7 @@ homeNavTabs section =
     row
         [ alignLeft
         , alignTop
-        , Border.widthEach { top = 0, bottom = 1, left = 0, right = 0 }
+        , Border.widthEach { top = 0, bottom = 2, left = 0, right = 0 }
         , width fill
         , Border.color Colors.secondary
         ]
@@ -924,7 +949,7 @@ profileNavTabs section =
     row
         [ alignLeft
         , alignTop
-        , Border.widthEach { top = 0, bottom = 1, left = 0, right = 0 }
+        , Border.widthEach { top = 0, bottom = 2, left = 0, right = 0 }
         , width fill
         , Border.color Colors.secondary
         ]
@@ -1013,21 +1038,21 @@ aboutEditButton =
     Input.button [ alignRight ] { onPress = Nothing, label = text "edit" }
 
 
-feed : HomeSection -> List TakeCard -> Time.Zone -> Maybe User -> Element Msg
-feed section takes zone user =
-    case section of
-        Hottest ->
-            column
-                [ spacing 12 ]
-                (List.map (\take -> viewTakeFixMsg take zone user) takes)
+feed : List TakeCard -> Time.Zone -> Maybe User -> Element Msg
+feed takes zone user =
+    column
+        [ spacing 12 ]
+        (List.map (\take -> viewTakeFixMsg take zone user) takes)
 
-        Coldest ->
-            paragraph
-                [ Font.size 24
-                , padding 36
-                , width (px TakeCard.minCardWidth)
-                ]
-                [ text <| "Just kidding! We don't have any cold takes here." ]
+
+noColdTakes : Element Msg
+noColdTakes =
+    paragraph
+        [ Font.size 24
+        , padding 36
+        , width (px TakeCard.minCardWidth)
+        ]
+        [ text <| "Just kidding! We don't have any cold takes here." ]
 
 
 viewTakeFixMsg : TakeCard -> Time.Zone -> Maybe User -> Element Msg
