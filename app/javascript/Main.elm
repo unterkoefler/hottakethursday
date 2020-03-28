@@ -578,6 +578,14 @@ viewForThursday model =
             smallDeviceView model
 
 
+noFocus : FocusStyle
+noFocus =
+    { borderColor = Nothing
+    , backgroundColor = Nothing
+    , shadow = Nothing
+    }
+
+
 largeDeviceView : Model -> Html Msg
 largeDeviceView model =
     let
@@ -591,7 +599,8 @@ largeDeviceView model =
             else
                 []
     in
-    layout
+    layoutWith
+        { options = [ focusStyle noFocus ] }
         ([ width fill ]
             ++ maybeAds
             ++ [ inFront <| largeDeviceHeader model ]
@@ -653,7 +662,7 @@ largeDeviceHeader model =
         , Font.color Colors.textOnPrimary
         ]
         [ link [ Font.size 24 ] { url = "/", label = text "HotTakeThursday 🔥" }
-        , el [ alignRight ] (row [ spacing 18 ] links)
+        , el [ alignRight ] (row [ spacing 24 ] links)
         ]
 
 
@@ -665,8 +674,8 @@ navLinks page profile =
                 Just { user } ->
                     [ notificationsLink
                     , navItem "Profile" "profile" ""
-                    , logoutButton
                     , navItem "Delete Account" "#" ""
+                    , logoutButton
                     ]
 
                 Nothing ->
@@ -695,7 +704,7 @@ showAds : Model -> Bool
 showAds model =
     case model.page of
         Home _ ->
-            model.dimensions.width > 5 * adsWidth
+            model.dimensions.width > TakeCard.minCardWidth + 2 * adsWidth
 
         _ ->
             False
@@ -710,7 +719,7 @@ logoutButton =
 
 
 notificationsLink =
-    link [] { url = "profile#notifications", label = text "Notifications 🔔" }
+    link [] { url = "profile#notifications", label = text "Notifications" }
 
 
 navItem : String -> String -> String -> Element Msg
@@ -947,7 +956,9 @@ aboutEditButton =
 
 feed : List TakeCard -> Time.Zone -> Maybe User -> Element Msg
 feed takes zone user =
-    column [] (List.map (\take -> viewTakeFixMsg take zone user) takes)
+    column
+        [ spacing 12 ]
+        (List.map (\take -> viewTakeFixMsg take zone user) takes)
 
 
 viewTakeFixMsg : TakeCard -> Time.Zone -> Maybe User -> Element Msg

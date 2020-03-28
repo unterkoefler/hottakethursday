@@ -1,10 +1,12 @@
-module TakeCard exposing (Msg, TakeCard, createNewTake, likeOrUnlike, toggleHover, update, viewTake)
+module TakeCard exposing (Msg, TakeCard, createNewTake, likeOrUnlike, minCardWidth, toggleHover, update, viewTake)
 
 import Api
+import Colors
 import Data.Take as Take exposing (Take)
 import Data.User as User exposing (User)
 import Debug
 import Element exposing (..)
+import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
@@ -130,27 +132,113 @@ sendLikeOrUnlike user auth take =
 -- VIEW
 
 
+minCardWidth =
+    2
+        * cardSpacing
+        + 2
+        * cardPadding
+        + takeWidth
+        + thumbnailWidth
+        + fireButtonWidth
+        + 50
+
+
+cardSpacing =
+    12
+
+
+cardPadding =
+    6
+
+
+takeWidth =
+    500
+
+
+thumbnailWidth =
+    64
+
+
+thumbnailHeight =
+    thumbnailWidth
+
+
+fireButtonWidth =
+    36
+
+
+fireButtonHeight =
+    fireButtonWidth
+
+
+cardBorderWidth =
+    1
+
+
 viewTake : TakeCard -> Time.Zone -> Maybe User -> Element Msg
 viewTake card zone user =
-    row []
-        [ column
-            [ spacing 12, padding 12, width (px 600) ]
-            [ paragraph [ spacing 12, padding 5 ]
-                [ profilePicThumbnail card
-                , text <| "\"" ++ card.take.content ++ "\""
-                ]
-            , paragraph [ Font.alignRight ] [ text <| "- @" ++ card.take.postedBy.username ]
-            , hoverButtons card user
+    let
+        borderWidth =
+            if card.hovered then
+                2 * cardBorderWidth
+
+            else
+                cardBorderWidth
+    in
+    Input.button
+        [ Border.width borderWidth
+        , Border.rounded 7
+        , Border.color Colors.secondary
+        ]
+        { onPress = Just <| TakeHovered card
+        , label = takeCardContents card zone user
+        }
+
+
+takeCardContents : TakeCard -> Time.Zone -> Maybe User -> Element Msg
+takeCardContents card zone user =
+    column
+        [ spacing cardSpacing
+        , padding cardPadding
+        ]
+        [ row
+            [ spacing cardSpacing
+            , padding cardPadding
             ]
-        , fireButton card user card.take.usersWhoLiked
+            [ profilePicThumbnail card
+            , el [ width (px takeWidth) ] <| takeAndAuthor card.take
+            , fireButton card user card.take.usersWhoLiked
+            ]
+        , hoverButtons card user
+        ]
+
+
+takeAndAuthor : Take -> Element Msg
+takeAndAuthor take =
+    textColumn
+        [ spacing 12
+        , paddingEach { left = 5, right = 30, top = 5, bottom = 5 }
+        , width (px takeWidth)
+        , alignLeft
+        ]
+        [ paragraph [] [ text <| "\"" ++ take.content ++ "\"" ]
+        , el [ Font.alignRight ]
+            (text <| "- @" ++ take.postedBy.username)
         ]
 
 
 profilePicThumbnail : TakeCard -> Element Msg
 profilePicThumbnail card =
     image
-        [ width (px 64), height (px 64), alignLeft, clip, Border.rounded 500 ]
-        { src = Maybe.withDefault "/assets/profilepic.jpg" card.take.postedBy.avatarUrl, description = "User's profile picture" }
+        [ width (px thumbnailWidth)
+        , height (px thumbnailHeight)
+        , clip
+        , alignTop
+        , Border.rounded 500
+        ]
+        { src = Maybe.withDefault "/assets/profilepic.jpg" card.take.postedBy.avatarUrl
+        , description = "User's profile picture"
+        }
 
 
 hoverButtons : TakeCard -> Maybe User -> Element Msg
@@ -158,16 +246,13 @@ hoverButtons card user =
     let
         buttons =
             if Just card.take.postedBy == user then
-                [ takeHoverButton "edit" (EditTake card)
-                , text " | "
-                , takeHoverButton "delete" (DeleteTake card)
-                ]
+                [ takeHoverButton "delete" (DeleteTake card) ]
 
             else
                 [ takeHoverButton "report" (ReportTake card) ]
     in
     if card.hovered then
-        row [] buttons
+        row [ centerX ] buttons
 
     else
         none
@@ -181,26 +266,59 @@ takeHoverButton txt msg =
 
 fireButton : TakeCard -> Maybe User -> List User -> Element Msg
 fireButton card maybeUser likers =
-    case maybeUser of
-        Just user ->
-            if List.member user likers then
-                Input.button []
-                    { onPress = Just <| FireButtonPressed card
-                    , label = text <| String.fromInt <| List.length likers
-                    }
+    let
+        likeCount =
+            List.length likers
+
+        onPress =
+            case maybeUser of
+                Just _ ->
+                    Just <| FireButtonPressed card
+
+                Nothing ->
+                    Nothing
+
+        canLike =
+            not <| memberWithMaybe maybeUser likers True
+
+        url =
+            if canLike then
+                "/assets/fire-transparent.png"
 
             else
-                Input.button []
-                    { onPress = Just <| FireButtonPressed card
-                    , label = text <| String.fromInt <| List.length likers
-                    }
+                "/assets/fire.png"
+    in
+    Input.button
+        [ Border.color Colors.secondaryLight
+        , Border.width 1
+        , Border.rounded 7
+        ]
+        { onPress = onPress
+        , label = fireAndLikeCount url likeCount
+        }
 
-        Nothing ->
-            Input.button
-                []
-                { onPress = Nothing
-                , label = text <| String.fromInt <| List.length likers
-                }
+
+fireAndLikeCount : String -> Int -> Element Msg
+fireAndLikeCount url likeCount =
+    row
+        [ padding 5
+        , spacing 3
+        ]
+        [ image [ width (px fireButtonWidth) ] { src = url, description = "A fire emoji" }
+        , likeCountLabel likeCount
+        ]
+
+
+likeCountLabel : Int -> Element Msg
+likeCountLabel likeCount =
+    el
+        [ Font.size 16
+        , Font.family [ Font.monospace ]
+        , centerY
+        ]
+    <|
+        text <|
+            rightPad (String.fromInt likeCount) " " 3
 
 
 formatTime : Time.Posix -> Time.Zone -> String
@@ -245,3 +363,22 @@ leftPad i =
 
     else
         String.fromInt i
+
+
+rightPad : String -> String -> Int -> String
+rightPad s padder to =
+    if String.length s < to then
+        rightPad (s ++ padder) padder to
+
+    else
+        s
+
+
+memberWithMaybe : Maybe a -> List a -> Bool -> Bool
+memberWithMaybe e l default =
+    case e of
+        Just e_ ->
+            List.member e_ l
+
+        Nothing ->
+            default
