@@ -1,8 +1,12 @@
 module Compose exposing (Compose, Msg, update, view)
 
 import Api
+import Colors
 import Data.User as User exposing (User)
 import Element exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import Http
 import TakeCard exposing (TakeCard, createNewTake)
@@ -54,7 +58,9 @@ update msg compose auth =
 view : User -> String -> Element Msg
 view user newTake =
     column
-        []
+        [ width fill
+        , spacing 12
+        ]
         [ Input.multiline
             []
             { onChange = EditNewTake
@@ -63,9 +69,20 @@ view user newTake =
             , label = Input.labelHidden "What's your hottest take?"
             , spellcheck = False
             }
-        , Input.button
-            []
-            { onPress = Just <| PublishNewTakeClick user
-            , label = text "Publish"
-            }
+        , publishButton user
         ]
+
+
+publishButton : User -> Element Msg
+publishButton user =
+    Input.button
+        [ padding 12
+        , Border.rounded 7
+        , clip
+        , Background.color Colors.primary
+        , Font.color Colors.textOnPrimary
+        , alignRight
+        ]
+        { onPress = Just <| PublishNewTakeClick user
+        , label = text "Publish"
+        }
