@@ -4,7 +4,6 @@ module Api exposing
     , SavedUserAuthError(..)
     , SignInError(..)
     , UserAuth
-    , allTakes
     , allTakesFromToday
     , encodeUserAuth
     , like
@@ -277,15 +276,6 @@ makeTake (BearerToken token) contents onFinish =
                 }
     in
     httpRequest
-
-
-allTakes : UserAuth -> (Result Http.Error (List Take.Take) -> msg) -> Cmd msg
-allTakes auth onFinish =
-    authenticatedGet
-        { auth = auth
-        , url = Url.Builder.relative (baseUrlComponents ++ [ "takes", "all" ]) []
-        , expect = Http.expectJson onFinish (Json.Decode.list Take.decoder)
-        }
 
 
 allTakesFromToday : UserAuth -> (Result Http.Error (List Take.Take) -> msg) -> Cmd msg
