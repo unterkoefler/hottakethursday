@@ -15,7 +15,6 @@ Rails.application.routes.draw do
       end
 
       scope :takes do
-        get 'all', to: 'take#all'
         get 'all_from_today', to: 'take#all_from_today'
         post 'create', to: 'take#create'
         post 'like', to: 'take#like'
