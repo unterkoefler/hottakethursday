@@ -10,11 +10,6 @@ class TakeController < ApplicationController
     end
   end
 
-  def all
-    # TODO: perf. probably need to add an index also
-    render json: Take.all.sort_by { |t| -t.created_at.to_i }
-  end
-
   def all_from_today
     now = Time.now
     render json: Take
