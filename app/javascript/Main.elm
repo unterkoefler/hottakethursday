@@ -370,7 +370,7 @@ handleUrlChange model url =
             case model.profile of
                 Just { auth } ->
                     ( { model | page = homePage model section }
-                    , Api.allTakes auth FeedLoaded
+                    , Api.allTakesFromToday auth FeedLoaded
                     )
 
                 Nothing ->
