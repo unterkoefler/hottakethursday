@@ -5,7 +5,6 @@ import Browser
 import Browser.Events exposing (onResize)
 import Browser.Navigation as Nav
 import Colors
-import Compose exposing (Compose)
 import Data.Take
 import Data.User as User exposing (User)
 import Debug
@@ -15,14 +14,15 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Element.Region as Region
+import Feed
 import Flags exposing (Dimensions)
 import Html exposing (Html)
 import Http
 import Json.Decode
 import Login
+import NavTabs exposing (navTab)
 import Ports
 import Signup
-import TakeCard exposing (TakeCard, createNewTake, likeOrUnlike, toggleHover, viewTake)
 import Task
 import Thursday exposing (daysUntilThursday, isThursday, toWeekdayString)
 import Time
@@ -77,7 +77,7 @@ type ProfileSection
 
 
 type Route
-    = HomeRoute HomeSection
+    = HomeRoute Feed.FeedSection
     | LoginRoute
     | ForgotPasswordRoute
     | SignupRoute
@@ -88,25 +88,12 @@ type Route
 routeParser : Parser.Parser (Route -> a) a
 routeParser =
     Parser.oneOf
-        [ Parser.map HomeRoute (Parser.fragment toHomeSection)
+        [ Parser.map HomeRoute (Parser.fragment Feed.toFeedSection)
         , Parser.map LoginRoute (Parser.s "login")
         , Parser.map ForgotPasswordRoute (Parser.s "forgot-password")
         , Parser.map SignupRoute (Parser.s "signup")
         , Parser.map ProfileRoute (Parser.s "profile" </> Parser.fragment toProfileSection)
         ]
-
-
-toHomeSection : Maybe String -> HomeSection
-toHomeSection frag =
-    case frag of
-        Just "hottest" ->
-            Hottest
-
-        Just "coldest" ->
-            Coldest
-
-        _ ->
-            Hottest
 
 
 toProfileSection : Maybe String -> ProfileSection
@@ -139,18 +126,6 @@ toRoute string =
 -- MODEL
 
 
-type alias HomeData =
-    { takes : List TakeCard
-    , compose : Compose
-    , section : HomeSection
-    }
-
-
-type HomeSection
-    = Hottest
-    | Coldest
-
-
 blankSignupData =
     { name = ""
     , username = ""
@@ -160,7 +135,7 @@ blankSignupData =
 
 
 type Page
-    = Home HomeData
+    = Home Feed.Model
     | Login Login.Model
     | ForgotPassword
     | Signup Signup.Model
@@ -182,10 +157,6 @@ type alias Model =
     }
 
 
-initHomePageData =
-    { takes = [], compose = "", section = Hottest }
-
-
 loginPage =
     Login Login.emptyForm
 
@@ -200,7 +171,7 @@ init flags url key =
             Task.perform AdjustTimeZone Time.here
 
         model =
-            { page = Home initHomePageData
+            { page = Home Feed.init
             , profile = Nothing
             , time = Time.millisToPosix 0
             , zone = Time.utc
@@ -248,7 +219,11 @@ init flags url key =
             )
 
         HomeRoute section ->
-            ( { model | page = Home { initHomePageData | section = section } }
+            let
+                initFeed =
+                    Feed.init
+            in
+            ( { model | page = Home { initFeed | section = section } }
             , Cmd.batch [ loadAuthCmd, setTimeZone ]
             )
 
@@ -261,9 +236,8 @@ init flags url key =
 
 
 type Msg
-    = ComposeMsg Compose.Msg
+    = FeedMsg Feed.Msg
     | LoginMsg Login.Msg
-    | TakeMsg TakeCard.Msg
     | SignupMsg Signup.Msg
     | FeedLoaded (Result Http.Error (List Data.Take.Take))
     | AdjustTimeZone Time.Zone
@@ -404,14 +378,18 @@ handleUrlChangeToProfile model section user =
     )
 
 
-homePage : Model -> HomeSection -> Page
+homePage : Model -> Feed.FeedSection -> Page
 homePage model section =
     case model.page of
         Home data ->
             Home { data | section = section }
 
         _ ->
-            Home { initHomePageData | section = section }
+            let
+                initFeed =
+                    Feed.init
+            in
+            Home { initFeed | section = section }
 
 
 updatePage : Msg -> Model -> ( Model, Cmd Msg )
@@ -467,7 +445,7 @@ updateSignupPage msg model data =
             ( model, Cmd.none )
 
 
-updateHomePage : Msg -> Model -> HomeData -> ( Model, Cmd Msg )
+updateHomePage : Msg -> Model -> Feed.Model -> ( Model, Cmd Msg )
 updateHomePage msg model data =
     case model.profile of
         Just { user, auth } ->
@@ -477,19 +455,16 @@ updateHomePage msg model data =
             ( model, Cmd.none )
 
 
-updateHomePageSignedIn : Msg -> Model -> HomeData -> User -> Api.UserAuth -> ( Model, Cmd Msg )
+updateHomePageSignedIn : Msg -> Model -> Feed.Model -> User -> Api.UserAuth -> ( Model, Cmd Msg )
 updateHomePageSignedIn msg model data user auth =
     case msg of
-        ComposeMsg m ->
-            handleComposeMsg m model data user auth
-
-        TakeMsg m ->
-            handleTakeMsg m model data user auth
+        FeedMsg m ->
+            handleFeedMsg m model data user auth
 
         FeedLoaded (Ok takes) ->
             ( { model
                 | page =
-                    Home { data | takes = List.map (\t -> { take = t, hovered = False }) takes }
+                    Home { data | cards = Feed.fromTakes takes }
               }
             , Cmd.none
             )
@@ -505,29 +480,14 @@ updateHomePageSignedIn msg model data user auth =
             ( model, Cmd.none )
 
 
-handleTakeMsg : TakeCard.Msg -> Model -> HomeData -> User -> Api.UserAuth -> ( Model, Cmd Msg )
-handleTakeMsg msg model data user auth =
+handleFeedMsg : Feed.Msg -> Model -> Feed.Model -> User -> Api.UserAuth -> ( Model, Cmd Msg )
+handleFeedMsg msg model data user auth =
     let
-        ( newTakes, cmd ) =
-            TakeCard.update msg data.takes user auth
+        ( newFeed, cmd ) =
+            Feed.update msg data user auth
     in
-    ( { model | page = Home { data | takes = newTakes } }
-    , Cmd.map TakeMsg cmd
-    )
-
-
-handleComposeMsg : Compose.Msg -> Model -> HomeData -> User -> Api.UserAuth -> ( Model, Cmd Msg )
-handleComposeMsg msg model data user auth =
-    let
-        ( newCompose, newTakes, cmd ) =
-            Compose.update msg data.compose auth
-    in
-    ( { model
-        | page =
-            Home
-                { data | compose = newCompose, takes = newTakes ++ data.takes }
-      }
-    , Cmd.map ComposeMsg cmd
+    ( { model | page = Home newFeed }
+    , Cmd.map FeedMsg cmd
     )
 
 
@@ -739,7 +699,7 @@ showAds : Model -> Bool
 showAds model =
     case model.page of
         Home _ ->
-            model.dimensions.width > TakeCard.minCardWidth + 2 * adsWidth
+            model.dimensions.width > Feed.feedWidth + 2 * adsWidth
 
         _ ->
             False
@@ -763,38 +723,14 @@ navItem txt link_ classes =
         { url = link_, label = text txt }
 
 
-navTab : String -> String -> Bool -> Element Msg
-navTab txt link_ active =
-    let
-        ( bgColor, fontColor ) =
-            if active then
-                ( Colors.secondary, Colors.textOnSecondary )
-
-            else
-                ( Colors.white, Colors.secondary )
-    in
-    link
-        [ Border.widthEach { top = 1, right = 1, left = 1, bottom = 1 }
-        , paddingXY 24 6
-        , Font.size 24
-        , Border.color Colors.secondary
-        , Background.color bgColor
-        , Font.color fontColor
-        , Border.roundEach { topLeft = 7, topRight = 7, bottomLeft = 0, bottomRight = 0 }
-        ]
-        { url = link_
-        , label = text txt
-        }
-
-
 largeDeviceContent : Model -> Element Msg
 largeDeviceContent model =
     case ( model.page, model.profile ) of
         ( Home data, Just { user } ) ->
-            homeFeed model data (Just user)
+            Element.map FeedMsg <| Feed.view data (Just user)
 
         ( Home data, Nothing ) ->
-            homeFeed model data Nothing
+            Element.map FeedMsg <| Feed.view data Nothing
 
         ( Login data, Nothing ) ->
             Element.map LoginMsg (Login.view data)
@@ -901,49 +837,6 @@ profileContent section =
         ]
 
 
-homeFeed : Model -> HomeData -> Maybe User -> Element Msg
-homeFeed model data maybeUser =
-    let
-        maybeCompose =
-            case ( maybeUser, data.section ) of
-                ( Just user, Hottest ) ->
-                    Element.map ComposeMsg (Compose.view user data.compose)
-
-                _ ->
-                    Element.none
-
-        maybeFeed =
-            case data.section of
-                Hottest ->
-                    feed data.takes model.zone maybeUser
-
-                Coldest ->
-                    noColdTakes
-    in
-    column
-        [ spacing 24
-        , centerX
-        ]
-        [ homeNavTabs data.section
-        , maybeCompose
-        , maybeFeed
-        ]
-
-
-homeNavTabs : HomeSection -> Element Msg
-homeNavTabs section =
-    row
-        [ alignLeft
-        , alignTop
-        , Border.widthEach { top = 0, bottom = 2, left = 0, right = 0 }
-        , width fill
-        , Border.color Colors.secondary
-        ]
-        [ navTab "Hottest" "#hottest" (section == Hottest)
-        , navTab "Coldest" "#coldest" (section == Coldest)
-        ]
-
-
 profileNavTabs : ProfileSection -> Element Msg
 profileNavTabs section =
     row
@@ -1036,25 +929,3 @@ aboutUserElem info label editable =
 aboutEditButton : Element Msg
 aboutEditButton =
     Input.button [ alignRight ] { onPress = Nothing, label = text "edit" }
-
-
-feed : List TakeCard -> Time.Zone -> Maybe User -> Element Msg
-feed takes zone user =
-    column
-        [ spacing 12 ]
-        (List.map (\take -> viewTakeFixMsg take zone user) takes)
-
-
-noColdTakes : Element Msg
-noColdTakes =
-    paragraph
-        [ Font.size 24
-        , padding 36
-        , width (px TakeCard.minCardWidth)
-        ]
-        [ text <| "Just kidding! We don't have any cold takes here." ]
-
-
-viewTakeFixMsg : TakeCard -> Time.Zone -> Maybe User -> Element Msg
-viewTakeFixMsg take zone user =
-    Element.map TakeMsg (viewTake take zone user)
