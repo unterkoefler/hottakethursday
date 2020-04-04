@@ -1,4 +1,4 @@
-module Feed exposing (FeedSection, Model, Msg, feedWidth, fromTakes, init, toFeedSection, update, view)
+module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feedWidth, fromTakes, init, toFeedSection, update, view)
 
 import Api
 import Colors
@@ -95,7 +95,7 @@ type Msg
     | EditNewTake String
     | PublishNewTakeClick
     | PublishNewTake Time.Posix
-    | TakePublished (Result Http.Error Take)
+    | TakePublished (Result Http.Error ())
 
 
 update : Msg -> Model -> User -> Api.UserAuth -> ( Model, Cmd Msg )
@@ -123,10 +123,9 @@ update msg model user auth =
             , Cmd.none
             )
 
-        TakePublished (Ok take) ->
+        TakePublished (Ok _) ->
             ( { model
-                | cards = { take = take, state = Default } :: model.cards
-                , compose = { state = Composing, content = "" }
+                | compose = { state = Composing, content = "" }
               }
             , Cmd.none
             )
@@ -221,35 +220,41 @@ fromTakes takes =
     List.map (\t -> { take = t, state = Default }) takes
 
 
+addOrUpdateTake : Model -> Take -> Model
+addOrUpdateTake model take =
+    case replaceTake model.cards take of
+        Just newCards ->
+            { model | cards = newCards }
 
---createNewTake : String -> User -> Time.Posix -> TakeCard
---createNewTake newTake user time =
---    let
---        take =
---            { id = 0
---            , content = newTake
---            , postedBy = user
---            , timePosted = time
---            , usersWhoLiked = []
---            }
---    in
---    { take = take
---    , state = Posting
---    }
---failedToPost : TakeCard -> TakeCard
---failedToPost t =
---    case t.state of
---        Posting ->
---            { t | state = FailedToPost }
---        _ ->
---            t
---makeDefault : TakeCard -> TakeCard
---makeDefault t =
---    case t.state of
---        Posting ->
---            { t | state = Default }
---        _ ->
---            t
+        Nothing ->
+            { model | cards = { take = take, state = Default } :: model.cards }
+
+
+addTakes : Model -> List Take -> Model
+addTakes model takes =
+    { model | cards = fromTakes takes ++ model.cards }
+
+
+replaceTake : List TakeCard -> Take -> Maybe (List TakeCard)
+replaceTake cards take =
+    let
+        takeIds =
+            List.map (\c -> c.take.id) cards
+    in
+    if List.member take.id takeIds then
+        Just <|
+            List.map
+                (\c ->
+                    if c.take.id == take.id then
+                        { take = take, state = c.state }
+
+                    else
+                        c
+                )
+                cards
+
+    else
+        Nothing
 
 
 failedToDelete : TakeCard -> TakeCard

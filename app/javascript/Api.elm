@@ -259,7 +259,7 @@ usersByIds auth userIds onFinish =
         }
 
 
-makeTake : UserAuth -> String -> (Result Http.Error Take.Take -> msg) -> Cmd msg
+makeTake : UserAuth -> String -> (Result Http.Error () -> msg) -> Cmd msg
 makeTake (BearerToken token) contents onFinish =
     let
         url =
@@ -271,7 +271,7 @@ makeTake (BearerToken token) contents onFinish =
                 , headers = [ Http.header "authorization" token ]
                 , url = url
                 , body = Http.jsonBody (Json.Encode.object [ ( "contents", Json.Encode.string contents ) ])
-                , expect = Http.expectJson onFinish Take.decoder
+                , expect = Http.expectWhatever onFinish
                 , timeout = Nothing
                 , tracker = Nothing
                 }

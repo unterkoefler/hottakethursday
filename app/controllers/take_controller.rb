@@ -20,7 +20,7 @@ class TakeController < ApplicationController
   def create
     params.require(:contents)
     take = current_user.make_the_hottest_of_takes!(params[:contents])
-    render json: take
+    ActionCable.server.broadcast 'take_feed_channel', TakeSerializer.new(take).as_json
   end
 
   def like
