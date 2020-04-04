@@ -11,6 +11,7 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Html exposing (Html)
+import Html.Attributes
 import Http
 import NavTabs exposing (navTab)
 import Task
@@ -469,6 +470,7 @@ takeAndAuthor take =
         [ spacing 12
         , paddingEach { left = 5, right = 30, top = 5, bottom = 5 }
         , width (px takeWidth)
+        , Html.Attributes.style "word-break" "break-all" |> htmlAttribute
         , alignLeft
         ]
         [ paragraph [] [ text <| "\"" ++ take.content ++ "\"" ]
