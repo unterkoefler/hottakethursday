@@ -61,6 +61,10 @@ type alias Compose =
     }
 
 
+maxCharacterCount =
+    169
+
+
 type alias TakeCard =
     { take : Take
     , state : CardState
@@ -77,7 +81,7 @@ type CardState
 type ComposeState
     = Composing
     | Posting
-    | FailedToPost
+    | PostingError String
 
 
 
@@ -93,8 +97,7 @@ type Msg
     | LikeHandled (Result Http.Error ())
     | DeleteHandled Int (Result Http.Error ())
     | EditNewTake String
-    | PublishNewTakeClick
-    | PublishNewTake Time.Posix
+    | PublishNewTake
     | TakePublished (Result Http.Error ())
 
 
@@ -106,19 +109,24 @@ update msg model user auth =
             , Cmd.none
             )
 
-        PublishNewTakeClick ->
-            ( model, Task.perform PublishNewTake Time.now )
+        PublishNewTake ->
+            let
+                ( compose, valid ) =
+                    validateCompose model.compose
+            in
+            if valid then
+                ( { model | compose = compose }
+                , Api.makeTake auth model.compose.content TakePublished
+                )
 
-        PublishNewTake time ->
-            ( { model
-                | compose = toComposeState model.compose Posting
-              }
-            , Api.makeTake auth model.compose.content TakePublished
-            )
+            else
+                ( { model | compose = compose }
+                , Cmd.none
+                )
 
         TakePublished (Err m) ->
             ( { model
-                | compose = toComposeState model.compose FailedToPost
+                | compose = toComposeState model.compose (PostingError "Failed to post. Have you tried plugging it in?")
               }
             , Cmd.none
             )
@@ -173,6 +181,15 @@ update msg model user auth =
 toComposeState : Compose -> ComposeState -> Compose
 toComposeState compose state =
     { compose | state = state }
+
+
+validateCompose : Compose -> ( Compose, Bool )
+validateCompose compose =
+    if String.length compose.content <= maxCharacterCount then
+        ( toComposeState compose Posting, True )
+
+    else
+        ( toComposeState compose (PostingError "Too long. Brevity is the soul of hotness"), False )
 
 
 updateContent : Compose -> String -> Compose
@@ -416,7 +433,7 @@ postingView =
 
 failedView : String -> Element Msg
 failedView error =
-    text <| error ++ " Have you tried plugging it in?"
+    text <| error
 
 
 deletingView : Element Msg
@@ -649,16 +666,39 @@ composeView user compose =
         , spacing 12
         ]
         [ Input.multiline
-            []
+            [ width (fill |> maximum feedWidth)
+            , clipX
+            ]
             { onChange = EditNewTake
             , text = compose.content
             , placeholder = Just <| Input.placeholder [] (text ("Hi " ++ user.username ++ ". What's your hottest take?"))
             , label = Input.labelHidden "What's your hottest take?"
             , spellcheck = False
             }
-        , publishButton user
+        , row [ spacing 12, width fill ]
+            [ characterCount <| String.length compose.content
+            , publishButton user
+            ]
         , composeMessage compose.state
         ]
+
+
+characterCount : Int -> Element Msg
+characterCount count =
+    let
+        fontColor =
+            if count <= maxCharacterCount then
+                Colors.black
+
+            else
+                Colors.primary
+    in
+    el
+        [ alignLeft
+        , Font.color fontColor
+        ]
+    <|
+        text (String.fromInt count ++ "/" ++ String.fromInt maxCharacterCount)
 
 
 composeMessage : ComposeState -> Element Msg
@@ -670,8 +710,8 @@ composeMessage state =
         Posting ->
             postingView
 
-        FailedToPost ->
-            failedView "Failed to post."
+        PostingError m ->
+            failedView m
 
 
 publishButton : User -> Element Msg
@@ -684,7 +724,7 @@ publishButton user =
         , Font.color Colors.textOnPrimary
         , alignRight
         ]
-        { onPress = Just <| PublishNewTakeClick
+        { onPress = Just <| PublishNewTake
         , label = text "Publish"
         }
 
