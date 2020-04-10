@@ -1,6 +1,6 @@
 class Take < ApplicationRecord
   belongs_to :user
-  has_many :likes
+  has_many :likes, dependent: :destroy
 
   validates_length_of :contents,
                       minimum: 1,

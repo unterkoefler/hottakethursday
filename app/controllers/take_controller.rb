@@ -23,6 +23,18 @@ class TakeController < ApplicationController
     ActionCable.server.broadcast 'take_feed_channel', TakeSerializer.new(take).as_json
   end
 
+  def delete
+    params.require(:take_id)
+    take = Take.find_by(id: params[:take_id])
+    if take.user == current_user
+      take.destroy
+      render json: "Take deleted"
+    else
+      raise "Can't delete a take that's not yours"
+    end
+  end
+
+
   def like
     params.require(:take_id)
     take = Take.find_by(id: params[:take_id])
