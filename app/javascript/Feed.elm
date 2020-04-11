@@ -342,14 +342,13 @@ sendLikeOrUnlike user auth take =
 
 
 feedWidth =
-    2
+    3
         * cardSpacing
         + 2
         * cardPadding
         + takeWidth
         + thumbnailWidth
-        + fireButtonWidth
-        + 50
+        + fireAndLikeCountWidth
 
 
 cardSpacing =
@@ -361,7 +360,7 @@ cardPadding =
 
 
 takeWidth =
-    500
+    490
 
 
 thumbnailWidth =
@@ -382,6 +381,22 @@ fireButtonHeight =
 
 cardBorderWidth =
     1
+
+
+fireAndLikeCountWidth =
+    2 * fireAndLikeCountPadding + fireAndLikeCountSpacing + fireButtonWidth + estLikeCountWidth
+
+
+fireAndLikeCountPadding =
+    5
+
+
+fireAndLikeCountSpacing =
+    3
+
+
+estLikeCountWidth =
+    30
 
 
 viewTake : TakeCard -> Maybe User -> Element Msg
@@ -549,8 +564,8 @@ fireButton card maybeUser likers =
 fireAndLikeCount : String -> Int -> Element Msg
 fireAndLikeCount url likeCount =
     row
-        [ padding 5
-        , spacing 3
+        [ padding fireAndLikeCountPadding
+        , spacing fireAndLikeCountSpacing
         ]
         [ image [ width (px fireButtonWidth) ] { src = url, description = "A fire emoji" }
         , likeCountLabel likeCount
@@ -654,6 +669,7 @@ view data maybeUser =
     column
         [ spacing 24
         , centerX
+        , width (px feedWidth)
         ]
         [ homeNavTabs data.section
         , maybeCompose
@@ -670,6 +686,7 @@ composeView user compose =
         [ Input.multiline
             [ width (fill |> maximum feedWidth)
             , clipX
+            , height (fill |> minimum 100)
             ]
             { onChange = EditNewTake
             , text = compose.content
