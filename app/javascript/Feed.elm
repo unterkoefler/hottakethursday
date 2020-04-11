@@ -1,4 +1,4 @@
-module Feed exposing (FeedSection, Model, Msg, feedWidth, fromTakes, init, toFeedSection, update, view)
+module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feedWidth, fromTakes, init, toFeedSection, update, view)
 
 import Api
 import Colors
@@ -11,6 +11,7 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Html exposing (Html)
+import Html.Attributes
 import Http
 import NavTabs exposing (navTab)
 import Task
@@ -61,6 +62,10 @@ type alias Compose =
     }
 
 
+maxCharacterCount =
+    169
+
+
 type alias TakeCard =
     { take : Take
     , state : CardState
@@ -77,7 +82,7 @@ type CardState
 type ComposeState
     = Composing
     | Posting
-    | FailedToPost
+    | PostingError String
 
 
 
@@ -93,9 +98,8 @@ type Msg
     | LikeHandled (Result Http.Error ())
     | DeleteHandled Int (Result Http.Error ())
     | EditNewTake String
-    | PublishNewTakeClick
-    | PublishNewTake Time.Posix
-    | TakePublished (Result Http.Error Take)
+    | PublishNewTake
+    | TakePublished (Result Http.Error ())
 
 
 update : Msg -> Model -> User -> Api.UserAuth -> ( Model, Cmd Msg )
@@ -106,27 +110,31 @@ update msg model user auth =
             , Cmd.none
             )
 
-        PublishNewTakeClick ->
-            ( model, Task.perform PublishNewTake Time.now )
+        PublishNewTake ->
+            let
+                ( compose, valid ) =
+                    validateCompose model.compose
+            in
+            if valid then
+                ( { model | compose = compose }
+                , Api.makeTake auth model.compose.content TakePublished
+                )
 
-        PublishNewTake time ->
-            ( { model
-                | compose = toComposeState model.compose Posting
-              }
-            , Api.makeTake auth model.compose.content TakePublished
-            )
+            else
+                ( { model | compose = compose }
+                , Cmd.none
+                )
 
         TakePublished (Err m) ->
             ( { model
-                | compose = toComposeState model.compose FailedToPost
+                | compose = toComposeState model.compose (PostingError "Failed to post. Have you tried plugging it in?")
               }
             , Cmd.none
             )
 
-        TakePublished (Ok take) ->
+        TakePublished (Ok _) ->
             ( { model
-                | cards = { take = take, state = Default } :: model.cards
-                , compose = { state = Composing, content = "" }
+                | compose = { state = Composing, content = "" }
               }
             , Cmd.none
             )
@@ -176,6 +184,15 @@ toComposeState compose state =
     { compose | state = state }
 
 
+validateCompose : Compose -> ( Compose, Bool )
+validateCompose compose =
+    if String.length compose.content <= maxCharacterCount then
+        ( toComposeState compose Posting, True )
+
+    else
+        ( toComposeState compose (PostingError "Too long. Brevity is the soul of hotness"), False )
+
+
 updateContent : Compose -> String -> Compose
 updateContent compose newContent =
     { compose | content = newContent }
@@ -221,35 +238,41 @@ fromTakes takes =
     List.map (\t -> { take = t, state = Default }) takes
 
 
+addOrUpdateTake : Model -> Take -> Model
+addOrUpdateTake model take =
+    case replaceTake model.cards take of
+        Just newCards ->
+            { model | cards = newCards }
 
---createNewTake : String -> User -> Time.Posix -> TakeCard
---createNewTake newTake user time =
---    let
---        take =
---            { id = 0
---            , content = newTake
---            , postedBy = user
---            , timePosted = time
---            , usersWhoLiked = []
---            }
---    in
---    { take = take
---    , state = Posting
---    }
---failedToPost : TakeCard -> TakeCard
---failedToPost t =
---    case t.state of
---        Posting ->
---            { t | state = FailedToPost }
---        _ ->
---            t
---makeDefault : TakeCard -> TakeCard
---makeDefault t =
---    case t.state of
---        Posting ->
---            { t | state = Default }
---        _ ->
---            t
+        Nothing ->
+            { model | cards = { take = take, state = Default } :: model.cards }
+
+
+addTakes : Model -> List Take -> Model
+addTakes model takes =
+    { model | cards = fromTakes takes ++ model.cards }
+
+
+replaceTake : List TakeCard -> Take -> Maybe (List TakeCard)
+replaceTake cards take =
+    let
+        takeIds =
+            List.map (\c -> c.take.id) cards
+    in
+    if List.member take.id takeIds then
+        Just <|
+            List.map
+                (\c ->
+                    if c.take.id == take.id then
+                        { take = take, state = c.state }
+
+                    else
+                        c
+                )
+                cards
+
+    else
+        Nothing
 
 
 failedToDelete : TakeCard -> TakeCard
@@ -319,14 +342,13 @@ sendLikeOrUnlike user auth take =
 
 
 feedWidth =
-    2
+    3
         * cardSpacing
         + 2
         * cardPadding
         + takeWidth
         + thumbnailWidth
-        + fireButtonWidth
-        + 50
+        + fireAndLikeCountWidth
 
 
 cardSpacing =
@@ -338,7 +360,7 @@ cardPadding =
 
 
 takeWidth =
-    500
+    490
 
 
 thumbnailWidth =
@@ -359,6 +381,22 @@ fireButtonHeight =
 
 cardBorderWidth =
     1
+
+
+fireAndLikeCountWidth =
+    2 * fireAndLikeCountPadding + fireAndLikeCountSpacing + fireButtonWidth + estLikeCountWidth
+
+
+fireAndLikeCountPadding =
+    5
+
+
+fireAndLikeCountSpacing =
+    3
+
+
+estLikeCountWidth =
+    30
 
 
 viewTake : TakeCard -> Maybe User -> Element Msg
@@ -411,7 +449,7 @@ postingView =
 
 failedView : String -> Element Msg
 failedView error =
-    text <| error ++ " Have you tried plugging it in?"
+    text <| error
 
 
 deletingView : Element Msg
@@ -447,6 +485,7 @@ takeAndAuthor take =
         [ spacing 12
         , paddingEach { left = 5, right = 30, top = 5, bottom = 5 }
         , width (px takeWidth)
+        , Html.Attributes.style "word-break" "break-all" |> htmlAttribute
         , alignLeft
         ]
         [ paragraph [] [ text <| "\"" ++ take.content ++ "\"" ]
@@ -525,8 +564,8 @@ fireButton card maybeUser likers =
 fireAndLikeCount : String -> Int -> Element Msg
 fireAndLikeCount url likeCount =
     row
-        [ padding 5
-        , spacing 3
+        [ padding fireAndLikeCountPadding
+        , spacing fireAndLikeCountSpacing
         ]
         [ image [ width (px fireButtonWidth) ] { src = url, description = "A fire emoji" }
         , likeCountLabel likeCount
@@ -630,6 +669,7 @@ view data maybeUser =
     column
         [ spacing 24
         , centerX
+        , width (px feedWidth)
         ]
         [ homeNavTabs data.section
         , maybeCompose
@@ -644,16 +684,40 @@ composeView user compose =
         , spacing 12
         ]
         [ Input.multiline
-            []
+            [ width (fill |> maximum feedWidth)
+            , clipX
+            , height (fill |> minimum 100)
+            ]
             { onChange = EditNewTake
             , text = compose.content
             , placeholder = Just <| Input.placeholder [] (text ("Hi " ++ user.username ++ ". What's your hottest take?"))
             , label = Input.labelHidden "What's your hottest take?"
             , spellcheck = False
             }
-        , publishButton user
+        , row [ spacing 12, width fill ]
+            [ characterCount <| String.length compose.content
+            , publishButton user
+            ]
         , composeMessage compose.state
         ]
+
+
+characterCount : Int -> Element Msg
+characterCount count =
+    let
+        fontColor =
+            if count <= maxCharacterCount then
+                Colors.black
+
+            else
+                Colors.primary
+    in
+    el
+        [ alignLeft
+        , Font.color fontColor
+        ]
+    <|
+        text (String.fromInt count ++ "/" ++ String.fromInt maxCharacterCount)
 
 
 composeMessage : ComposeState -> Element Msg
@@ -665,8 +729,8 @@ composeMessage state =
         Posting ->
             postingView
 
-        FailedToPost ->
-            failedView "Failed to post."
+        PostingError m ->
+            failedView m
 
 
 publishButton : User -> Element Msg
@@ -679,7 +743,7 @@ publishButton user =
         , Font.color Colors.textOnPrimary
         , alignRight
         ]
-        { onPress = Just <| PublishNewTakeClick
+        { onPress = Just <| PublishNewTake
         , label = text "Publish"
         }
 

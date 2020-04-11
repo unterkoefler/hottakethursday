@@ -462,10 +462,7 @@ updateHomePageSignedIn msg model data user auth =
             handleFeedMsg m model data user auth
 
         FeedLoaded (Ok takes) ->
-            ( { model
-                | page =
-                    Home { data | cards = Feed.fromTakes takes }
-              }
+            ( { model | page = Home <| Feed.addTakes data takes }
             , Cmd.none
             )
 
@@ -475,6 +472,18 @@ updateHomePageSignedIn msg model data user auth =
                     Debug.log "FeedLoaded error" m
             in
             ( model, Cmd.none )
+
+        TakeUpdate (Err m) ->
+            let
+                _ =
+                    Debug.log "Failed to load new take" m
+            in
+            ( model, Cmd.none )
+
+        TakeUpdate (Ok take) ->
+            ( { model | page = Home <| Feed.addOrUpdateTake data take }
+            , Cmd.none
+            )
 
         _ ->
             ( model, Cmd.none )
