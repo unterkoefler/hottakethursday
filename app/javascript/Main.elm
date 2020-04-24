@@ -17,11 +17,13 @@ import Element.Region as Region
 import Feed
 import Flags exposing (Dimensions)
 import Html exposing (Html)
+import Html.Attributes
 import Http
 import Json.Decode
 import Login
 import NavTabs exposing (navTab)
 import Ports
+import Profile
 import Signup
 import Task
 import Thursday exposing (daysUntilThursday, isThursday, toWeekdayString)
@@ -70,18 +72,12 @@ subscriptions model =
 -- ROUTES
 
 
-type ProfileSection
-    = YourTakes
-    | Notifications
-    | Settings
-
-
 type Route
     = HomeRoute Feed.FeedSection
     | LoginRoute
     | ForgotPasswordRoute
     | SignupRoute
-    | ProfileRoute ProfileSection
+    | ProfileRoute Profile.Section
     | NotFound
 
 
@@ -92,24 +88,8 @@ routeParser =
         , Parser.map LoginRoute (Parser.s "login")
         , Parser.map ForgotPasswordRoute (Parser.s "forgot-password")
         , Parser.map SignupRoute (Parser.s "signup")
-        , Parser.map ProfileRoute (Parser.s "profile" </> Parser.fragment toProfileSection)
+        , Parser.map ProfileRoute (Parser.s "profile" </> Parser.fragment Profile.toSection)
         ]
-
-
-toProfileSection : Maybe String -> ProfileSection
-toProfileSection frag =
-    case frag of
-        Just "notifications" ->
-            Notifications
-
-        Just "settings" ->
-            Settings
-
-        Just str ->
-            YourTakes
-
-        Nothing ->
-            YourTakes
 
 
 toRoute : String -> Route
@@ -139,7 +119,7 @@ type Page
     | Login Login.Model
     | ForgotPassword
     | Signup Signup.Model
-    | Profile ProfileSection User
+    | Profile Profile.Model
     | Loading Url.Url
     | Forbidden
 
@@ -237,6 +217,7 @@ init flags url key =
 
 type Msg
     = FeedMsg Feed.Msg
+    | ProfileMsg Profile.Msg
     | LoginMsg Login.Msg
     | SignupMsg Signup.Msg
     | FeedLoaded (Result Http.Error (List Data.Take.Take))
@@ -371,9 +352,9 @@ handleUrlChange model url =
             ( model, Cmd.none )
 
 
-handleUrlChangeToProfile : Model -> ProfileSection -> User -> ( Model, Cmd Msg )
+handleUrlChangeToProfile : Model -> Profile.Section -> User -> ( Model, Cmd Msg )
 handleUrlChangeToProfile model section user =
-    ( { model | page = Profile section user, expandNavTabs = False }
+    ( { model | page = Profile <| Profile.toModel section user, expandNavTabs = False }
     , Cmd.none
     )
 
@@ -407,8 +388,8 @@ updatePage msg model =
         Signup data ->
             updateSignupPage msg model data
 
-        Profile _ _ ->
-            ( model, Cmd.none )
+        Profile data ->
+            updateProfilePage msg model data
 
         Loading _ ->
             ( model, Cmd.none )
@@ -438,6 +419,18 @@ updateSignupPage msg model data =
     case msg of
         SignupMsg sm ->
             ( { model | page = Signup (Signup.update sm data) }
+            , Cmd.none
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+updateProfilePage : Msg -> Model -> Profile.Model -> ( Model, Cmd Msg )
+updateProfilePage msg model data =
+    case msg of
+        ProfileMsg m ->
+            ( { model | page = Profile (Profile.update m data) }
             , Cmd.none
             )
 
@@ -694,7 +687,7 @@ navLinks page profile =
         Signup _ ->
             [ navItem "Login" "login" "" ]
 
-        Profile _ _ ->
+        Profile _ ->
             [ logoutButton, navItem "Delete Account" "" "" ]
 
         Loading _ ->
@@ -766,11 +759,11 @@ largeDeviceContent model =
         ( Signup data, Just { user } ) ->
             alreadySignedIn user.username
 
-        ( Profile data subject, Just { user } ) ->
-            viewProfile model data subject (subject == user)
+        ( Profile data, Just { user } ) ->
+            Element.map ProfileMsg (Profile.view data (Just user))
 
-        ( Profile data subject, Nothing ) ->
-            viewProfile model data subject False
+        ( Profile data, Nothing ) ->
+            Element.map ProfileMsg (Profile.view data Nothing)
 
         ( Loading next, _ ) ->
             row [] [ text "Loading..." ]
@@ -819,122 +812,3 @@ fakeAd =
         { src = "/assets/trash-ad.jpg"
         , description = "An advertisement for a trash can"
         }
-
-
-viewProfile : Model -> ProfileSection -> User -> Bool -> Element Msg
-viewProfile model section user ownProfile =
-    row [ spacing 36, width fill ]
-        [ aboutUser user userDetailEx1 ownProfile
-        , profileContent section
-        ]
-
-
-profileContent : ProfileSection -> Element Msg
-profileContent section =
-    column
-        [ alignTop
-        , alignLeft
-        , padding 12
-        , width fill
-        , spacing 12
-        ]
-        [ profileNavTabs section
-        , paragraph
-            [ Font.size 24
-            ]
-            [ text "Under construction" ]
-        ]
-
-
-profileNavTabs : ProfileSection -> Element Msg
-profileNavTabs section =
-    row
-        [ alignLeft
-        , alignTop
-        , Border.widthEach { top = 0, bottom = 2, left = 0, right = 0 }
-        , width fill
-        , Border.color Colors.secondary
-        ]
-        [ navTab "Your Takes" "/profile" (YourTakes == section)
-        , navTab "Notifications" "/profile#notifications" (Notifications == section)
-        , navTab "Settings" "/profile#settings" (Settings == section)
-        ]
-
-
-type Gender
-    = Neutral
-    | Feminine
-    | Masculine
-
-
-type alias UserDetail =
-    { fullName : String
-    , bio : String
-    , pronouns : Gender
-    , birthday : String -- TODO : find a reasonable type for dates
-    , leastFavoriteColor : String
-    , userId : Int
-    }
-
-
-userDetailEx1 =
-    { fullName = "George Lopez"
-    , bio = "Is any of this real? Plus a super ridiculously long bio to test the text wrapping and spacing andseehowreallylongwordsaresplitoriftheyreevensplitornot"
-    , pronouns = Masculine
-    , birthday = "May 17th"
-    , leastFavoriteColor = "Olive green"
-    , userId = 1
-    }
-
-
-aboutUser : User -> UserDetail -> Bool -> Element Msg
-aboutUser user detail editable =
-    column [ spacing 12, width (px 300) ]
-        ([ el [ Region.heading 5 ] (text <| "@" ++ user.username)
-         , profilePicture user
-         , aboutUserElem detail.fullName "" editable
-         , el [ Region.heading 5 ] (text <| "@" ++ user.username)
-         ]
-            ++ List.map (\( a, b ) -> aboutUserElem a b editable)
-                [ ( detail.bio, "Bio" )
-                , ( detail.birthday, "Birthday" )
-                , ( detail.leastFavoriteColor, "Least favorite color" )
-                ]
-        )
-
-
-profilePicture : User -> Element Msg
-profilePicture user =
-    let
-        src_ =
-            Maybe.withDefault "/assets/profilepic.jpg" user.avatarUrl
-    in
-    image
-        [ width (px 200)
-        , height (px 200)
-        , Border.rounded 500
-        , clip
-        ]
-        { src = src_
-        , description = "Profile picture"
-        }
-
-
-aboutUserElem : String -> String -> Bool -> Element Msg
-aboutUserElem info label editable =
-    column [ spacing 6, width fill, padding 6, scrollbarX, clipY ]
-        ([ el [ Font.bold ] <| text label
-         , paragraph [] [ text info ]
-         ]
-            ++ (if editable then
-                    [ aboutEditButton ]
-
-                else
-                    []
-               )
-        )
-
-
-aboutEditButton : Element Msg
-aboutEditButton =
-    Input.button [ alignRight ] { onPress = Nothing, label = text "edit" }

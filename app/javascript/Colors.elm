@@ -47,6 +47,10 @@ gray =
     rgb 0.4 0.4 0.4
 
 
+lightGray =
+    rgb 0.8 0.8 0.8
+
+
 textOnPrimary =
     white
 
