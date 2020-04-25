@@ -5,6 +5,9 @@ module Api exposing
     , SignInError(..)
     , UserAuth
     , allTakesFromToday
+    , changeBio
+    , changeLeastFavoriteColor
+    , changeName
     , deleteTake
     , encodeUserAuth
     , like
@@ -360,6 +363,66 @@ uploadProfileImage (BearerToken token) file onFinish =
                 , headers = [ Http.header "authorization" token ]
                 , url = url
                 , body = Http.multipartBody [ Http.filePart "avatar" file ]
+                , expect = Http.expectJson onFinish User.decoder
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+    in
+    httpRequest
+
+
+changeName : UserAuth -> String -> (Result Http.Error User.User -> msg) -> Cmd msg
+changeName (BearerToken token) name onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "users", "me", "change_name" ]) []
+
+        httpRequest =
+            Http.request
+                { method = "POST"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.jsonBody (Json.Encode.object [ ( "full_name", Json.Encode.string name ) ])
+                , expect = Http.expectJson onFinish User.decoder
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+    in
+    httpRequest
+
+
+changeBio : UserAuth -> String -> (Result Http.Error User.User -> msg) -> Cmd msg
+changeBio (BearerToken token) bio onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "users", "me", "change_bio" ]) []
+
+        httpRequest =
+            Http.request
+                { method = "POST"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.jsonBody (Json.Encode.object [ ( "bio", Json.Encode.string bio ) ])
+                , expect = Http.expectJson onFinish User.decoder
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+    in
+    httpRequest
+
+
+changeLeastFavoriteColor : UserAuth -> String -> (Result Http.Error User.User -> msg) -> Cmd msg
+changeLeastFavoriteColor (BearerToken token) color onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "users", "me", "change_least_fav_color" ]) []
+
+        httpRequest =
+            Http.request
+                { method = "POST"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.jsonBody (Json.Encode.object [ ( "least_fav_color", Json.Encode.string color ) ])
                 , expect = Http.expectJson onFinish User.decoder
                 , timeout = Nothing
                 , tracker = Nothing

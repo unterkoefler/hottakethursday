@@ -1,5 +1,6 @@
 module Profile exposing (Model, Msg, Section, toModel, toSection, update, view)
 
+import Api
 import AssocList as Dict exposing (Dict)
 import Colors
 import Data.User exposing (User)
@@ -10,6 +11,7 @@ import Element.Font as Font
 import Element.Input as Input
 import Element.Region as Region
 import Html.Attributes
+import Http
 import NavTabs exposing (navTab)
 
 
@@ -26,18 +28,19 @@ type alias Model =
 
 type alias BioItem =
     { value : String
+    , oldValue : Maybe String
     , state : EditingState
     , error : Maybe String
     }
 
 
-itemsEx : Dict String BioItem
-itemsEx =
-    Dict.fromList
-        [ ( "Name", BioItem "George Lopez" Editing Nothing )
-        , ( "Bio", BioItem "Is any of this real?" Editing Nothing )
-        , ( "Least favorite color", BioItem "Olive green" Viewing Nothing )
-        ]
+newBioItem : String -> BioItem
+newBioItem val =
+    { value = val
+    , oldValue = Nothing
+    , state = Viewing
+    , error = Nothing
+    }
 
 
 type Section
@@ -54,21 +57,35 @@ type EditingState
 
 toModel : Section -> User -> Model
 toModel section subject =
-    { items = itemsEx
+    { items = itemsFromUser subject
     , subject = subject
     , section = section
     }
+
+
+itemsFromUser : User -> Dict BioItemKey BioItem
+itemsFromUser subject =
+    Dict.fromList
+        [ ( "Least favorite color", newBioItem subject.leastFavoriteColor )
+        , ( "Bio", newBioItem subject.bio )
+        , ( "Name", newBioItem subject.name )
+        ]
 
 
 
 -- UPDATE
 
 
+type alias BioItemKey =
+    String
+
+
 type Msg
-    = BeginEditingItem String
-    | EditItem String String
-    | SaveItem String
-    | CancelEditingItem String
+    = BeginEditingItem BioItemKey
+    | EditItem BioItemKey String
+    | SaveItem BioItemKey
+    | CancelEditingItem BioItemKey
+    | ItemSaved BioItemKey (Result Http.Error User)
 
 
 toSection : Maybe String -> Section
@@ -87,25 +104,92 @@ toSection frag =
             YourTakes
 
 
-update : Msg -> Model -> Model
-update msg model =
+update : Msg -> Model -> Api.UserAuth -> ( Model, Cmd Msg )
+update msg model auth =
     case msg of
         EditItem key newValue ->
-            { model | items = Dict.update key (Maybe.map (\i -> { i | value = newValue })) model.items }
+            ( { model | items = Dict.update key (Maybe.map (\i -> { i | value = newValue })) model.items }
+            , Cmd.none
+            )
 
         BeginEditingItem key ->
-            { model | items = Dict.update key (updateState Editing) model.items }
+            ( { model | items = updateDict key beginEditing model.items }
+            , Cmd.none
+            )
 
         CancelEditingItem key ->
-            { model | items = Dict.update key (updateState Viewing) model.items }
+            ( { model | items = updateDict key cancelEditing model.items }
+            , Cmd.none
+            )
+
+        SaveItem key ->
+            ( { model | items = updateDict key saveItem model.items }
+            , saveItemApiRequest key model.items auth
+            )
+
+        ItemSaved key (Err e) ->
+            let
+                _ =
+                    Debug.log "edit bio error" e
+            in
+            ( { model | items = updateDict key (addError "Failed to save") model.items }
+            , Cmd.none
+            )
+
+        ItemSaved key (Ok user) ->
+            ( { model | items = updateDict key valueSaved model.items }
+            , Cmd.none
+            )
+
+
+updateDict : a -> (b -> b) -> Dict a b -> Dict a b
+updateDict key f =
+    Dict.update key (Maybe.map f)
+
+
+beginEditing : BioItem -> BioItem
+beginEditing item =
+    { item | state = Editing, oldValue = Just item.value, error = Nothing }
+
+
+cancelEditing : BioItem -> BioItem
+cancelEditing item =
+    { item | state = Viewing, value = Maybe.withDefault "" item.oldValue, error = Nothing }
+
+
+saveItem : BioItem -> BioItem
+saveItem item =
+    { item | state = Saving, error = Nothing }
+
+
+addError : String -> BioItem -> BioItem
+addError e item =
+    { item | state = Editing, error = Just e }
+
+
+valueSaved : BioItem -> BioItem
+valueSaved item =
+    { item | state = Viewing, oldValue = Nothing }
+
+
+saveItemApiRequest : String -> Dict String BioItem -> Api.UserAuth -> Cmd Msg
+saveItemApiRequest key items auth =
+    let
+        maybeItem =
+            Dict.get key items
+    in
+    case ( maybeItem, key ) of
+        ( Just item, "Name" ) ->
+            Api.changeName auth item.value (ItemSaved key)
+
+        ( Just item, "Bio" ) ->
+            Api.changeBio auth item.value (ItemSaved key)
+
+        ( Just item, "Least favorite color" ) ->
+            Api.changeLeastFavoriteColor auth item.value (ItemSaved key)
 
         _ ->
-            model
-
-
-updateState : EditingState -> Maybe BioItem -> Maybe BioItem
-updateState state =
-    Maybe.map (\i -> { i | state = state })
+            Cmd.none
 
 
 
@@ -306,7 +390,7 @@ editableLabel label state =
                 Editing ->
                     [ aboutEditButton "cancel" (Just <| CancelEditingItem label)
                     , text "|"
-                    , aboutEditButton "save" Nothing
+                    , aboutEditButton "save" (Just <| SaveItem label)
                     ]
 
                 Saving ->

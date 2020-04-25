@@ -428,11 +428,9 @@ updateSignupPage msg model data =
 
 updateProfilePage : Msg -> Model -> Profile.Model -> ( Model, Cmd Msg )
 updateProfilePage msg model data =
-    case msg of
-        ProfileMsg m ->
-            ( { model | page = Profile (Profile.update m data) }
-            , Cmd.none
-            )
+    case ( msg, model.profile ) of
+        ( ProfileMsg m, Just { auth } ) ->
+            handleProfileMsg m model data auth
 
         _ ->
             ( model, Cmd.none )
@@ -490,6 +488,17 @@ handleFeedMsg msg model data user auth =
     in
     ( { model | page = Home newFeed }
     , Cmd.map FeedMsg cmd
+    )
+
+
+handleProfileMsg : Profile.Msg -> Model -> Profile.Model -> Api.UserAuth -> ( Model, Cmd Msg )
+handleProfileMsg msg model data auth =
+    let
+        ( newData, cmd ) =
+            Profile.update msg data auth
+    in
+    ( { model | page = Profile newData }
+    , Cmd.map ProfileMsg cmd
     )
 
 

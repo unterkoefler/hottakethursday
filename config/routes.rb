@@ -11,6 +11,9 @@ Rails.application.routes.draw do
         get 'by_ids', to: 'me#by_ids'
         scope 'me' do
           post 'change_avatar', to: 'me#change_avatar'
+          post 'change_name', to: 'me#change_name'
+          post 'change_bio', to: 'me#change_bio'
+          post 'change_least_fav_color', to: 'me#change_least_fav_color'
         end
       end
 
