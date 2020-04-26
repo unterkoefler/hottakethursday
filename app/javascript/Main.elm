@@ -106,14 +106,6 @@ toRoute string =
 -- MODEL
 
 
-blankSignupData =
-    { name = ""
-    , username = ""
-    , email = ""
-    , birthday = ""
-    }
-
-
 type Page
     = Home Feed.Model
     | Login Login.Model
@@ -177,7 +169,7 @@ init flags url key =
             )
 
         SignupRoute ->
-            ( { model | page = Signup blankSignupData }
+            ( { model | page = Signup Signup.init }
             , Cmd.batch [ loadAuthCmd, setTimeZone ]
             )
 
@@ -338,7 +330,7 @@ handleUrlChange model url =
             ( { model | page = ForgotPassword }, Cmd.none )
 
         SignupRoute ->
-            ( { model | page = Signup blankSignupData }, Cmd.none )
+            ( { model | page = Signup Signup.init }, Cmd.none )
 
         ProfileRoute section ->
             case model.profile of
@@ -418,8 +410,12 @@ updateSignupPage : Msg -> Model -> Signup.Model -> ( Model, Cmd Msg )
 updateSignupPage msg model data =
     case msg of
         SignupMsg sm ->
-            ( { model | page = Signup (Signup.update sm data) }
-            , Cmd.none
+            let
+                ( newData, profile, cmd ) =
+                    Signup.update sm data model.navKey
+            in
+            ( { model | page = Signup newData, profile = profile }
+            , Cmd.map SignupMsg cmd
             )
 
         _ ->

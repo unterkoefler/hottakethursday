@@ -5,13 +5,14 @@ class RegistrationsController < Devise::RegistrationsController
   def create
     build_resource(sign_up_params)
     resource.save
+    sign_in resource
     render_resource(resource)
   end
 
   before_action :configure_sign_up_params, only: [:create]
 
   def configure_sign_up_params
-    devise_parameter_sanitizer.permit(:sign_up, keys: %i[email password])
+    devise_parameter_sanitizer.permit(:sign_up, keys: %i[email password full_name username])
   end
 
   private
