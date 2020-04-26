@@ -10,6 +10,8 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Element.Region as Region
+import File exposing (File)
+import File.Select as Select
 import Html.Attributes
 import Http
 import NavTabs exposing (navTab)
@@ -23,6 +25,7 @@ type alias Model =
     { items : Dict String BioItem
     , subject : User
     , section : Section
+    , error : Maybe String
     }
 
 
@@ -60,6 +63,7 @@ toModel section subject =
     { items = itemsFromUser subject
     , subject = subject
     , section = section
+    , error = Nothing
     }
 
 
@@ -86,6 +90,9 @@ type Msg
     | SaveItem BioItemKey
     | CancelEditingItem BioItemKey
     | ItemSaved BioItemKey (Result Http.Error User)
+    | ChangeProfileImage
+    | ProfileImageSelected File
+    | ProfileImageUpdated (Result Http.Error User)
 
 
 toSection : Maybe String -> Section
@@ -138,6 +145,30 @@ update msg model auth =
 
         ItemSaved key (Ok user) ->
             ( { model | items = updateDict key valueSaved model.items }
+            , Cmd.none
+            )
+
+        ChangeProfileImage ->
+            ( model
+            , Select.file [ "image/png", "image/jpg" ] ProfileImageSelected
+            )
+
+        ProfileImageSelected file ->
+            ( model
+            , Api.uploadProfileImage auth file ProfileImageUpdated
+            )
+
+        ProfileImageUpdated (Err e) ->
+            let
+                _ =
+                    Debug.log "Profile image failed to update" e
+            in
+            ( { model | error = Just "Failed to upload new profile" }
+            , Cmd.none
+            )
+
+        ProfileImageUpdated (Ok user) ->
+            ( { model | subject = user }
             , Cmd.none
             )
 
@@ -208,7 +239,7 @@ view model maybeUser =
                     user.id == model.subject.id
     in
     row [ spacing 36, width fill, height fill ]
-        [ aboutUser model.subject model.items ownProfile
+        [ aboutUser model.subject model.items ownProfile model.error
         , profileContent model.section
         ]
 
@@ -253,8 +284,8 @@ aboutUserContentWidth =
     300
 
 
-aboutUser : User -> Dict String BioItem -> Bool -> Element Msg
-aboutUser user items editable =
+aboutUser : User -> Dict String BioItem -> Bool -> Maybe String -> Element Msg
+aboutUser user items editable error =
     el
         [ Border.widthEach { left = 0, right = 1, top = 0, bottom = 0 }
         , Border.color Colors.lightGray
@@ -265,15 +296,29 @@ aboutUser user items editable =
             [ spacing 12
             , width (px aboutUserContentWidth)
             ]
-            ([ profilePicture user
+            ([ profilePicture user editable
+             , el [ centerX ] <| errorMsg error
              , el [ Region.heading 5, Font.size 24, centerX ] (text <| "@" ++ user.username)
              ]
                 ++ List.map (\( a, b ) -> aboutUserElem a b editable) (Dict.toList items)
             )
 
 
-profilePicture : User -> Element Msg
-profilePicture user =
+profilePicture : User -> Bool -> Element Msg
+profilePicture user editable =
+    if editable then
+        Input.button
+            [ centerX ]
+            { onPress = Just ChangeProfileImage
+            , label = profilePictureNoButton user
+            }
+
+    else
+        profilePictureNoButton user
+
+
+profilePictureNoButton : User -> Element Msg
+profilePictureNoButton user =
     let
         src_ =
             Maybe.withDefault "/assets/profilepic.jpg" user.avatarUrl
