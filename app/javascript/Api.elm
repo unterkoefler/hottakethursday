@@ -44,10 +44,11 @@ baseUrlComponents =
     [ "api", "v1" ]
 
 
-type alias RegistrationInfo a =
-    { a
-        | email : String
-        , password : String
+type alias RegistrationInfo =
+    { email : String
+    , password : String
+    , name : String
+    , username : String
     }
 
 
@@ -58,7 +59,7 @@ type alias LoginInfo a =
     }
 
 
-signUp : RegistrationInfo a -> (Result Http.Error () -> msg) -> Cmd msg
+signUp : RegistrationInfo -> (Result SignInError { user : User.User, auth : UserAuth } -> msg) -> Cmd msg
 signUp registrationInfo onFinish =
     let
         url =
@@ -70,12 +71,14 @@ signUp registrationInfo onFinish =
                   , Json.Encode.object
                         [ ( "email", Json.Encode.string registrationInfo.email )
                         , ( "password", Json.Encode.string registrationInfo.password )
+                        , ( "full_name", Json.Encode.string registrationInfo.name )
+                        , ( "username", Json.Encode.string registrationInfo.username )
                         ]
                   )
                 ]
 
         httpRequest =
-            Http.post { url = url, body = Http.jsonBody json, expect = Http.expectWhatever onFinish }
+            Http.post { url = url, body = Http.jsonBody json, expect = expectAuthHeader onFinish }
     in
     httpRequest
 
