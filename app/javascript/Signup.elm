@@ -4,6 +4,7 @@ import Api
 import Browser.Navigation as Nav
 import Colors
 import Data.User as User exposing (User)
+import Dict exposing (Dict)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -63,7 +64,7 @@ type Msg
     | EditBirthday String
     | EditPassword String
     | EditConfirmPassword String
-    | AttemptCompleted (Result Api.SignInError { user : User.User, auth : Api.UserAuth })
+    | AttemptCompleted (Result Api.FormError { user : User.User, auth : Api.UserAuth })
 
 
 update : Msg -> Model -> Nav.Key -> ( Model, Profile, Cmd Msg )
@@ -117,11 +118,46 @@ update msg model navKey =
                 ]
             )
 
-        AttemptCompleted (Err _) ->
-            ( { model | error = Just "Failed to create account. Make sure your username and email haven't been used before" }
+        AttemptCompleted (Err (Api.FieldError errors)) ->
+            let
+                _ =
+                    Debug.log "Error" e
+            in
+            ( addErrors model errors
             , Nothing
             , Cmd.none
             )
+
+        AttemptCompleted (Err _) ->
+            let
+                _ =
+                    Debug.log "Error" e
+            in
+            ( { model | error = Just "Oops. That didn't work" }
+            , Nothing
+            , Cmd.none
+            )
+
+
+addErrors : Model -> Dict String String -> Model
+addErrors model errors =
+    { model
+        | name = addErrorFromApi "name" model.name errors
+        , username = addErrorFromApi "username" model.username errors
+        , password = addErrorFromApi "password" model.password errors
+        , confirmPassword = addErrorFromApi "confirmPassword" model.confirmPassword errors
+        , email = addErrorFromApi "email" model.email errors
+        , birthday = addErrorFromApi "birthday" model.birthday errors
+    }
+
+
+addErrorFromApi : String -> Field -> Dict String String -> Field
+addErrorFromApi key field errors =
+    let
+        e =
+            Dict.get key errors
+    in
+    { field | error = e }
 
 
 handleSubmit : Model -> ( Model, Profile, Cmd Msg )
@@ -236,7 +272,9 @@ validate model =
 notBlank : Field -> ( Field, Bool )
 notBlank field =
     if field.value == "" then
-        addError field "This field is required"
+        ( { field | error = Just "This field is required" }
+        , False
+        )
 
     else
         ( field, True )
@@ -263,7 +301,9 @@ validateField check msg field =
         ( field, True )
 
     else
-        addError field msg
+        ( { field | error = Just msg }
+        , False
+        )
 
 
 composeValidateField v1 v2 field =
@@ -276,13 +316,6 @@ composeValidateField v1 v2 field =
 
     else
         ( f2, False )
-
-
-addError : Field -> String -> ( Field, Bool )
-addError f e =
-    ( { f | error = Just e }
-    , False
-    )
 
 
 validateName =
