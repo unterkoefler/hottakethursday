@@ -4,6 +4,7 @@ class RegistrationsController < Devise::RegistrationsController
 
   def create
     build_resource(sign_up_params)
+    resource.birthday = Date.strptime(sign_up_params[:birthday], '%m/%d/%Y')
     resource.save
     sign_in resource
     render_resource(resource)
@@ -12,7 +13,7 @@ class RegistrationsController < Devise::RegistrationsController
   before_action :configure_sign_up_params, only: [:create]
 
   def configure_sign_up_params
-    devise_parameter_sanitizer.permit(:sign_up, keys: %i[email password full_name username])
+    devise_parameter_sanitizer.permit(:sign_up, keys: %i[email password full_name username birthday])
   end
 
   private

@@ -179,6 +179,7 @@ data model =
     , password = model.password.value
     , email = model.email.value
     , username = model.username.value
+    , birthday = model.birthday.value
     }
 
 
@@ -274,7 +275,7 @@ view model =
         , Field.view (passwordInput "Password" EditPassword) model.password
         , Field.view (passwordInput "Confirm password" EditConfirmPassword) model.confirmPassword
         , Field.view (textInput "Username" EditUsername) model.username
-        , Field.view (textInput "Birthday" EditBirthday) model.birthday
+        , Field.view (textInput "Birthday (MM/DD/YYYY)" EditBirthday) model.birthday
         , Field.view tos model.agreedToTos
         , submitButton
         , Field.viewError model.error
@@ -291,8 +292,8 @@ tos val =
         , label =
             Input.labelRight
                 []
-                (link []
-                    { url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                (newTabLink []
+                    { url = "https://en.wikipedia.org/wiki/Echidna#Reproduction"
                     , label =
                         el [ Font.color Colors.link ] (text "I agree to the terms and conditions")
                     }

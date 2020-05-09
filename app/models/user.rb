@@ -15,9 +15,16 @@ class User < ApplicationRecord
             presence: true,
             allow_blank: false,
             format: { with: /\A[a-zA-Z0-9]+\z/ }
+  validates :birthday, presence: true
+  validate :must_be_old_enough
 
   # https://medium.com/@mazik.wyry/rails-5-api-jwt-setup-in-minutes-using-devise-71670fd4ed03
 
+  def must_be_old_enough
+    if birthday + 16.years > Date.today
+      errors.add :birthday, "Aren't you a bit young for this?"
+    end
+  end
 
   def fill_default_username!
     adjectives = %w[Pernicious Volatile Cuddly Ferocious Malignant Spicy Taken Ecstatic Sweet]

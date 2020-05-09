@@ -49,6 +49,7 @@ type alias RegistrationInfo =
     , password : String
     , name : String
     , username : String
+    , birthday : String
     }
 
 
@@ -73,6 +74,7 @@ signUp registrationInfo onFinish =
                         , ( "password", Json.Encode.string registrationInfo.password )
                         , ( "full_name", Json.Encode.string registrationInfo.name )
                         , ( "username", Json.Encode.string registrationInfo.username )
+                        , ( "birthday", Json.Encode.string registrationInfo.birthday )
                         ]
                   )
                 ]
