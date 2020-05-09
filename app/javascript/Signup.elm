@@ -1,6 +1,7 @@
 module Signup exposing (Model, Msg, init, update, view)
 
 import Api
+import Birthday
 import Browser.Navigation as Nav
 import Colors
 import Data.User as User exposing (User)
@@ -11,6 +12,7 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Element.Region as Region
+import Field exposing (Field, addErrorFromApi, composeValidateField, notBlank, updateValue)
 import Http
 import Ports
 
@@ -27,12 +29,6 @@ type alias Model =
     , confirmPassword : Field String
     , birthday : Field String
     , agreedToTos : Field Bool
-    , error : Maybe String
-    }
-
-
-type alias Field a =
-    { value : a
     , error : Maybe String
     }
 
@@ -107,7 +103,7 @@ update msg model navKey =
             )
 
         EditBirthday newBday ->
-            ( { model | birthday = handleBirthdayInput model.birthday newBday }
+            ( { model | birthday = Birthday.handleInput model.birthday newBday }
             , Nothing
             , Cmd.none
             )
@@ -161,15 +157,6 @@ addErrors model errors =
     }
 
 
-addErrorFromApi : String -> Field a -> Dict String String -> Field a
-addErrorFromApi key field errors =
-    let
-        e =
-            Dict.get key errors
-    in
-    { field | error = e }
-
-
 handleSubmit : Model -> ( Model, Profile, Cmd Msg )
 handleSubmit model =
     let
@@ -195,54 +182,6 @@ data model =
     }
 
 
-updateValue : a -> Field a -> Field a
-updateValue val field =
-    { field | value = val, error = Nothing }
-
-
-handleBirthdayInput : Field String -> String -> Field String
-handleBirthdayInput prev new =
-    if String.length prev.value < String.length new then
-        if String.length new == 1 then
-            if new == "0" || new == "1" then
-                { prev | value = new, error = Nothing }
-
-            else
-                { prev | value = "0" ++ new ++ "/", error = Nothing }
-
-        else if String.length new == 2 then
-            case String.toInt new of
-                Just _ ->
-                    { prev | value = new ++ "/", error = Nothing }
-
-                Nothing ->
-                    { prev | value = new, error = Nothing }
-
-        else if String.right 2 new == "//" then
-            { prev | value = String.dropRight 1 new, error = Nothing }
-
-        else if String.length new == 5 then
-            case String.toInt <| String.right 2 new of
-                Just _ ->
-                    { prev | value = new ++ "/", error = Nothing }
-
-                Nothing ->
-                    if
-                        (String.right 1 new == "/")
-                            && (String.toInt (String.slice 3 4 new) /= Nothing)
-                    then
-                        { prev | value = String.slice 0 3 new ++ "0" ++ String.slice 3 4 new ++ "/", error = Nothing }
-
-                    else
-                        { prev | value = new, error = Nothing }
-
-        else
-            { prev | value = new, error = Nothing }
-
-    else
-        { prev | value = new, error = Nothing }
-
-
 validate : Model -> ( Model, Bool )
 validate model =
     let
@@ -262,7 +201,7 @@ validate model =
             validateUsername model.username
 
         ( birthday, birthdayValid ) =
-            validateBirthday model.birthday
+            Birthday.validate model.birthday
 
         ( agreedToTos, tosValid ) =
             validateTos model.agreedToTos
@@ -283,17 +222,6 @@ validate model =
     )
 
 
-notBlank : Field String -> ( Field String, Bool )
-notBlank field =
-    if field.value == "" then
-        ( { field | error = Just "This field is required" }
-        , False
-        )
-
-    else
-        ( field, True )
-
-
 validateTos : Field Bool -> ( Field Bool, Bool )
 validateTos field =
     if field.value then
@@ -307,40 +235,17 @@ validateTos field =
 
 validateEmail : Field String -> ( Field String, Bool )
 validateEmail =
-    validateField (\f -> String.contains "@" f.value) "You're missing an @"
+    Field.validate (\f -> String.contains "@" f.value) "You're missing an @"
 
 
 validatePassword : Field String -> ( Field String, Bool )
 validatePassword =
-    validateField (\f -> String.length f.value > 7) "Little bit longer"
+    Field.validate (\f -> String.length f.value > 7) "Little bit longer"
 
 
 validateConfirmPassword : String -> Field String -> ( Field String, Bool )
 validateConfirmPassword pw =
-    validateField (\f -> f.value == pw) "Passwords do not match"
-
-
-validateField : (Field a -> Bool) -> String -> Field a -> ( Field a, Bool )
-validateField check msg field =
-    if check field then
-        ( field, True )
-
-    else
-        ( { field | error = Just msg }
-        , False
-        )
-
-
-composeValidateField v1 v2 field =
-    let
-        ( f2, valid ) =
-            v1 field
-    in
-    if valid then
-        v2 field
-
-    else
-        ( f2, False )
+    Field.validate (\f -> f.value == pw) "Passwords do not match"
 
 
 validateName =
@@ -349,212 +254,6 @@ validateName =
 
 validateUsername =
     notBlank
-
-
-validateBirthday : Field String -> ( Field String, Bool )
-validateBirthday =
-    composeValidateField
-        (composeValidateField notBlank checkLength)
-        checkParts
-
-
-checkLength : Field String -> ( Field String, Bool )
-checkLength bday =
-    case compare (String.length bday.value) 10 of
-        LT ->
-            ( { bday | error = Just "You're missing something" }
-            , False
-            )
-
-        EQ ->
-            ( bday, True )
-
-        GT ->
-            ( { bday | error = Just "Too many characters" }
-            , False
-            )
-
-
-checkParts : Field String -> ( Field String, Bool )
-checkParts bday =
-    let
-        parts =
-            String.split "/" bday.value
-    in
-    case parts of
-        [ month, day, year ] ->
-            let
-                ( err, valid ) =
-                    validateParts month day year
-            in
-            ( { bday | error = err }, valid )
-
-        _ ->
-            ( { bday | error = Just "That's not the right format" }
-            , False
-            )
-
-
-validateParts : String -> String -> String -> ( Maybe String, Bool )
-validateParts month day year =
-    let
-        ( monthErr, monthValid, monthVal ) =
-            validateMonth month
-    in
-    if monthValid then
-        let
-            ( dayErr, dayValid, dayVal ) =
-                validateDay monthVal day
-        in
-        if dayValid then
-            validateYear monthVal dayVal year
-
-        else
-            ( dayErr, False )
-
-    else
-        ( monthErr, False )
-
-
-validateDay : Int -> String -> ( Maybe String, Bool, Int )
-validateDay month day =
-    let
-        maxDays =
-            maxDaysInMonth month
-    in
-    composeValidatePart
-        (checkPartLength "day" 2)
-        (inRange "Days should be positive" "There aren't that many days in that month" 1 maxDays)
-        day
-
-
-maxDaysInMonth : Int -> Int
-maxDaysInMonth m =
-    case m of
-        1 ->
-            31
-
-        2 ->
-            29
-
-        3 ->
-            31
-
-        4 ->
-            30
-
-        5 ->
-            31
-
-        6 ->
-            30
-
-        7 ->
-            31
-
-        8 ->
-            31
-
-        9 ->
-            30
-
-        10 ->
-            31
-
-        11 ->
-            30
-
-        12 ->
-            31
-
-        _ ->
-            31
-
-
-validateYear : Int -> Int -> String -> ( Maybe String, Bool )
-validateYear month day year =
-    let
-        ( err, valid, yearVal ) =
-            composeValidatePart (checkPartLength "year" 4)
-                (inRange "We don't like people that old" "You're too young for these takes" 1900 2004)
-                year
-    in
-    if valid then
-        case ( month, day, modBy 4 yearVal ) of
-            ( 2, 29, 0 ) ->
-                ( Nothing, True )
-
-            ( 2, 29, _ ) ->
-                ( Just "Oops. That wasn't a leap year", False )
-
-            _ ->
-                ( Nothing, True )
-
-    else
-        ( err, False )
-
-
-validateMonth : String -> ( Maybe String, Bool, Int )
-validateMonth =
-    composeValidatePart
-        (checkPartLength "month" 2)
-        (inRange "Months should be postive" "There are only 12 months, for now..." 1 12)
-
-
-checkPartLength : String -> Int -> String -> ( Maybe String, Bool, Int )
-checkPartLength partName l part =
-    case compare (String.length part) l of
-        LT ->
-            ( Just <| "Missing some characters for the " ++ partName
-            , False
-            , 0
-            )
-
-        GT ->
-            ( Just <| "Your " ++ partName ++ " is too long"
-            , False
-            , 0
-            )
-
-        EQ ->
-            ( Nothing, True, 0 )
-
-
-inRange : String -> String -> Int -> Int -> String -> ( Maybe String, Bool, Int )
-inRange tooSmallErr tooBigErr min max part =
-    case String.toInt part of
-        Just val ->
-            case ( compare val min, compare val max ) of
-                ( LT, _ ) ->
-                    ( Just tooSmallErr
-                    , False
-                    , 0
-                    )
-
-                ( _, GT ) ->
-                    ( Just tooBigErr
-                    , False
-                    , 0
-                    )
-
-                _ ->
-                    ( Nothing, True, val )
-
-        Nothing ->
-            ( Just <| "Please use numbers", False, 0 )
-
-
-composeValidatePart : (String -> ( Maybe String, Bool, Int )) -> (String -> ( Maybe String, Bool, Int )) -> String -> ( Maybe String, Bool, Int )
-composeValidatePart v1 v2 part =
-    let
-        ( f2, valid, _ ) =
-            v1 part
-    in
-    if valid then
-        v2 part
-
-    else
-        ( f2, False, 0 )
 
 
 
@@ -570,69 +269,43 @@ view model =
         ]
         [ el [ Region.heading 2, Font.size 36, Font.color Colors.secondary ] (text "Create Your Account")
         , paragraph [ Font.size 16 ] [ text "Feed us your data" ]
-        , inputWithLabelAndError "Name" model.name EditName
-        , inputWithLabelAndError "Email" model.email EditEmail
-        , passwordWithLabelAndError "Password" model.password EditPassword
-        , passwordWithLabelAndError "Confirm password" model.confirmPassword EditConfirmPassword
-        , inputWithLabelAndError "Username" model.username EditUsername
-        , inputWithLabelAndError "Birthday (MM/DD/YYY)" model.birthday EditBirthday
-        , tos model.agreedToTos
+        , Field.view (textInput "Name" EditName) model.name
+        , Field.view (textInput "Email" EditEmail) model.email
+        , Field.view (passwordInput "Password" EditPassword) model.password
+        , Field.view (passwordInput "Confirm password" EditConfirmPassword) model.confirmPassword
+        , Field.view (textInput "Username" EditUsername) model.username
+        , Field.view (textInput "Birthday" EditBirthday) model.birthday
+        , Field.view tos model.agreedToTos
         , submitButton
-        , errorMsg model.error
+        , Field.viewError model.error
         ]
 
 
-inputWithLabelAndError : String -> Field String -> (String -> Msg) -> Element Msg
-inputWithLabelAndError lbl field msg =
-    let
-        input =
-            inputWithLabel lbl field.value msg
-
-        error =
-            errorMsg field.error
-    in
-    column [ spacing 5 ]
-        [ input, error ]
-
-
-tos : Field Bool -> Element Msg
-tos field =
-    column [ spacing 5 ]
-        [ Input.checkbox
-            []
-            { onChange = AgreedToTos
-            , icon = Input.defaultCheckbox
-            , checked = field.value
-            , label =
-                Input.labelRight
-                    []
-                    (link []
-                        { url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-                        , label =
-                            el [ Font.color Colors.link ] (text "I agree to the terms and conditions")
-                        }
-                    )
-            }
-        , errorMsg field.error
-        ]
-
-
-errorMsg : Maybe String -> Element Msg
-errorMsg error =
-    case error of
-        Just e ->
-            el [ Font.color Colors.primary ] <| text e
-
-        Nothing ->
-            Element.none
+tos : Bool -> Element Msg
+tos val =
+    Input.checkbox
+        []
+        { onChange = AgreedToTos
+        , icon = Input.defaultCheckbox
+        , checked = val
+        , label =
+            Input.labelRight
+                []
+                (link []
+                    { url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                    , label =
+                        el [ Font.color Colors.link ] (text "I agree to the terms and conditions")
+                    }
+                )
+        }
 
 
 inputWidth =
     350
 
 
-inputWithLabel : String -> String -> (String -> Msg) -> Element Msg
-inputWithLabel lbl val msg =
+textInput : String -> (String -> Msg) -> String -> Element Msg
+textInput lbl msg val =
     Input.text
         [ width <| px inputWidth ]
         { onChange = msg
@@ -642,21 +315,8 @@ inputWithLabel lbl val msg =
         }
 
 
-passwordWithLabelAndError : String -> Field String -> (String -> Msg) -> Element Msg
-passwordWithLabelAndError lbl field msg =
-    let
-        pw =
-            passwordWithLabel lbl field.value msg
-
-        error =
-            errorMsg field.error
-    in
-    column [ spacing 5 ]
-        [ pw, error ]
-
-
-passwordWithLabel : String -> String -> (String -> Msg) -> Element Msg
-passwordWithLabel lbl val msg =
+passwordInput : String -> (String -> Msg) -> String -> Element Msg
+passwordInput lbl msg val =
     Input.newPassword
         [ width <| px inputWidth ]
         { onChange = msg
