@@ -5,7 +5,7 @@ class TakeController < ApplicationController
 
   before_action :confirm_thursday!
   def confirm_thursday!
-    unless TakeHelper.thursday?(Time.now) || Rails.env == 'development'
+    unless TakeHelper.thursday? || Rails.env == 'development'
       render json: 'ITS NOT THURSDAY'
     end
   end
@@ -14,7 +14,7 @@ class TakeController < ApplicationController
     now = Time.now
     render json: Take
       .where(created_at: (now - 27.hours)..(now + 3.hours)) # bit of leeway
-      .sort_by { |t| -t.created_at.to_i }
+      .order(created_at: :desc)
   end
 
   def create
