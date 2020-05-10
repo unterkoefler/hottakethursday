@@ -4,6 +4,7 @@ Rails.application.routes.draw do
     scope :v1, defaults: { format: :json } do
       devise_for :users,
                  controllers: { sessions: 'sessions',
+                                confirmations: 'confirmations',
                                 registrations: 'registrations' }
       scope :users do
         get 'me', to: 'me#me'
