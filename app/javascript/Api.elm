@@ -8,6 +8,7 @@ module Api exposing
     , changeBio
     , changeLeastFavoriteColor
     , changeName
+    , deleteAccount
     , deleteTake
     , encodeUserAuth
     , like
@@ -384,6 +385,26 @@ unlike (BearerToken token) takeId onFinish =
                 , headers = [ Http.header "authorization" token ]
                 , url = url
                 , body = Http.jsonBody (Json.Encode.object [ ( "take_id", Json.Encode.int takeId ) ])
+                , expect = Http.expectWhatever onFinish
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+    in
+    httpRequest
+
+
+deleteAccount : UserAuth -> (Result Http.Error () -> msg) -> Cmd msg
+deleteAccount (BearerToken token) onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "users", "me", "delete_account" ]) []
+
+        httpRequest =
+            Http.request
+                { method = "POST"
+                , headers = [ Http.header "authorization" token ]
+                , url = url
+                , body = Http.emptyBody
                 , expect = Http.expectWhatever onFinish
                 , timeout = Nothing
                 , tracker = Nothing
