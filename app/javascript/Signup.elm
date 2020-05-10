@@ -1,15 +1,18 @@
 module Signup exposing (Model, Msg, init, update, view)
 
 import Api
+import Birthday
 import Browser.Navigation as Nav
 import Colors
 import Data.User as User exposing (User)
+import Dict exposing (Dict)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Element.Region as Region
+import Field exposing (Field, addErrorFromApi, composeValidateField, notBlank, updateValue)
 import Http
 import Ports
 
@@ -19,18 +22,13 @@ import Ports
 
 
 type alias Model =
-    { name : Field
-    , username : Field
-    , email : Field
-    , password : Field
-    , confirmPassword : Field
-    , birthday : Field
-    , error : Maybe String
-    }
-
-
-type alias Field =
-    { value : String
+    { name : Field String
+    , username : Field String
+    , email : Field String
+    , password : Field String
+    , confirmPassword : Field String
+    , birthday : Field String
+    , agreedToTos : Field Bool
     , error : Maybe String
     }
 
@@ -47,6 +45,7 @@ init =
     , password = Field "" Nothing
     , confirmPassword = Field "" Nothing
     , birthday = Field "" Nothing
+    , agreedToTos = Field False Nothing
     , error = Nothing
     }
 
@@ -63,7 +62,8 @@ type Msg
     | EditBirthday String
     | EditPassword String
     | EditConfirmPassword String
-    | AttemptCompleted (Result Api.SignInError { user : User.User, auth : Api.UserAuth })
+    | AgreedToTos Bool
+    | AttemptCompleted (Result Api.FormError { user : User.User, auth : Api.UserAuth })
 
 
 update : Msg -> Model -> Nav.Key -> ( Model, Profile, Cmd Msg )
@@ -103,7 +103,13 @@ update msg model navKey =
             )
 
         EditBirthday newBday ->
-            ( { model | birthday = handleBirthdayInput model.birthday newBday }
+            ( { model | birthday = Birthday.handleInput model.birthday newBday }
+            , Nothing
+            , Cmd.none
+            )
+
+        AgreedToTos val ->
+            ( { model | agreedToTos = Field val Nothing }
             , Nothing
             , Cmd.none
             )
@@ -117,11 +123,38 @@ update msg model navKey =
                 ]
             )
 
-        AttemptCompleted (Err _) ->
-            ( { model | error = Just "Failed to create account. Make sure your username and email haven't been used before" }
+        AttemptCompleted (Err (Api.FieldError errors)) ->
+            let
+                _ =
+                    Debug.log "Error" e
+            in
+            ( addErrors model errors
             , Nothing
             , Cmd.none
             )
+
+        AttemptCompleted (Err _) ->
+            let
+                _ =
+                    Debug.log "Error" e
+            in
+            ( { model | error = Just "Oops. That didn't work" }
+            , Nothing
+            , Cmd.none
+            )
+
+
+addErrors : Model -> Dict String String -> Model
+addErrors model errors =
+    { model
+        | name = addErrorFromApi "name" model.name errors
+        , username = addErrorFromApi "username" model.username errors
+        , password = addErrorFromApi "password" model.password errors
+        , confirmPassword = addErrorFromApi "confirmPassword" model.confirmPassword errors
+        , email = addErrorFromApi "email" model.email errors
+        , birthday = addErrorFromApi "birthday" model.birthday errors
+        , agreedToTos = addErrorFromApi "agreedToTos" model.agreedToTos errors
+    }
 
 
 handleSubmit : Model -> ( Model, Profile, Cmd Msg )
@@ -146,55 +179,8 @@ data model =
     , password = model.password.value
     , email = model.email.value
     , username = model.username.value
+    , birthday = model.birthday.value
     }
-
-
-updateValue : String -> Field -> Field
-updateValue val field =
-    { field | value = val, error = Nothing }
-
-
-handleBirthdayInput : Field -> String -> Field
-handleBirthdayInput prev new =
-    if String.length prev.value < String.length new then
-        if String.length new == 1 then
-            if new == "0" || new == "1" then
-                { prev | value = new, error = Nothing }
-
-            else
-                { prev | value = "0" ++ new ++ "/", error = Nothing }
-
-        else if String.length new == 2 then
-            case String.toInt new of
-                Just _ ->
-                    { prev | value = new ++ "/", error = Nothing }
-
-                Nothing ->
-                    { prev | value = new, error = Nothing }
-
-        else if String.right 2 new == "//" then
-            { prev | value = String.dropRight 1 new, error = Nothing }
-
-        else if String.length new == 5 then
-            case String.toInt <| String.right 2 new of
-                Just _ ->
-                    { prev | value = new ++ "/", error = Nothing }
-
-                Nothing ->
-                    if
-                        (String.right 1 new == "/")
-                            && (String.toInt (String.slice 3 4 new) /= Nothing)
-                    then
-                        { prev | value = String.slice 0 3 new ++ "0" ++ String.slice 3 4 new ++ "/", error = Nothing }
-
-                    else
-                        { prev | value = new, error = Nothing }
-
-        else
-            { prev | value = new, error = Nothing }
-
-    else
-        { prev | value = new, error = Nothing }
 
 
 validate : Model -> ( Model, Bool )
@@ -216,10 +202,13 @@ validate model =
             validateUsername model.username
 
         ( birthday, birthdayValid ) =
-            validateBirthday model.birthday
+            Birthday.validate model.birthday
+
+        ( agreedToTos, tosValid ) =
+            validateTos model.agreedToTos
 
         checks =
-            [ nameValid, emailValid, passwordValid, confirmPasswordValid, usernameValid, birthdayValid ]
+            [ nameValid, emailValid, passwordValid, confirmPasswordValid, usernameValid, birthdayValid, tosValid ]
     in
     ( { name = name
       , email = email
@@ -227,62 +216,37 @@ validate model =
       , confirmPassword = confirmPassword
       , username = username
       , birthday = birthday
+      , agreedToTos = agreedToTos
       , error = model.error
       }
     , List.foldl (&&) True checks
     )
 
 
-notBlank : Field -> ( Field, Bool )
-notBlank field =
-    if field.value == "" then
-        addError field "This field is required"
-
-    else
+validateTos : Field Bool -> ( Field Bool, Bool )
+validateTos field =
+    if field.value then
         ( field, True )
 
+    else
+        ( { field | error = Just "Our lawyers want you to check this box" }
+        , False
+        )
 
-validateEmail : Field -> ( Field, Bool )
+
+validateEmail : Field String -> ( Field String, Bool )
 validateEmail =
-    validateField (\f -> String.contains "@" f.value) "You're missing an @"
+    Field.validate (\f -> String.contains "@" f.value) "You're missing an @"
 
 
-validatePassword : Field -> ( Field, Bool )
+validatePassword : Field String -> ( Field String, Bool )
 validatePassword =
-    validateField (\f -> String.length f.value > 7) "Little bit longer"
+    Field.validate (\f -> String.length f.value > 7) "Little bit longer"
 
 
-validateConfirmPassword : String -> Field -> ( Field, Bool )
+validateConfirmPassword : String -> Field String -> ( Field String, Bool )
 validateConfirmPassword pw =
-    validateField (\f -> f.value == pw) "Passwords do not match"
-
-
-validateField : (Field -> Bool) -> String -> Field -> ( Field, Bool )
-validateField check msg field =
-    if check field then
-        ( field, True )
-
-    else
-        addError field msg
-
-
-composeValidateField v1 v2 field =
-    let
-        ( f2, valid ) =
-            v1 field
-    in
-    if valid then
-        v2 field
-
-    else
-        ( f2, False )
-
-
-addError : Field -> String -> ( Field, Bool )
-addError f e =
-    ( { f | error = Just e }
-    , False
-    )
+    Field.validate (\f -> f.value == pw) "Passwords do not match"
 
 
 validateName =
@@ -290,10 +254,6 @@ validateName =
 
 
 validateUsername =
-    notBlank
-
-
-validateBirthday =
     notBlank
 
 
@@ -310,44 +270,45 @@ view model =
         ]
         [ el [ Region.heading 2, Font.size 36, Font.color Colors.secondary ] (text "Create Your Account")
         , paragraph [ Font.size 16 ] [ text "Feed us your data" ]
-        , inputWithLabelAndError "Name" model.name EditName
-        , inputWithLabelAndError "Email" model.email EditEmail
-        , passwordWithLabelAndError "Password" model.password EditPassword
-        , passwordWithLabelAndError "Confirm password" model.confirmPassword EditConfirmPassword
-        , inputWithLabelAndError "Username" model.username EditUsername
-        , inputWithLabelAndError "Birthday (MM/DD/YYY)" model.birthday EditBirthday
+        , Field.view (textInput "Name" EditName) model.name
+        , Field.view (textInput "Email" EditEmail) model.email
+        , Field.view (passwordInput "Password" EditPassword) model.password
+        , Field.view (passwordInput "Confirm password" EditConfirmPassword) model.confirmPassword
+        , Field.view (textInput "Username" EditUsername) model.username
+        , Field.view (textInput "Birthday (MM/DD/YYYY)" EditBirthday) model.birthday
+        , Field.view tos model.agreedToTos
         , submitButton
-        , errorMsg model.error
+        , Field.viewError model.error
         ]
 
 
-inputWithLabelAndError : String -> Field -> (String -> Msg) -> Element Msg
-inputWithLabelAndError lbl field msg =
-    let
-        input =
-            inputWithLabel lbl field.value msg
-
-        error =
-            errorMsg field.error
-    in
-    column [ spacing 5 ]
-        [ input, error ]
-
-
-errorMsg : Maybe String -> Element Msg
-errorMsg error =
-    case error of
-        Just e ->
-            el [ Font.color Colors.primary ] <| text e
-
-        Nothing ->
-            Element.none
+tos : Bool -> Element Msg
+tos val =
+    Input.checkbox
+        []
+        { onChange = AgreedToTos
+        , icon = Input.defaultCheckbox
+        , checked = val
+        , label =
+            Input.labelRight
+                []
+                (newTabLink []
+                    { url = "https://en.wikipedia.org/wiki/Echidna#Reproduction"
+                    , label =
+                        el [ Font.color Colors.link ] (text "I agree to the terms and conditions")
+                    }
+                )
+        }
 
 
-inputWithLabel : String -> String -> (String -> Msg) -> Element Msg
-inputWithLabel lbl val msg =
+inputWidth =
+    350
+
+
+textInput : String -> (String -> Msg) -> String -> Element Msg
+textInput lbl msg val =
     Input.text
-        [ width <| (fill |> maximum 300) ]
+        [ width <| px inputWidth ]
         { onChange = msg
         , text = val
         , placeholder = Nothing
@@ -355,23 +316,10 @@ inputWithLabel lbl val msg =
         }
 
 
-passwordWithLabelAndError : String -> Field -> (String -> Msg) -> Element Msg
-passwordWithLabelAndError lbl field msg =
-    let
-        pw =
-            passwordWithLabel lbl field.value msg
-
-        error =
-            errorMsg field.error
-    in
-    column [ spacing 5 ]
-        [ pw, error ]
-
-
-passwordWithLabel : String -> String -> (String -> Msg) -> Element Msg
-passwordWithLabel lbl val msg =
+passwordInput : String -> (String -> Msg) -> String -> Element Msg
+passwordInput lbl msg val =
     Input.newPassword
-        [ width <| (fill |> maximum 300) ]
+        [ width <| px inputWidth ]
         { onChange = msg
         , text = val
         , placeholder = Nothing

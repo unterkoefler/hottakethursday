@@ -49,7 +49,7 @@ type Msg
     = Submit
     | EmailChanged String
     | PasswordChanged String
-    | AttemptCompleted (Result Api.SignInError { user : User.User, auth : Api.UserAuth })
+    | AttemptCompleted (Result Api.FormError { user : User.User, auth : Api.UserAuth })
 
 
 update : Msg -> Model -> Nav.Key -> ( Model, Profile, Cmd Msg )

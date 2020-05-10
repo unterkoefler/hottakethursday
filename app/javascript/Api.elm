@@ -1,8 +1,8 @@
 module Api exposing
-    ( LoginInfo
+    ( FormError(..)
+    , LoginInfo
     , RegistrationInfo
     , SavedUserAuthError(..)
-    , SignInError(..)
     , UserAuth
     , allTakesFromToday
     , changeBio
@@ -25,7 +25,7 @@ module Api exposing
 
 import Data.Take as Take
 import Data.User as User
-import Dict
+import Dict exposing (Dict)
 import File
 import Http
 import Json.Decode
@@ -49,6 +49,7 @@ type alias RegistrationInfo =
     , password : String
     , name : String
     , username : String
+    , birthday : String
     }
 
 
@@ -59,7 +60,7 @@ type alias LoginInfo a =
     }
 
 
-signUp : RegistrationInfo -> (Result SignInError { user : User.User, auth : UserAuth } -> msg) -> Cmd msg
+signUp : RegistrationInfo -> (Result FormError { user : User.User, auth : UserAuth } -> msg) -> Cmd msg
 signUp registrationInfo onFinish =
     let
         url =
@@ -73,24 +74,26 @@ signUp registrationInfo onFinish =
                         , ( "password", Json.Encode.string registrationInfo.password )
                         , ( "full_name", Json.Encode.string registrationInfo.name )
                         , ( "username", Json.Encode.string registrationInfo.username )
+                        , ( "birthday", Json.Encode.string registrationInfo.birthday )
                         ]
                   )
                 ]
 
         httpRequest =
-            Http.post { url = url, body = Http.jsonBody json, expect = expectAuthHeader onFinish }
+            Http.post { url = url, body = Http.jsonBody json, expect = expectAuthHeader signupFieldError onFinish }
     in
     httpRequest
 
 
-type SignInError
+type FormError
     = HttpError Http.Error
+    | FieldError (Dict String String)
     | InvalidUserReturned Json.Decode.Error
     | NoAuthToken
 
 
-expectAuthHeader : (Result SignInError { user : User.User, auth : UserAuth } -> msg) -> Http.Expect msg
-expectAuthHeader toMsg =
+expectAuthHeader : (Http.Metadata -> String -> Result FormError { user : User.User, auth : UserAuth }) -> (Result FormError { user : User.User, auth : UserAuth } -> msg) -> Http.Expect msg
+expectAuthHeader handleBadStatus toMsg =
     Http.expectStringResponse toMsg <|
         \response ->
             case response of
@@ -103,8 +106,8 @@ expectAuthHeader toMsg =
                 Http.NetworkError_ ->
                     Err (HttpError <| Http.NetworkError)
 
-                Http.BadStatus_ metadata _ ->
-                    Err (HttpError <| Http.BadStatus metadata.statusCode)
+                Http.BadStatus_ metadata data ->
+                    handleBadStatus metadata data
 
                 Http.GoodStatus_ metadata body ->
                     case
@@ -122,7 +125,42 @@ expectAuthHeader toMsg =
                             Err (InvalidUserReturned err)
 
 
-signIn : LoginInfo a -> (Result SignInError { user : User.User, auth : UserAuth } -> msg) -> Cmd msg
+justStatusCode : Http.Metadata -> String -> Result FormError a
+justStatusCode metadata _ =
+    Err (HttpError <| Http.BadStatus metadata.statusCode)
+
+
+signupFieldError : Http.Metadata -> String -> Result FormError a
+signupFieldError metadata body =
+    case metadata.statusCode of
+        400 ->
+            let
+                _ =
+                    Debug.log "body" body
+            in
+            case Json.Decode.decodeString errorDecoder body of
+                Ok e ->
+                    Err e
+
+                Err _ ->
+                    justStatusCode metadata body
+
+        _ ->
+            justStatusCode metadata body
+
+
+errorDecoder : Json.Decode.Decoder FormError
+errorDecoder =
+    Json.Decode.map FieldError <|
+        Json.Decode.field "errors" <|
+            Json.Decode.index 0 <|
+                Json.Decode.field "detail" <|
+                    Json.Decode.dict <|
+                        Json.Decode.index 0 <|
+                            Json.Decode.string
+
+
+signIn : LoginInfo a -> (Result FormError { user : User.User, auth : UserAuth } -> msg) -> Cmd msg
 signIn loginInfo onFinish =
     let
         url =
@@ -142,7 +180,7 @@ signIn loginInfo onFinish =
             Http.post
                 { url = url
                 , body = Http.jsonBody json
-                , expect = expectAuthHeader onFinish
+                , expect = expectAuthHeader justStatusCode onFinish
                 }
     in
     httpRequest
