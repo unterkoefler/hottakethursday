@@ -8,6 +8,7 @@ import Colors
 import Data.Take
 import Data.User as User exposing (User)
 import Debug
+import DeleteAccount
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -78,6 +79,7 @@ type Route
     | ForgotPasswordRoute
     | SignupRoute
     | ProfileRoute Profile.Section
+    | DeleteAccountRoute
     | NotFound
 
 
@@ -89,6 +91,7 @@ routeParser =
         , Parser.map ForgotPasswordRoute (Parser.s "forgot-password")
         , Parser.map SignupRoute (Parser.s "signup")
         , Parser.map ProfileRoute (Parser.s "profile" </> Parser.fragment Profile.toSection)
+        , Parser.map DeleteAccountRoute (Parser.s "delete-account")
         ]
 
 
@@ -114,6 +117,7 @@ type Page
     | Profile Profile.Model
     | Loading Url.Url
     | Forbidden
+    | DeleteAccount DeleteAccount.Model
 
 
 type alias Model =
@@ -199,8 +203,13 @@ init flags url key =
             , Cmd.batch [ loadAuthCmd, setTimeZone ]
             )
 
-        _ ->
-            ( model, Cmd.batch [ loadAuthCmd, setTimeZone ] )
+        DeleteAccountRoute ->
+            ( { model | page = DeleteAccount DeleteAccount.init }
+            , Cmd.batch [ loadAuthCmd, setTimeZone ]
+            )
+
+        NotFound ->
+            ( model, Cmd.none )
 
 
 
@@ -212,6 +221,7 @@ type Msg
     | ProfileMsg Profile.Msg
     | LoginMsg Login.Msg
     | SignupMsg Signup.Msg
+    | DeleteAccountMsg DeleteAccount.Msg
     | FeedLoaded (Result Http.Error (List Data.Take.Take))
     | AdjustTimeZone Time.Zone
     | Tick Time.Posix
@@ -340,6 +350,9 @@ handleUrlChange model url =
                 Nothing ->
                     ( model, Cmd.none )
 
+        DeleteAccountRoute ->
+            ( { model | page = DeleteAccount DeleteAccount.init }, Cmd.none )
+
         NotFound ->
             ( model, Cmd.none )
 
@@ -389,6 +402,9 @@ updatePage msg model =
         Forbidden ->
             ( model, Cmd.none )
 
+        DeleteAccount data ->
+            updateDeleteAccountPage msg model data
+
 
 updateLoginPage : Msg -> Model -> Login.Model -> ( Model, Cmd Msg )
 updateLoginPage msg model data =
@@ -400,6 +416,22 @@ updateLoginPage msg model data =
             in
             ( { model | page = Login newData, profile = profile }
             , Cmd.map LoginMsg cmd
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+updateDeleteAccountPage : Msg -> Model -> DeleteAccount.Model -> ( Model, Cmd Msg )
+updateDeleteAccountPage msg model data =
+    case msg of
+        DeleteAccountMsg m ->
+            let
+                ( newData, cmd ) =
+                    DeleteAccount.update m data model.profile
+            in
+            ( { model | page = DeleteAccount newData }
+            , Cmd.map DeleteAccountMsg cmd
             )
 
         _ ->
@@ -675,31 +707,34 @@ navLinks page profile =
             case profile of
                 Just { user } ->
                     [ notificationsLink
-                    , navItem "Profile" "profile" ""
-                    , navItem "Delete Account" "#" ""
+                    , navItem "Profile" "profile"
+                    , navItem "Delete Account" "delete-account"
                     , logoutButton
                     ]
 
                 Nothing ->
-                    [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
+                    [ navItem "Login" "login", navItem "Sign Up" "signup" ]
 
         Login _ ->
-            [ navItem "Sign Up" "signup" "" ]
+            [ navItem "Sign Up" "signup" ]
 
         ForgotPassword ->
-            [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
+            [ navItem "Login" "login", navItem "Sign Up" "signup" ]
 
         Signup _ ->
-            [ navItem "Login" "login" "" ]
+            [ navItem "Login" "login" ]
 
         Profile _ ->
-            [ logoutButton, navItem "Delete Account" "" "" ]
+            [ logoutButton, navItem "Delete Account" "delete-account" ]
 
         Loading _ ->
             []
 
         Forbidden ->
-            [ navItem "Login" "login" "", navItem "Sign Up" "signup" "" ]
+            [ navItem "Login" "login", navItem "Sign Up" "signup" ]
+
+        DeleteAccount _ ->
+            [ logoutButton ]
 
 
 showAds : Model -> Bool
@@ -724,8 +759,8 @@ notificationsLink =
     link [] { url = "profile#notifications", label = text "Notifications" }
 
 
-navItem : String -> String -> String -> Element Msg
-navItem txt link_ classes =
+navItem : String -> String -> Element Msg
+navItem txt link_ =
     link []
         { url = link_, label = text txt }
 
@@ -788,6 +823,12 @@ largeDeviceContent model =
                         ++ " page. Please login or signup using the links above"
                 ]
 
+        ( DeleteAccount data, Just { user } ) ->
+            Element.map DeleteAccountMsg <| DeleteAccount.view data
+
+        ( DeleteAccount _, Nothing ) ->
+            text "You're not even signed in lol"
+
 
 alreadySignedIn : String -> Element Msg
 alreadySignedIn username =
@@ -817,3 +858,49 @@ fakeAd =
         { src = "/assets/trash-ad.jpg"
         , description = "An advertisement for a trash can"
         }
+
+
+deleteAccountView : Element Msg
+deleteAccountView =
+    column
+        [ spacing 12
+        , padding 15
+        ]
+        [ textColumn [ spacing 10, width <| maximum 500 fill ]
+            [ paragraph []
+                [ text <|
+                    "You are trying to delete your account. "
+                        ++ "This will cause you (and us) terrible pain, "
+                        ++ "loss of advertising income, and/or happiness. "
+                        ++ " This cannot be undone."
+                ]
+            , paragraph []
+                [ text <|
+                    "The button below will cause your takes, likes, "
+                        ++ "bio, profile picture, and joy to be "
+                        ++ "permanently deleted in an absolutely unrecoverable "
+                        ++ "manner. Please keep in mind that such a deletion "
+                        ++ "might be computationally expensive and could take "
+                        ++ "several units of time."
+                ]
+            , paragraph []
+                [ text <|
+                    "Please also note that deleting your account has "
+                        ++ "little effect on copies of your takes that other "
+                        ++ "people may have screenshotted and stored. "
+                        ++ "It also may cause your Thursday's to be slightly "
+                        ++ "cooler than usual. Consider purchasing an extra "
+                        ++ "cardigan."
+                ]
+            ]
+        , Input.button
+            [ Border.width 1
+            , Border.color Colors.secondary
+            , padding 10
+            , Border.rounded 7
+            , Font.color Colors.primary
+            ]
+            { onPress = Nothing
+            , label = text "Goodbye :("
+            }
+        ]
