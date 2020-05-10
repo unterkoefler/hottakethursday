@@ -80,6 +80,7 @@ type Route
     | SignupRoute
     | ProfileRoute Profile.Section
     | DeleteAccountRoute
+    | PleaseConfirmEmailRoute
     | NotFound
 
 
@@ -92,6 +93,7 @@ routeParser =
         , Parser.map SignupRoute (Parser.s "signup")
         , Parser.map ProfileRoute (Parser.s "profile" </> Parser.fragment Profile.toSection)
         , Parser.map DeleteAccountRoute (Parser.s "delete-account")
+        , Parser.map PleaseConfirmEmailRoute (Parser.s "please-confirm-email")
         ]
 
 
@@ -118,6 +120,7 @@ type Page
     | Loading Url.Url
     | Forbidden
     | DeleteAccount DeleteAccount.Model
+    | PleaseConfirmEmail
 
 
 type alias Model =
@@ -206,6 +209,11 @@ init flags url key =
         DeleteAccountRoute ->
             ( { model | page = DeleteAccount DeleteAccount.init }
             , Cmd.batch [ loadAuthCmd, setTimeZone ]
+            )
+
+        PleaseConfirmEmailRoute ->
+            ( { model | page = PleaseConfirmEmail }
+            , Cmd.none
             )
 
         NotFound ->
@@ -353,6 +361,9 @@ handleUrlChange model url =
         DeleteAccountRoute ->
             ( { model | page = DeleteAccount DeleteAccount.init }, Cmd.none )
 
+        PleaseConfirmEmailRoute ->
+            ( { model | page = PleaseConfirmEmail }, Cmd.none )
+
         NotFound ->
             ( model, Cmd.none )
 
@@ -404,6 +415,9 @@ updatePage msg model =
 
         DeleteAccount data ->
             updateDeleteAccountPage msg model data
+
+        PleaseConfirmEmail ->
+            ( model, Cmd.none )
 
 
 updateLoginPage : Msg -> Model -> Login.Model -> ( Model, Cmd Msg )
@@ -736,6 +750,9 @@ navLinks page profile =
         DeleteAccount _ ->
             [ logoutButton ]
 
+        PleaseConfirmEmail ->
+            []
+
 
 showAds : Model -> Bool
 showAds model =
@@ -828,6 +845,12 @@ largeDeviceContent model =
 
         ( DeleteAccount _, Nothing ) ->
             text "You're not even signed in lol"
+
+        ( PleaseConfirmEmail, Just { user } ) ->
+            text "You're signed in. Go home."
+
+        ( PleaseConfirmEmail, Nothing ) ->
+            text "Thanks! Check your email for a confirmation link!"
 
 
 alreadySignedIn : String -> Element Msg

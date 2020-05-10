@@ -133,6 +133,12 @@ update msg model navKey =
             , Cmd.none
             )
 
+        AttemptCompleted (Err (Api.HttpError (Http.BadStatus 401))) ->
+            ( model
+            , Nothing
+            , Nav.pushUrl navKey "/please-confirm-email"
+            )
+
         AttemptCompleted (Err _) ->
             let
                 _ =
