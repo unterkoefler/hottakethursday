@@ -14,6 +14,7 @@ Rails.application.routes.draw do
           post 'change_name', to: 'me#change_name'
           post 'change_bio', to: 'me#change_bio'
           post 'change_least_fav_color', to: 'me#change_least_fav_color'
+          post 'delete_account', to: 'me#delete_account'
         end
       end
 

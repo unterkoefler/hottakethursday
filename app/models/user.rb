@@ -1,6 +1,6 @@
 class User < ApplicationRecord
-  has_many :takes
-  has_many :likes
+  has_many :takes, dependent: :destroy
+  has_many :likes, dependent: :destroy
 
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable

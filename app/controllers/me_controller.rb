@@ -43,4 +43,9 @@ class MeController < ApplicationController
     current_user.update(least_fav_color: params[:least_fav_color])
     render json: current_user
   end
+
+  def delete_account
+    authenticate_user!
+    current_user.destroy!
+  end
 end
