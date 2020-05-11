@@ -3,7 +3,7 @@ module Signup exposing (Model, Msg, init, update, view)
 import Api
 import Birthday
 import Browser.Navigation as Nav
-import Colors
+import Colors exposing (ColorScheme)
 import Data.User as User exposing (User)
 import Dict exposing (Dict)
 import Element exposing (..)
@@ -261,29 +261,29 @@ validateUsername =
 -- VIEW
 
 
-view : Model -> Element Msg
-view model =
+view : Model -> ColorScheme -> Element Msg
+view model colorScheme =
     column
         [ centerX
         , paddingEach { left = 15, right = 15, top = 64, bottom = 15 }
         , spacing 12
         ]
-        [ el [ Region.heading 2, Font.size 36, Font.color Colors.secondary ] (text "Create Your Account")
+        [ el [ Region.heading 2, Font.size 36, Font.color colorScheme.secondary ] (text "Create Your Account")
         , paragraph [ Font.size 16 ] [ text "Feed us your data" ]
-        , Field.view (textInput "Name" EditName) model.name
-        , Field.view (textInput "Email" EditEmail) model.email
-        , Field.view (passwordInput "Password" EditPassword) model.password
-        , Field.view (passwordInput "Confirm password" EditConfirmPassword) model.confirmPassword
-        , Field.view (textInput "Username" EditUsername) model.username
-        , Field.view (textInput "Birthday (MM/DD/YYYY)" EditBirthday) model.birthday
-        , Field.view tos model.agreedToTos
-        , submitButton
-        , Field.viewError model.error
+        , Field.view colorScheme (textInput "Name" EditName) model.name
+        , Field.view colorScheme (textInput "Email" EditEmail) model.email
+        , Field.view colorScheme (passwordInput "Password" EditPassword) model.password
+        , Field.view colorScheme (passwordInput "Confirm password" EditConfirmPassword) model.confirmPassword
+        , Field.view colorScheme (textInput "Username" EditUsername) model.username
+        , Field.view colorScheme (textInput "Birthday (MM/DD/YYYY)" EditBirthday) model.birthday
+        , Field.view colorScheme (tos colorScheme) model.agreedToTos
+        , submitButton colorScheme
+        , Field.viewError colorScheme model.error
         ]
 
 
-tos : Bool -> Element Msg
-tos val =
+tos : ColorScheme -> Bool -> Element Msg
+tos colorScheme val =
     Input.checkbox
         []
         { onChange = AgreedToTos
@@ -295,7 +295,7 @@ tos val =
                 (newTabLink []
                     { url = "https://en.wikipedia.org/wiki/Echidna#Reproduction"
                     , label =
-                        el [ Font.color Colors.link ] (text "I agree to the terms and conditions")
+                        el [ Font.color colorScheme.link ] (text "I agree to the terms and conditions")
                     }
                 )
         }
@@ -328,12 +328,12 @@ passwordInput lbl msg val =
         }
 
 
-submitButton : Element Msg
-submitButton =
+submitButton : ColorScheme -> Element Msg
+submitButton colorScheme =
     Input.button
         [ Font.size 24
         , Border.rounded 7
-        , Background.color Colors.secondary
+        , Background.color colorScheme.secondary
         , padding 10
         , centerX
         ]

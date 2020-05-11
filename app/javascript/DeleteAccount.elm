@@ -1,7 +1,7 @@
 module DeleteAccount exposing (Model, Msg, init, update, view)
 
 import Api
-import Colors
+import Colors exposing (ColorScheme)
 import Element exposing (..)
 import Element.Border as Border
 import Element.Font as Font
@@ -64,11 +64,11 @@ update msg model maybeAuth =
 -- VIEW
 
 
-view : Model -> Element Msg
-view model =
+view : Model -> ColorScheme -> Element Msg
+view model colorScheme =
     case model.state of
         Viewing ->
-            info
+            info colorScheme
 
         Submitting ->
             submitting
@@ -80,8 +80,8 @@ view model =
             error
 
 
-info : Element Msg
-info =
+info : ColorScheme -> Element Msg
+info colorScheme =
     column
         [ spacing 12
         , padding 15
@@ -115,10 +115,10 @@ info =
             ]
         , Input.button
             [ Border.width 1
-            , Border.color Colors.secondary
+            , Border.color colorScheme.secondary
             , padding 10
             , Border.rounded 7
-            , Font.color Colors.primary
+            , Font.color colorScheme.primary
             ]
             { onPress = Just Submit
             , label = text "Goodbye :("

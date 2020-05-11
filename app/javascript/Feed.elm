@@ -1,7 +1,7 @@
 module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feedWidth, fromTakes, init, toFeedSection, update, view)
 
 import Api
-import Colors
+import Colors exposing (ColorScheme, colorSchemeForUser)
 import Data.Take as Take exposing (Take)
 import Data.User as User exposing (User)
 import Debug
@@ -399,14 +399,14 @@ estLikeCountWidth =
     30
 
 
-viewTake : TakeCard -> Maybe User -> Element Msg
-viewTake card user =
+viewTake : ColorScheme -> TakeCard -> Maybe User -> Element Msg
+viewTake colorScheme card user =
     case card.state of
         Default ->
-            defaultView card user
+            defaultView colorScheme card user
 
         Focused ->
-            focusedView card user
+            focusedView colorScheme card user
 
         Deleting ->
             deletingView
@@ -414,31 +414,31 @@ viewTake card user =
         FailedToDelete ->
             column [ spacing 24 ]
                 [ failedView "Failed to delete."
-                , focusedView card user
+                , focusedView colorScheme card user
                 ]
 
 
-defaultView : TakeCard -> Maybe User -> Element Msg
-defaultView card user =
+defaultView : ColorScheme -> TakeCard -> Maybe User -> Element Msg
+defaultView colorScheme card user =
     Input.button
         [ Border.width 1
         , Border.rounded 7
-        , Border.color Colors.secondary
+        , Border.color colorScheme.secondary
         ]
         { onPress = Just <| TakeFocused card
-        , label = takeCardContents card user False
+        , label = takeCardContents colorScheme card user False
         }
 
 
-focusedView : TakeCard -> Maybe User -> Element Msg
-focusedView card user =
+focusedView : ColorScheme -> TakeCard -> Maybe User -> Element Msg
+focusedView colorScheme card user =
     Input.button
         [ Border.width 1
         , Border.rounded 7
-        , Border.color Colors.secondary
+        , Border.color colorScheme.secondary
         ]
         { onPress = Just <| TakeFocused card
-        , label = takeCardContents card user True
+        , label = takeCardContents colorScheme card user True
         }
 
 
@@ -457,8 +457,8 @@ deletingView =
     text "Deleting the take..."
 
 
-takeCardContents : TakeCard -> Maybe User -> Bool -> Element Msg
-takeCardContents card user focused =
+takeCardContents : ColorScheme -> TakeCard -> Maybe User -> Bool -> Element Msg
+takeCardContents colorScheme card user focused =
     column
         [ spacing cardSpacing
         , padding cardPadding
@@ -469,10 +469,10 @@ takeCardContents card user focused =
             ]
             [ profilePicThumbnail card
             , el [ width (px takeWidth) ] <| takeAndAuthor card.take
-            , fireButton card user card.take.usersWhoLiked
+            , fireButton colorScheme card user card.take.usersWhoLiked
             ]
         , if focused then
-            focusButtons card user
+            focusButtons colorScheme card user
 
           else
             none
@@ -508,27 +508,27 @@ profilePicThumbnail card =
         }
 
 
-focusButtons : TakeCard -> Maybe User -> Element Msg
-focusButtons card user =
+focusButtons : ColorScheme -> TakeCard -> Maybe User -> Element Msg
+focusButtons colorScheme card user =
     let
         buttons =
             if Just card.take.postedBy == user then
-                [ takeFocusButton "delete" (DeleteTake card) ]
+                [ takeFocusButton colorScheme "delete" (DeleteTake card) ]
 
             else
-                [ takeFocusButton "report" (ReportTake card) ]
+                [ takeFocusButton colorScheme "report" (ReportTake card) ]
     in
     row [ centerX ] buttons
 
 
-takeFocusButton : String -> Msg -> Element Msg
-takeFocusButton txt msg =
-    Input.button [ Font.color Colors.link ]
+takeFocusButton : ColorScheme -> String -> Msg -> Element Msg
+takeFocusButton colorScheme txt msg =
+    Input.button [ Font.color colorScheme.link ]
         { onPress = Just msg, label = text txt }
 
 
-fireButton : TakeCard -> Maybe User -> List User -> Element Msg
-fireButton card maybeUser likers =
+fireButton : ColorScheme -> TakeCard -> Maybe User -> List User -> Element Msg
+fireButton colorScheme card maybeUser likers =
     let
         likeCount =
             List.length likers
@@ -552,7 +552,7 @@ fireButton card maybeUser likers =
                 "/assets/fire.png"
     in
     Input.button
-        [ Border.color Colors.secondaryLight
+        [ Border.color colorScheme.secondaryLight
         , Border.width 1
         , Border.rounded 7
         ]
@@ -647,13 +647,13 @@ memberWithMaybe e l default =
             default
 
 
-view : Model -> Maybe User -> Element Msg
-view data maybeUser =
+view : Model -> ColorScheme -> Maybe User -> Element Msg
+view data colorScheme maybeUser =
     let
         maybeCompose =
             case ( maybeUser, data.section ) of
                 ( Just user, Hottest ) ->
-                    composeView user data.compose
+                    composeView colorScheme user data.compose
 
                 _ ->
                     Element.none
@@ -661,7 +661,7 @@ view data maybeUser =
         maybeFeed =
             case data.section of
                 Hottest ->
-                    feed data.cards maybeUser
+                    feed colorScheme data.cards maybeUser
 
                 Coldest ->
                     noColdTakes
@@ -671,14 +671,14 @@ view data maybeUser =
         , centerX
         , width (px feedWidth)
         ]
-        [ homeNavTabs data.section
+        [ homeNavTabs colorScheme data.section
         , maybeCompose
         , maybeFeed
         ]
 
 
-composeView : User -> Compose -> Element Msg
-composeView user compose =
+composeView : ColorScheme -> User -> Compose -> Element Msg
+composeView colorScheme user compose =
     column
         [ width fill
         , spacing 12
@@ -695,22 +695,22 @@ composeView user compose =
             , spellcheck = False
             }
         , row [ spacing 12, width fill ]
-            [ characterCount <| String.length compose.content
-            , publishButton user
+            [ characterCount colorScheme <| String.length compose.content
+            , publishButton colorScheme user
             ]
         , composeMessage compose.state
         ]
 
 
-characterCount : Int -> Element Msg
-characterCount count =
+characterCount : ColorScheme -> Int -> Element Msg
+characterCount colorScheme count =
     let
         fontColor =
             if count <= maxCharacterCount then
-                Colors.black
+                colorScheme.black
 
             else
-                Colors.primary
+                colorScheme.primary
     in
     el
         [ alignLeft
@@ -733,14 +733,14 @@ composeMessage state =
             failedView m
 
 
-publishButton : User -> Element Msg
-publishButton user =
+publishButton : ColorScheme -> User -> Element Msg
+publishButton colorScheme user =
     Input.button
         [ padding 12
         , Border.rounded 7
         , clip
-        , Background.color Colors.primary
-        , Font.color Colors.textOnPrimary
+        , Background.color colorScheme.primary
+        , Font.color colorScheme.textOnPrimary
         , alignRight
         ]
         { onPress = Just <| PublishNewTake
@@ -748,17 +748,17 @@ publishButton user =
         }
 
 
-homeNavTabs : FeedSection -> Element Msg
-homeNavTabs section =
+homeNavTabs : ColorScheme -> FeedSection -> Element Msg
+homeNavTabs colorScheme section =
     row
         [ alignLeft
         , alignTop
         , Border.widthEach { top = 0, bottom = 2, left = 0, right = 0 }
         , width fill
-        , Border.color Colors.secondary
+        , Border.color colorScheme.secondary
         ]
-        [ navTab "Hottest" "#hottest" (section == Hottest)
-        , navTab "Coldest" "#coldest" (section == Coldest)
+        [ navTab colorScheme "Hottest" "#hottest" (section == Hottest)
+        , navTab colorScheme "Coldest" "#coldest" (section == Coldest)
         ]
 
 
@@ -772,8 +772,8 @@ noColdTakes =
         [ text <| "Just kidding! We don't have any cold takes here." ]
 
 
-feed : List TakeCard -> Maybe User -> Element Msg
-feed takes user =
+feed : ColorScheme -> List TakeCard -> Maybe User -> Element Msg
+feed colorScheme takes user =
     column
         [ spacing 12 ]
-        (List.map (\t -> viewTake t user) takes)
+        (List.map (\t -> viewTake colorScheme t user) takes)

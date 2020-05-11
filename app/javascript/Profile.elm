@@ -2,7 +2,7 @@ module Profile exposing (Model, Msg, Section, toModel, toSection, update, view)
 
 import Api
 import AssocList as Dict exposing (Dict)
-import Colors
+import Colors exposing (ColorScheme)
 import Data.User exposing (User)
 import Element exposing (..)
 import Element.Background as Background
@@ -227,8 +227,8 @@ saveItemApiRequest key items auth =
 -- VIEW
 
 
-view : Model -> Maybe User -> Element Msg
-view model maybeUser =
+view : Model -> ColorScheme -> Maybe User -> Element Msg
+view model colorScheme maybeUser =
     let
         ownProfile =
             case maybeUser of
@@ -239,13 +239,13 @@ view model maybeUser =
                     user.id == model.subject.id
     in
     row [ spacing 36, width fill, height fill ]
-        [ aboutUser model.subject model.items ownProfile model.error
-        , profileContent model.section
+        [ aboutUser colorScheme model.subject model.items ownProfile model.error
+        , profileContent colorScheme model.section
         ]
 
 
-profileContent : Section -> Element Msg
-profileContent section =
+profileContent : ColorScheme -> Section -> Element Msg
+profileContent colorScheme section =
     column
         [ alignTop
         , alignLeft
@@ -253,7 +253,7 @@ profileContent section =
         , width fill
         , spacing 12
         ]
-        [ profileNavTabs section
+        [ profileNavTabs colorScheme section
         , paragraph
             [ Font.size 24
             ]
@@ -261,18 +261,18 @@ profileContent section =
         ]
 
 
-profileNavTabs : Section -> Element Msg
-profileNavTabs section =
+profileNavTabs : ColorScheme -> Section -> Element Msg
+profileNavTabs colorScheme section =
     row
         [ alignLeft
         , alignTop
         , Border.widthEach { top = 0, bottom = 2, left = 0, right = 0 }
         , width fill
-        , Border.color Colors.secondary
+        , Border.color colorScheme.secondary
         ]
-        [ navTab "Your Takes" "/profile" (YourTakes == section)
-        , navTab "Notifications" "/profile#notifications" (Notifications == section)
-        , navTab "Settings" "/profile#settings" (Settings == section)
+        [ navTab colorScheme "Your Takes" "/profile" (YourTakes == section)
+        , navTab colorScheme "Notifications" "/profile#notifications" (Notifications == section)
+        , navTab colorScheme "Settings" "/profile#settings" (Settings == section)
         ]
 
 
@@ -284,11 +284,11 @@ aboutUserContentWidth =
     300
 
 
-aboutUser : User -> Dict String BioItem -> Bool -> Maybe String -> Element Msg
-aboutUser user items editable error =
+aboutUser : ColorScheme -> User -> Dict String BioItem -> Bool -> Maybe String -> Element Msg
+aboutUser colorScheme user items editable error =
     el
         [ Border.widthEach { left = 0, right = 1, top = 0, bottom = 0 }
-        , Border.color Colors.lightGray
+        , Border.color colorScheme.lightGray
         , width (px aboutUserSidebarWidth)
         ]
     <|
@@ -296,35 +296,35 @@ aboutUser user items editable error =
             [ spacing 12
             , width (px aboutUserContentWidth)
             ]
-            ([ profilePicture user editable
-             , el [ centerX ] <| errorMsg error
+            ([ profilePicture colorScheme user editable
+             , el [ centerX ] <| errorMsg colorScheme error
              , el [ Region.heading 5, Font.size 24, centerX ] (text <| "@" ++ user.username)
              ]
-                ++ List.map (\( a, b ) -> aboutUserElem a b editable) (Dict.toList items)
+                ++ List.map (\( a, b ) -> aboutUserElem colorScheme a b editable) (Dict.toList items)
             )
 
 
-profilePicture : User -> Bool -> Element Msg
-profilePicture user editable =
+profilePicture : ColorScheme -> User -> Bool -> Element Msg
+profilePicture colorScheme user editable =
     if editable then
         Input.button
             [ centerX ]
             { onPress = Just ChangeProfileImage
-            , label = profilePictureNoButton user
+            , label = profilePictureNoButton colorScheme user
             }
 
     else
-        profilePictureNoButton user
+        profilePictureNoButton colorScheme user
 
 
-profilePictureNoButton : User -> Element Msg
-profilePictureNoButton user =
+profilePictureNoButton : ColorScheme -> User -> Element Msg
+profilePictureNoButton colorScheme user =
     let
         src_ =
             Maybe.withDefault "/assets/profilepic.jpg" user.avatarUrl
     in
     el
-        [ Background.color Colors.lightGray
+        [ Background.color colorScheme.lightGray
         , padding 8
         , centerX
         , Border.rounded 500
@@ -343,29 +343,29 @@ profilePictureNoButton user =
             }
 
 
-aboutUserElem : String -> BioItem -> Bool -> Element Msg
-aboutUserElem label item editable =
+aboutUserElem : ColorScheme -> String -> BioItem -> Bool -> Element Msg
+aboutUserElem colorScheme label item editable =
     case item.state of
         Viewing ->
-            bioItem label item editable
+            bioItem colorScheme label item editable
 
         Editing ->
-            editingBioItem label item
+            editingBioItem colorScheme label item
 
         Saving ->
-            savingBioItem label item
+            savingBioItem colorScheme label item
 
 
 breakLongWords =
     Html.Attributes.style "word-break" "break-all" |> htmlAttribute
 
 
-bioItem : String -> BioItem -> Bool -> Element Msg
-bioItem label item editable =
+bioItem : ColorScheme -> String -> BioItem -> Bool -> Element Msg
+bioItem colorScheme label item editable =
     let
         lbl =
             if editable then
-                editableLabel label Viewing
+                editableLabel colorScheme label Viewing
 
             else
                 el [ Font.bold ] <| text label
@@ -381,16 +381,16 @@ bioItem label item editable =
         ]
 
 
-editingBioItem : String -> BioItem -> Element Msg
-editingBioItem label item =
+editingBioItem : ColorScheme -> String -> BioItem -> Element Msg
+editingBioItem colorScheme label item =
     column
         [ spacing 6
         , width fill
         , breakLongWords
         , padding 6
         ]
-        [ editableLabel label Editing
-        , errorMsg item.error
+        [ editableLabel colorScheme label Editing
+        , errorMsg colorScheme item.error
         , Input.multiline [ width (px aboutUserContentWidth) ]
             { onChange = EditItem label
             , text = item.value
@@ -401,41 +401,41 @@ editingBioItem label item =
         ]
 
 
-errorMsg : Maybe String -> Element Msg
-errorMsg error =
+errorMsg : ColorScheme -> Maybe String -> Element Msg
+errorMsg colorScheme error =
     case error of
         Just err ->
-            paragraph [ Font.color Colors.primary ] [ text err ]
+            paragraph [ Font.color colorScheme.primary ] [ text err ]
 
         Nothing ->
             Element.none
 
 
-savingBioItem : String -> BioItem -> Element Msg
-savingBioItem label item =
+savingBioItem : ColorScheme -> String -> BioItem -> Element Msg
+savingBioItem colorScheme label item =
     column
         [ spacing 6
         , width fill
         , breakLongWords
         , padding 6
         ]
-        [ editableLabel label Saving
+        [ editableLabel colorScheme label Saving
         , paragraph [] [ text item.value ]
         ]
 
 
-editableLabel : String -> EditingState -> Element Msg
-editableLabel label state =
+editableLabel : ColorScheme -> String -> EditingState -> Element Msg
+editableLabel colorScheme label state =
     let
         buttons =
             case state of
                 Viewing ->
-                    [ aboutEditButton "(edit)" (Just <| BeginEditingItem label) ]
+                    [ aboutEditButton colorScheme "(edit)" (Just <| BeginEditingItem label) ]
 
                 Editing ->
-                    [ aboutEditButton "cancel" (Just <| CancelEditingItem label)
+                    [ aboutEditButton colorScheme "cancel" (Just <| CancelEditingItem label)
                     , text "|"
-                    , aboutEditButton "save" (Just <| SaveItem label)
+                    , aboutEditButton colorScheme "save" (Just <| SaveItem label)
                     ]
 
                 Saving ->
@@ -447,11 +447,11 @@ editableLabel label state =
             ++ buttons
 
 
-aboutEditButton : String -> Maybe Msg -> Element Msg
-aboutEditButton label onPress =
+aboutEditButton : ColorScheme -> String -> Maybe Msg -> Element Msg
+aboutEditButton colorScheme label onPress =
     Input.button
         [ alignRight
-        , Font.color Colors.link
+        , Font.color colorScheme.link
         ]
         { onPress = onPress
         , label = text label
