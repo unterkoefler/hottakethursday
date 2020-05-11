@@ -4,7 +4,7 @@ import Api
 import Browser
 import Browser.Events exposing (onResize)
 import Browser.Navigation as Nav
-import Colors
+import Colors exposing (ColorScheme, colorSchemeForUser)
 import Data.Take
 import Data.User as User exposing (User)
 import Debug
@@ -550,9 +550,13 @@ handleProfileMsg msg model data auth =
 
 view : Model -> Browser.Document Msg
 view model =
+    let
+        colorScheme =
+            colorSchemeForUser (Maybe.map .user model.profile)
+    in
     if isThursday model.time model.zone then
         { title = "HTT"
-        , body = [ viewForThursday model ]
+        , body = [ viewForThursday model colorScheme ]
         }
 
     else
@@ -603,21 +607,21 @@ plural n sing plur =
         plur
 
 
-viewForThursday : Model -> Html Msg
-viewForThursday model =
+viewForThursday : Model -> ColorScheme -> Html Msg
+viewForThursday model colorScheme =
     let
         { class, orientation } =
             classifyDevice model.dimensions
     in
     case ( class, orientation ) of
         ( Desktop, _ ) ->
-            largeDeviceView model
+            largeDeviceView model colorScheme
 
         ( BigDesktop, _ ) ->
-            largeDeviceView model
+            largeDeviceView model colorScheme
 
         ( Tablet, Landscape ) ->
-            largeDeviceView model
+            largeDeviceView model colorScheme
 
         ( Tablet, Portrait ) ->
             smallDeviceView model
@@ -634,8 +638,8 @@ noFocus =
     }
 
 
-largeDeviceView : Model -> Html Msg
-largeDeviceView model =
+largeDeviceView : Model -> ColorScheme -> Html Msg
+largeDeviceView model colorScheme =
     let
         shouldShowAds =
             showAds model
@@ -651,11 +655,11 @@ largeDeviceView model =
         { options = [ focusStyle noFocus ] }
         ([ width fill ]
             ++ maybeAds
-            ++ [ inFront <| largeDeviceHeader model ]
+            ++ [ inFront <| largeDeviceHeader model colorScheme ]
         )
     <|
         largeDeviceBody model.dimensions shouldShowAds <|
-            largeDeviceContent model
+            largeDeviceContent model colorScheme
 
 
 largeDeviceBody : Dimensions -> Bool -> Element Msg -> Element Msg
@@ -690,15 +694,15 @@ adsPaddingX =
 
 
 smallDeviceView : Model -> Html Msg
-smallDeviceView model =
+smallDeviceView _ =
     layout
         []
     <|
         paragraph [] [ text "Website under construction for this screen size. Try stretching your screen a lil bit" ]
 
 
-largeDeviceHeader : Model -> Element Msg
-largeDeviceHeader model =
+largeDeviceHeader : Model -> ColorScheme -> Element Msg
+largeDeviceHeader model colorScheme =
     let
         links =
             navLinks model.page model.profile
@@ -706,8 +710,8 @@ largeDeviceHeader model =
     row
         [ width fill
         , padding 15
-        , Background.color Colors.primary
-        , Font.color Colors.textOnPrimary
+        , Background.color colorScheme.primary
+        , Font.color colorScheme.textOnPrimary
         ]
         [ link [ Font.size 24 ] { url = "/", label = text "HotTakeThursday 🔥" }
         , el [ alignRight ] (row [ spacing 24 ] links)
@@ -782,17 +786,17 @@ navItem txt link_ =
         { url = link_, label = text txt }
 
 
-largeDeviceContent : Model -> Element Msg
-largeDeviceContent model =
+largeDeviceContent : Model -> ColorScheme -> Element Msg
+largeDeviceContent model colorScheme =
     case ( model.page, model.profile ) of
         ( Home data, Just { user } ) ->
-            Element.map FeedMsg <| Feed.view data (Just user)
+            Element.map FeedMsg <| Feed.view data colorScheme (Just user)
 
         ( Home data, Nothing ) ->
-            Element.map FeedMsg <| Feed.view data Nothing
+            Element.map FeedMsg <| Feed.view data colorScheme Nothing
 
         ( Login data, Nothing ) ->
-            Element.map LoginMsg (Login.view data)
+            Element.map LoginMsg (Login.view data colorScheme)
 
         ( Login data, Just { user } ) ->
             alreadySignedIn user.username
@@ -811,16 +815,16 @@ largeDeviceContent model =
             alreadySignedIn user.username
 
         ( Signup data, Nothing ) ->
-            Element.map SignupMsg (Signup.view data)
+            Element.map SignupMsg (Signup.view data colorScheme)
 
         ( Signup data, Just { user } ) ->
             alreadySignedIn user.username
 
         ( Profile data, Just { user } ) ->
-            Element.map ProfileMsg (Profile.view data (Just user))
+            Element.map ProfileMsg (Profile.view data colorScheme (Just user))
 
         ( Profile data, Nothing ) ->
-            Element.map ProfileMsg (Profile.view data Nothing)
+            Element.map ProfileMsg (Profile.view data colorScheme Nothing)
 
         ( Loading next, _ ) ->
             row [] [ text "Loading..." ]
@@ -841,7 +845,7 @@ largeDeviceContent model =
                 ]
 
         ( DeleteAccount data, Just { user } ) ->
-            Element.map DeleteAccountMsg <| DeleteAccount.view data
+            Element.map DeleteAccountMsg <| DeleteAccount.view data colorScheme
 
         ( DeleteAccount _, Nothing ) ->
             text "You're not even signed in lol"
@@ -883,8 +887,8 @@ fakeAd =
         }
 
 
-deleteAccountView : Element Msg
-deleteAccountView =
+deleteAccountView : ColorScheme -> Element Msg
+deleteAccountView colorScheme =
     column
         [ spacing 12
         , padding 15
@@ -918,10 +922,10 @@ deleteAccountView =
             ]
         , Input.button
             [ Border.width 1
-            , Border.color Colors.secondary
+            , Border.color colorScheme.secondary
             , padding 10
             , Border.rounded 7
-            , Font.color Colors.primary
+            , Font.color colorScheme.primary
             ]
             { onPress = Nothing
             , label = text "Goodbye :("

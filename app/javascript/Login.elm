@@ -2,7 +2,7 @@ module Login exposing (LoginAttempt(..), Model, Msg, emptyForm, update, view)
 
 import Api
 import Browser.Navigation as Nav
-import Colors
+import Colors exposing (ColorScheme)
 import Data.User as User exposing (User)
 import Element exposing (..)
 import Element.Background as Background
@@ -107,27 +107,27 @@ update msg model navKey =
 -- VIEW
 
 
-view : Model -> Element Msg
-view model =
+view : Model -> ColorScheme -> Element Msg
+view model colorScheme =
     column
         [ spacing 12
         , centerX
         , paddingEach { left = 15, right = 15, top = 64, bottom = 15 }
         ]
-        [ el [ Region.heading 2, Font.size 36, Font.color Colors.secondary ] (text "Welcome Back")
+        [ el [ Region.heading 2, Font.size 36, Font.color colorScheme.secondary ] (text "Welcome Back")
         , row [ Font.size 14 ] [ text "I've missed you" ]
-        , inputWithLabel "Email" model.email EmailChanged
-        , passwordWithLabel "Password" model.password PasswordChanged
-        , forgotPasswordLink
-        , submitButton
+        , inputWithLabel colorScheme "Email" model.email EmailChanged
+        , passwordWithLabel colorScheme "Password" model.password PasswordChanged
+        , forgotPasswordLink colorScheme
+        , submitButton colorScheme
         , paragraph [] [ text <| failureMessage model.previousAttempt ]
         ]
 
 
-submitButton : Element Msg
-submitButton =
+submitButton : ColorScheme -> Element Msg
+submitButton colorScheme =
     Input.button
-        [ Background.color Colors.secondary
+        [ Background.color colorScheme.secondary
         , Border.rounded 7
         , padding 10
         , centerX
@@ -136,10 +136,10 @@ submitButton =
         { onPress = Just Submit, label = text "Continue" }
 
 
-forgotPasswordLink : Element Msg
-forgotPasswordLink =
+forgotPasswordLink : ColorScheme -> Element Msg
+forgotPasswordLink colorScheme =
     link
-        [ Font.size 14, Font.color Colors.link ]
+        [ Font.size 14, Font.color colorScheme.link ]
         { url = "forgot-password", label = text "Forgot password?" }
 
 
@@ -159,10 +159,12 @@ failureMessage attempt =
             "Something went wrong. Try again later"
 
 
-inputWithLabel : String -> String -> (String -> Msg) -> Element Msg
-inputWithLabel lbl val msg =
+inputWithLabel : ColorScheme -> String -> String -> (String -> Msg) -> Element Msg
+inputWithLabel colorScheme lbl val msg =
     Input.text
-        textInputAttributes
+        (textInputAttributes
+            colorScheme
+        )
         { onChange = msg
         , text = val
         , placeholder = Nothing
@@ -170,10 +172,12 @@ inputWithLabel lbl val msg =
         }
 
 
-passwordWithLabel : String -> String -> (String -> Msg) -> Element Msg
-passwordWithLabel lbl val msg =
+passwordWithLabel : ColorScheme -> String -> String -> (String -> Msg) -> Element Msg
+passwordWithLabel colorScheme lbl val msg =
     Input.currentPassword
-        textInputAttributes
+        (textInputAttributes
+            colorScheme
+        )
         { onChange = msg
         , text = val
         , placeholder = Nothing
@@ -182,8 +186,8 @@ passwordWithLabel lbl val msg =
         }
 
 
-textInputAttributes : List (Attribute Msg)
-textInputAttributes =
+textInputAttributes : ColorScheme -> List (Attribute Msg)
+textInputAttributes colorScheme =
     [ width (fill |> maximum 300)
-    , Border.color Colors.secondary
+    , Border.color colorScheme.secondary
     ]

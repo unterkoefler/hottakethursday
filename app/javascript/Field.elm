@@ -1,6 +1,6 @@
 module Field exposing (Field, addErrorFromApi, composeValidateField, notBlank, updateValue, validate, view, viewError)
 
-import Colors
+import Colors exposing (ColorScheme)
 import Dict exposing (Dict)
 import Element exposing (..)
 import Element.Font as Font
@@ -76,25 +76,25 @@ notBlank field =
 -- VIEW
 
 
-view : (a -> Element msg) -> Field a -> Element msg
-view viewInput field =
+view : ColorScheme -> (a -> Element msg) -> Field a -> Element msg
+view colorScheme viewInput field =
     let
         input =
             viewInput field.value
 
         error =
-            viewError field.error
+            viewError colorScheme field.error
     in
     column [ spacing 5 ]
         [ input, error ]
 
 
-viewError : Maybe String -> Element msg
-viewError e =
+viewError : ColorScheme -> Maybe String -> Element msg
+viewError colorScheme e =
     case e of
         Nothing ->
             Element.none
 
         Just m ->
-            paragraph [ Font.color Colors.primary ]
+            paragraph [ Font.color colorScheme.primary ]
                 [ text m ]
