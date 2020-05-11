@@ -1,4 +1,4 @@
-module Profile exposing (Model, Msg, Section, toModel, toSection, update, view)
+module Profile exposing (Model, Msg, Section, toModel, toSection, update, updatedUserInfo, view)
 
 import Api
 import AssocList as Dict exposing (Dict)
@@ -109,6 +109,21 @@ toSection frag =
 
         Nothing ->
             YourTakes
+
+
+{-| Extracts any new user info that the rest of the app might care about
+-}
+updatedUserInfo : Msg -> Maybe User
+updatedUserInfo msg =
+    case msg of
+        ItemSaved _ (Ok user) ->
+            Just user
+
+        ProfileImageUpdated (Ok user) ->
+            Just user
+
+        _ ->
+            Nothing
 
 
 update : Msg -> Model -> Api.UserAuth -> ( Model, Cmd Msg )
