@@ -135,10 +135,6 @@ signupFieldError : Http.Metadata -> String -> Result FormError a
 signupFieldError metadata body =
     case metadata.statusCode of
         400 ->
-            let
-                _ =
-                    Debug.log "body" body
-            in
             case Json.Decode.decodeString errorDecoder body of
                 Ok e ->
                     Err e

@@ -1,20 +1,19 @@
 module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feedWidth, fromTakes, init, toFeedSection, update, view)
 
 import Api
-import Colors exposing (ColorScheme, colorSchemeForUser)
-import Data.Take as Take exposing (Take)
-import Data.User as User exposing (User)
-import Debug
+import Colors exposing (ColorScheme)
+import Data.Take exposing (Take)
+import Data.User exposing (User)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
-import Html exposing (Html)
 import Html.Attributes
 import Http
+import HttpUtils exposing (httpErrorToString)
 import NavTabs exposing (navTab)
-import Task
+import Ports
 import Thursday exposing (toWeekdayString)
 import Time
 
@@ -150,12 +149,8 @@ update msg model user auth =
             )
 
         LikeHandled (Err m) ->
-            let
-                _ =
-                    Debug.log "like handled error" m
-            in
             ( model
-            , Cmd.none
+            , Ports.info <| "like handled error: " ++ httpErrorToString m
             )
 
         DeleteTake card ->

@@ -16,3 +16,13 @@ port clearAuthToken : () -> Cmd msg
 {-| Called with any takes received from the server that weren't requested explicitly.
 -}
 port newTakeInfo : (Json.Decode.Value -> msg) -> Sub msg
+
+
+{-| Logs at the info level
+-}
+port info : String -> Cmd msg
+
+
+{-| Logs at the error level
+-}
+port error : String -> Cmd msg
