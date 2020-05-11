@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     app.ports.info.subscribe(console.info.bind(console));
 
     app.ports.error.subscribe(console.error.bind(console));
-    
+
     consumer.subscriptions.create("TakeFeedChannel", {
         connected() {
             // Called when the subscription is ready for use on the server

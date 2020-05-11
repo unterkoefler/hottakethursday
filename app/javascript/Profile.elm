@@ -172,10 +172,6 @@ update msg model auth =
             )
 
         ProfileImageUpdated (Err e) ->
-            let
-                _ =
-                    Debug.log "Profile image failed to update" e
-            in
             ( { model | error = Just "Failed to upload new profile" }
             , Ports.error <| "Profile image failed to update: " ++ httpErrorToString e
             )
