@@ -524,8 +524,21 @@ handleProfileMsg msg model data auth =
     let
         ( newData, cmd ) =
             Profile.update msg data auth
+
+        newProfile =
+            case ( model.profile, Profile.updatedUserInfo msg ) of
+                ( Just { user }, Just userFromProfile ) ->
+                    if user.id == userFromProfile.id then
+                        model.profile
+                            |> Maybe.map (\profile -> { profile | user = userFromProfile })
+
+                    else
+                        model.profile
+
+                _ ->
+                    model.profile
     in
-    ( { model | page = Profile newData }
+    ( { model | page = Profile newData, profile = newProfile }
     , Cmd.map ProfileMsg cmd
     )
 
