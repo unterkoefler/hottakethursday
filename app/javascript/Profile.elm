@@ -14,7 +14,9 @@ import File exposing (File)
 import File.Select as Select
 import Html.Attributes
 import Http
+import HttpUtils exposing (httpErrorToString)
 import NavTabs exposing (navTab)
+import Ports
 
 
 
@@ -150,12 +152,8 @@ update msg model auth =
             )
 
         ItemSaved key (Err e) ->
-            let
-                _ =
-                    Debug.log "edit bio error" e
-            in
             ( { model | items = updateDict key (addError "Failed to save") model.items }
-            , Cmd.none
+            , Ports.error <| "edit bio error: " ++ httpErrorToString e
             )
 
         ItemSaved key (Ok user) ->
@@ -174,12 +172,8 @@ update msg model auth =
             )
 
         ProfileImageUpdated (Err e) ->
-            let
-                _ =
-                    Debug.log "Profile image failed to update" e
-            in
             ( { model | error = Just "Failed to upload new profile" }
-            , Cmd.none
+            , Ports.error <| "Profile image failed to update: " ++ httpErrorToString e
             )
 
         ProfileImageUpdated (Ok user) ->

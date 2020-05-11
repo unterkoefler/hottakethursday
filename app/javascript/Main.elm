@@ -7,7 +7,6 @@ import Browser.Navigation as Nav
 import Colors exposing (ColorScheme, colorSchemeForUser)
 import Data.Take
 import Data.User as User exposing (User)
-import Debug
 import DeleteAccount
 import Element exposing (..)
 import Element.Background as Background
@@ -20,6 +19,7 @@ import Flags exposing (Dimensions)
 import Html exposing (Html)
 import Html.Attributes
 import Http
+import HttpUtils exposing (httpErrorToString)
 import Json.Decode
 import Login
 import NavTabs exposing (navTab)
@@ -500,18 +500,10 @@ updateHomePageSignedIn msg model data user auth =
             )
 
         FeedLoaded (Err m) ->
-            let
-                _ =
-                    Debug.log "FeedLoaded error" m
-            in
-            ( model, Cmd.none )
+            ( model, Ports.error <| "FeedLoaded error: " ++ httpErrorToString m )
 
         TakeUpdate (Err m) ->
-            let
-                _ =
-                    Debug.log "Failed to load new take" m
-            in
-            ( model, Cmd.none )
+            ( model, Ports.error <| "FeedLoaded error: " ++ Json.Decode.errorToString m )
 
         TakeUpdate (Ok take) ->
             ( { model | page = Home <| Feed.addOrUpdateTake data take }

@@ -124,10 +124,6 @@ update msg model navKey =
             )
 
         AttemptCompleted (Err (Api.FieldError errors)) ->
-            let
-                _ =
-                    Debug.log "Error" e
-            in
             ( addErrors model errors
             , Nothing
             , Cmd.none
@@ -140,10 +136,6 @@ update msg model navKey =
             )
 
         AttemptCompleted (Err _) ->
-            let
-                _ =
-                    Debug.log "Error" e
-            in
             ( { model | error = Just "Oops. That didn't work" }
             , Nothing
             , Cmd.none
