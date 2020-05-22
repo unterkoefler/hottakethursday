@@ -484,8 +484,10 @@ takeAndAuthor take =
         , alignLeft
         ]
         [ paragraph [] [ text <| "\"" ++ take.content ++ "\"" ]
-        , el [ Font.alignRight ]
-            (text <| "- @" ++ take.postedBy.username)
+        , link [ Font.alignRight ]
+            { url = "/profile?uid=" ++ String.fromInt take.postedBy.id
+            , label = text <| "- @" ++ take.postedBy.username
+            }
         ]
 
 

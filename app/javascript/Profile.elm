@@ -49,7 +49,7 @@ newBioItem val =
 
 
 type Section
-    = YourTakes
+    = Takes
     | Notifications
     | Settings
 
@@ -107,10 +107,10 @@ toSection frag =
             Settings
 
         Just str ->
-            YourTakes
+            Takes
 
         Nothing ->
-            YourTakes
+            Takes
 
 
 {-| Extracts any new user info that the rest of the app might care about
@@ -249,12 +249,12 @@ view model colorScheme maybeUser =
     in
     row [ spacing 36, width fill, height fill ]
         [ aboutUser colorScheme model.subject model.items ownProfile model.error
-        , profileContent colorScheme model.section
+        , profileContent colorScheme model.section ownProfile model.subject.id
         ]
 
 
-profileContent : ColorScheme -> Section -> Element Msg
-profileContent colorScheme section =
+profileContent : ColorScheme -> Section -> Bool -> Int -> Element Msg
+profileContent colorScheme section ownProfile userId =
     column
         [ alignTop
         , alignLeft
@@ -262,7 +262,7 @@ profileContent colorScheme section =
         , width fill
         , spacing 12
         ]
-        [ profileNavTabs colorScheme section
+        [ profileNavTabs colorScheme section ownProfile userId
         , paragraph
             [ Font.size 24
             ]
@@ -270,8 +270,8 @@ profileContent colorScheme section =
         ]
 
 
-profileNavTabs : ColorScheme -> Section -> Element Msg
-profileNavTabs colorScheme section =
+profileNavTabs : ColorScheme -> Section -> Bool -> Int -> Element Msg
+profileNavTabs colorScheme section ownProfile userId =
     row
         [ alignLeft
         , alignTop
@@ -279,10 +279,19 @@ profileNavTabs colorScheme section =
         , width fill
         , Border.color colorScheme.secondary
         ]
-        [ navTab colorScheme "Your Takes" "/profile" (YourTakes == section)
-        , navTab colorScheme "Notifications" "/profile#notifications" (Notifications == section)
-        , navTab colorScheme "Settings" "/profile#settings" (Settings == section)
-        ]
+    <|
+        if ownProfile then
+            [ navTab colorScheme "Takes" "/profile" (Takes == section)
+            , navTab colorScheme "Notifications" "/profile#notifications" (Notifications == section)
+            , navTab colorScheme "Settings" "/profile#settings" (Settings == section)
+            ]
+
+        else
+            [ navTab colorScheme
+                "Takes"
+                ("/profile?uid=" ++ String.fromInt userId)
+                True
+            ]
 
 
 aboutUserSidebarWidth =
