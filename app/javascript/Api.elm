@@ -279,12 +279,25 @@ loadUserAuth json onFinish =
                 Task.fail (DecodingProblem decodingError)
 
 
-userById : UserAuth -> Int -> (Result Http.Error User.User -> msg) -> Cmd msg
+type alias UserWithTakes =
+    { user : User.User
+    , takes : List Take.Take
+    }
+
+
+userWithTakesDecoder : Json.Decode.Decoder UserWithTakes
+userWithTakesDecoder =
+    Json.Decode.map2 UserWithTakes
+        (Json.Decode.field "user" User.decoder)
+        (Json.Decode.field "takes" <| Json.Decode.list Take.decoder)
+
+
+userById : UserAuth -> Int -> (Result Http.Error UserWithTakes -> msg) -> Cmd msg
 userById auth userId onFinish =
     authenticatedGet
         { auth = auth
         , url = Url.Builder.relative (baseUrlComponents ++ [ "users", "by_id" ]) [ Url.Builder.int "id" userId ]
-        , expect = Http.expectJson onFinish User.decoder
+        , expect = Http.expectJson onFinish userWithTakesDecoder
         }
 
 

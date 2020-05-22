@@ -135,7 +135,7 @@ type alias Model =
     , showNavBar : Bool
     , expandNavTabs : Bool
     , dimensions : Dimensions
-    , profileSubject : Maybe User
+    , profileSubject : Maybe { user : User, takes : List Data.Take.Take }
     }
 
 
@@ -231,7 +231,7 @@ init flags url key =
 type Msg
     = FeedMsg Feed.Msg
     | ProfileMsg Profile.Msg
-    | ProfileSubjectLoaded (Result Http.Error User)
+    | ProfileSubjectLoaded (Result Http.Error { user : User, takes : List Data.Take.Take })
     | LoginMsg Login.Msg
     | SignupMsg Signup.Msg
     | DeleteAccountMsg DeleteAccount.Msg
@@ -329,10 +329,10 @@ update msg model =
             , Cmd.none
             )
 
-        ProfileSubjectLoaded (Ok user) ->
+        ProfileSubjectLoaded (Ok subject) ->
             case model.page of
                 Loading next ->
-                    ( { model | profileSubject = Just user }
+                    ( { model | profileSubject = Just subject }
                     , Nav.pushUrl model.navKey (Url.toString next)
                     )
 
@@ -406,9 +406,9 @@ handleUrlChangeToProfile model section user auth maybeUserId url =
             )
 
         Just subject ->
-            if subject.id == userId then
+            if subject.user.id == userId then
                 ( { model
-                    | page = Profile <| Profile.toModel section subject
+                    | page = Profile <| Profile.toModel section subject.user subject.takes
                   }
                 , Cmd.none
                 )
@@ -576,7 +576,12 @@ handleProfileMsg : Profile.Msg -> Model -> Profile.Model -> Api.UserAuth -> ( Mo
 handleProfileMsg msg model data auth =
     let
         ( newData, cmd ) =
-            Profile.update msg data auth
+            case model.profile of
+                Just { user } ->
+                    Profile.update msg data user auth
+
+                Nothing ->
+                    ( data, Cmd.none )
 
         newProfile =
             case ( model.profile, Profile.updatedUserInfo msg ) of
@@ -770,7 +775,7 @@ largeDeviceHeader model colorScheme =
         ]
 
 
-navLinks : Page -> Maybe { a | user : User } -> Maybe User -> List (Element Msg)
+navLinks : Page -> Maybe { a | user : User } -> Maybe { b | user : User } -> List (Element Msg)
 navLinks page profile profileSubject =
     case page of
         Home _ ->
@@ -797,7 +802,7 @@ navLinks page profile profileSubject =
         Profile _ ->
             case ( profile, profileSubject ) of
                 ( Just { user }, Just subject ) ->
-                    if user.id == subject.id then
+                    if user.id == subject.user.id then
                         [ logoutButton, navItem "Delete Account" "delete-account" ]
 
                     else

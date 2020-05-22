@@ -1,4 +1,4 @@
-module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feedWidth, fromTakes, init, toFeedSection, update, view)
+module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feed, feedWidth, fromTakes, init, toFeedSection, update, view)
 
 import Api
 import Colors exposing (ColorScheme)

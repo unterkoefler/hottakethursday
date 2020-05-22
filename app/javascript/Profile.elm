@@ -3,6 +3,7 @@ module Profile exposing (Model, Msg, Section, toModel, toSection, update, update
 import Api
 import AssocList as Dict exposing (Dict)
 import Colors exposing (ColorScheme)
+import Data.Take exposing (Take)
 import Data.User exposing (User)
 import Element exposing (..)
 import Element.Background as Background
@@ -10,6 +11,7 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Element.Region as Region
+import Feed
 import File exposing (File)
 import File.Select as Select
 import Html.Attributes
@@ -28,6 +30,7 @@ type alias Model =
     , subject : User
     , section : Section
     , error : Maybe String
+    , takes : Feed.Model
     }
 
 
@@ -60,12 +63,13 @@ type EditingState
     | Saving
 
 
-toModel : Section -> User -> Model
-toModel section subject =
+toModel : Section -> User -> List Take -> Model
+toModel section subject takes =
     { items = itemsFromUser subject
     , subject = subject
     , section = section
     , error = Nothing
+    , takes = Feed.addTakes Feed.init takes
     }
 
 
@@ -95,6 +99,7 @@ type Msg
     | ChangeProfileImage
     | ProfileImageSelected File
     | ProfileImageUpdated (Result Http.Error User)
+    | FeedMsg Feed.Msg
 
 
 toSection : Maybe String -> Section
@@ -128,8 +133,8 @@ updatedUserInfo msg =
             Nothing
 
 
-update : Msg -> Model -> Api.UserAuth -> ( Model, Cmd Msg )
-update msg model auth =
+update : Msg -> Model -> User -> Api.UserAuth -> ( Model, Cmd Msg )
+update msg model user auth =
     case msg of
         EditItem key newValue ->
             ( { model | items = Dict.update key (Maybe.map (\i -> { i | value = newValue })) model.items }
@@ -156,7 +161,7 @@ update msg model auth =
             , Ports.error <| "edit bio error: " ++ httpErrorToString e
             )
 
-        ItemSaved key (Ok user) ->
+        ItemSaved key (Ok _) ->
             ( { model | items = updateDict key valueSaved model.items }
             , Cmd.none
             )
@@ -176,9 +181,18 @@ update msg model auth =
             , Ports.error <| "Profile image failed to update: " ++ httpErrorToString e
             )
 
-        ProfileImageUpdated (Ok user) ->
-            ( { model | subject = user }
+        ProfileImageUpdated (Ok subject) ->
+            ( { model | subject = subject }
             , Cmd.none
+            )
+
+        FeedMsg m ->
+            let
+                ( takes, cmd ) =
+                    Feed.update m model.takes user auth
+            in
+            ( { model | takes = takes }
+            , Cmd.map FeedMsg cmd
             )
 
 
@@ -249,12 +263,16 @@ view model colorScheme maybeUser =
     in
     row [ spacing 36, width fill, height fill ]
         [ aboutUser colorScheme model.subject model.items ownProfile model.error
-        , profileContent colorScheme model.section ownProfile model.subject.id
+        , profileContent colorScheme model ownProfile maybeUser
         ]
 
 
-profileContent : ColorScheme -> Section -> Bool -> Int -> Element Msg
-profileContent colorScheme section ownProfile userId =
+profileContent : ColorScheme -> Model -> Bool -> Maybe User -> Element Msg
+profileContent colorScheme model ownProfile maybeUser =
+    let
+        userId =
+            model.subject.id
+    in
     column
         [ alignTop
         , alignLeft
@@ -262,12 +280,26 @@ profileContent colorScheme section ownProfile userId =
         , width fill
         , spacing 12
         ]
-        [ profileNavTabs colorScheme section ownProfile userId
-        , paragraph
-            [ Font.size 24
-            ]
-            [ text "Under construction" ]
+        [ profileNavTabs colorScheme model.section ownProfile userId
+        , profileBody colorScheme model ownProfile maybeUser
         ]
+
+
+profileBody : ColorScheme -> Model -> Bool -> Maybe User -> Element Msg
+profileBody colorScheme model ownProfile maybeUser =
+    case model.section of
+        Takes ->
+            let
+                takes =
+                    model.takes.cards
+            in
+            Element.map FeedMsg <| Feed.feed colorScheme takes maybeUser
+
+        _ ->
+            paragraph
+                [ Font.size 24
+                ]
+                [ text "Under construction" ]
 
 
 profileNavTabs : ColorScheme -> Section -> Bool -> Int -> Element Msg
