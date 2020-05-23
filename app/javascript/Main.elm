@@ -16,6 +16,7 @@ import Element.Input as Input
 import Element.Region as Region
 import Feed
 import Flags exposing (Dimensions)
+import ForgotPassword
 import Html exposing (Html)
 import Html.Attributes
 import Http
@@ -25,6 +26,7 @@ import Login
 import NavTabs exposing (navTab)
 import Ports
 import Profile
+import ResetPassword
 import Signup
 import Task
 import Thursday exposing (daysUntilThursday, isThursday, toWeekdayString)
@@ -78,6 +80,7 @@ type Route
     = HomeRoute Feed.FeedSection
     | LoginRoute
     | ForgotPasswordRoute
+    | ResetPasswordRoute (Maybe String)
     | SignupRoute
     | ProfileRoute (Maybe Int) Profile.Section
     | DeleteAccountRoute
@@ -95,6 +98,7 @@ routeParser =
         , Parser.map ProfileRoute (Parser.s "profile" <?> Query.int "uid" </> Parser.fragment Profile.toSection)
         , Parser.map DeleteAccountRoute (Parser.s "delete-account")
         , Parser.map PleaseConfirmEmailRoute (Parser.s "please-confirm-email")
+        , Parser.map ResetPasswordRoute (Parser.s "reset-password" <?> Query.string "reset_password_token")
         ]
 
 
@@ -115,7 +119,8 @@ toRoute string =
 type Page
     = Home Feed.Model
     | Login Login.Model
-    | ForgotPassword
+    | ForgotPassword ForgotPassword.Model
+    | ResetPassword ResetPassword.Model
     | Signup Signup.Model
     | Profile Profile.Model
     | Loading Url.Url
@@ -197,7 +202,12 @@ init flags url key =
                     )
 
         ForgotPasswordRoute ->
-            ( { model | page = ForgotPassword }
+            ( { model | page = ForgotPassword <| ForgotPassword.init "" }
+            , Cmd.batch [ loadAuthCmd, setTimeZone ]
+            )
+
+        ResetPasswordRoute token ->
+            ( { model | page = ResetPassword <| ResetPassword.init token }
             , Cmd.batch [ loadAuthCmd, setTimeZone ]
             )
 
@@ -236,6 +246,8 @@ type Msg
     | SignupMsg Signup.Msg
     | DeleteAccountMsg DeleteAccount.Msg
     | FeedLoaded (Result Http.Error (List Data.Take.Take))
+    | ForgotPasswordMsg ForgotPassword.Msg
+    | ResetPasswordMsg ResetPassword.Msg
     | AdjustTimeZone Time.Zone
     | Tick Time.Posix
     | LinkClicked Browser.UrlRequest
@@ -370,7 +382,21 @@ handleUrlChange model url =
             ( { model | page = loginPage }, Cmd.none )
 
         ForgotPasswordRoute ->
-            ( { model | page = ForgotPassword }, Cmd.none )
+            let
+                email =
+                    case model.page of
+                        Login m ->
+                            m.email
+
+                        _ ->
+                            ""
+            in
+            ( { model | page = ForgotPassword <| ForgotPassword.init email }, Cmd.none )
+
+        ResetPasswordRoute token ->
+            ( { model | page = ResetPassword <| ResetPassword.init token }
+            , Cmd.none
+            )
 
         SignupRoute ->
             ( { model | page = Signup Signup.init }, Cmd.none )
@@ -442,8 +468,11 @@ updatePage msg model =
         Login data ->
             updateLoginPage msg model data
 
-        ForgotPassword ->
-            ( model, Cmd.none )
+        ForgotPassword data ->
+            updateForgotPasswordPage msg model data
+
+        ResetPassword data ->
+            updateResetPasswordPage msg model data
 
         Signup data ->
             updateSignupPage msg model data
@@ -509,6 +538,38 @@ updateSignupPage msg model data =
             in
             ( { model | page = Signup newData, profile = profile }
             , Cmd.map SignupMsg cmd
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+updateForgotPasswordPage : Msg -> Model -> ForgotPassword.Model -> ( Model, Cmd Msg )
+updateForgotPasswordPage msg model data =
+    case msg of
+        ForgotPasswordMsg m ->
+            let
+                ( newData, cmd ) =
+                    ForgotPassword.update m data
+            in
+            ( { model | page = ForgotPassword newData }
+            , Cmd.map ForgotPasswordMsg cmd
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+updateResetPasswordPage : Msg -> Model -> ResetPassword.Model -> ( Model, Cmd Msg )
+updateResetPasswordPage msg model data =
+    case msg of
+        ResetPasswordMsg m ->
+            let
+                ( newData, cmd ) =
+                    ResetPassword.update m data
+            in
+            ( { model | page = ResetPassword newData }
+            , Cmd.map ResetPasswordMsg cmd
             )
 
         _ ->
@@ -793,7 +854,10 @@ navLinks page profile profileSubject =
         Login _ ->
             [ navItem "Sign Up" "signup" ]
 
-        ForgotPassword ->
+        ForgotPassword _ ->
+            [ navItem "Login" "login", navItem "Sign Up" "signup" ]
+
+        ResetPassword _ ->
             [ navItem "Login" "login", navItem "Sign Up" "signup" ]
 
         Signup _ ->
@@ -877,17 +941,16 @@ largeDeviceContent model colorScheme =
         ( Login data, Just { user } ) ->
             alreadySignedIn user.username
 
-        ( ForgotPassword, Nothing ) ->
-            paragraph [ spacing 12, Font.size 24 ]
-                [ text <|
-                    "We've sent you an email"
-                        ++ " with a link to reset "
-                        ++ "your password. Remember to not "
-                        ++ "forget your password again! I like "
-                        ++ "to write mine on my forehead!"
-                ]
+        ( ForgotPassword email, Nothing ) ->
+            Element.map ForgotPasswordMsg <| ForgotPassword.view email colorScheme
 
-        ( ForgotPassword, Just { user } ) ->
+        ( ForgotPassword _, Just { user } ) ->
+            alreadySignedIn user.username
+
+        ( ResetPassword email, Nothing ) ->
+            Element.map ResetPasswordMsg <| ResetPassword.view email colorScheme
+
+        ( ResetPassword _, Just { user } ) ->
             alreadySignedIn user.username
 
         ( Signup data, Nothing ) ->
@@ -964,6 +1027,18 @@ fakeAd =
         { src = "/assets/trash-ad.jpg"
         , description = "An advertisement for a trash can"
         }
+
+
+forgotPasswordView : String -> Element Msg
+forgotPasswordView email =
+    paragraph [ spacing 12, Font.size 24 ]
+        [ text <|
+            "We've sent you an email"
+                ++ " with a link to reset "
+                ++ "your password. Remember to not "
+                ++ "forget your password again! I like "
+                ++ "to write mine on my forehead!"
+        ]
 
 
 deleteAccountView : ColorScheme -> Element Msg
