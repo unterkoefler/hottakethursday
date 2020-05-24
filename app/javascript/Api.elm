@@ -8,6 +8,7 @@ module Api exposing
     , changeBio
     , changeLeastFavoriteColor
     , changeName
+    , changePassword
     , deleteAccount
     , deleteTake
     , encodeUserAuth
@@ -15,6 +16,7 @@ module Api exposing
     , loadUserAuth
     , makeTake
     , me
+    , sendForgotPasswordEmail
     , signIn
     , signOut
     , signUp
@@ -126,6 +128,27 @@ expectAuthHeader handleBadStatus toMsg =
                             Err (InvalidUserReturned err)
 
 
+expectFormError : (Result FormError () -> msg) -> Http.Expect msg
+expectFormError toMsg =
+    Http.expectStringResponse toMsg <|
+        \response ->
+            case response of
+                Http.BadUrl_ url ->
+                    Err (HttpError <| Http.BadUrl url)
+
+                Http.Timeout_ ->
+                    Err (HttpError <| Http.Timeout)
+
+                Http.NetworkError_ ->
+                    Err (HttpError <| Http.NetworkError)
+
+                Http.BadStatus_ metadata data ->
+                    signupFieldError metadata data
+
+                Http.GoodStatus_ metadata body ->
+                    Ok ()
+
+
 justStatusCode : Http.Metadata -> String -> Result FormError a
 justStatusCode metadata _ =
     Err (HttpError <| Http.BadStatus metadata.statusCode)
@@ -178,6 +201,51 @@ signIn loginInfo onFinish =
                 { url = url
                 , body = Http.jsonBody json
                 , expect = expectAuthHeader justStatusCode onFinish
+                }
+    in
+    httpRequest
+
+
+sendForgotPasswordEmail : String -> (Result FormError () -> msg) -> Cmd msg
+sendForgotPasswordEmail email onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "users", "password" ]) []
+
+        json =
+            Json.Encode.object [ ( "email", Json.Encode.string email ) ]
+
+        httpRequest =
+            Http.post
+                { url = url
+                , body = Http.jsonBody json
+                , expect = expectFormError onFinish
+                }
+    in
+    httpRequest
+
+
+changePassword : String -> String -> (Result FormError () -> msg) -> Cmd msg
+changePassword token password onFinish =
+    let
+        url =
+            Url.Builder.relative (baseUrlComponents ++ [ "users", "password" ]) []
+
+        json =
+            Json.Encode.object
+                [ ( "password", Json.Encode.string password )
+                , ( "reset_password_token", Json.Encode.string token )
+                ]
+
+        httpRequest =
+            Http.request
+                { method = "PUT"
+                , headers = []
+                , url = url
+                , body = Http.jsonBody json
+                , expect = expectFormError onFinish
+                , timeout = Nothing
+                , tracker = Nothing
                 }
     in
     httpRequest

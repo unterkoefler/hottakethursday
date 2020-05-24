@@ -5,6 +5,7 @@ Rails.application.routes.draw do
       devise_for :users,
                  controllers: { sessions: 'sessions',
                                 confirmations: 'confirmations',
+                                passwords: 'passwords',
                                 registrations: 'registrations' }
       scope :users do
         get 'me', to: 'me#me'

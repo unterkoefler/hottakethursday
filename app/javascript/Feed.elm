@@ -93,7 +93,6 @@ type Msg
     | TakeFocused TakeCard
     | EditTake TakeCard
     | DeleteTake TakeCard
-    | ReportTake TakeCard
     | LikeHandled (Result Http.Error ())
     | DeleteHandled Int (Result Http.Error ())
     | EditNewTake String
@@ -484,10 +483,11 @@ takeAndAuthor take =
         , alignLeft
         ]
         [ paragraph [] [ text <| "\"" ++ take.content ++ "\"" ]
-        , link [ Font.alignRight ]
-            { url = "/profile?uid=" ++ String.fromInt take.postedBy.id
-            , label = text <| "- @" ++ take.postedBy.username
-            }
+        , el [ alignRight ] <|
+            link [ Font.alignRight ]
+                { url = "/profile?uid=" ++ String.fromInt take.postedBy.id
+                , label = text <| "- @" ++ take.postedBy.username
+                }
         ]
 
 
@@ -513,7 +513,7 @@ focusButtons colorScheme card user =
                 [ takeFocusButton colorScheme "delete" (DeleteTake card) ]
 
             else
-                [ takeFocusButton colorScheme "report" (ReportTake card) ]
+                []
     in
     row [ centerX ] buttons
 
