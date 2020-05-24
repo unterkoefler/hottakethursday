@@ -1,4 +1,4 @@
-module Signup exposing (Model, Msg, init, update, view)
+module Signup exposing (Model, Msg, init, smallView, update, view)
 
 import Api
 import Birthday
@@ -266,18 +266,34 @@ view model colorScheme =
         , paddingEach { left = 15, right = 15, top = 64, bottom = 15 }
         , spacing 12
         ]
-        [ el [ Region.heading 2, Font.size 36, Font.color colorScheme.secondary ] (text "Create Your Account")
-        , paragraph [ Font.size 16 ] [ text "Feed us your data" ]
-        , Field.view colorScheme (textInput "Name" EditName) model.name
-        , Field.view colorScheme (textInput "Email" EditEmail) model.email
-        , Field.view colorScheme (passwordInput "Password" EditPassword) model.password
-        , Field.view colorScheme (passwordInput "Confirm password" EditConfirmPassword) model.confirmPassword
-        , Field.view colorScheme (textInput "Username" EditUsername) model.username
-        , Field.view colorScheme (textInput "Birthday (MM/DD/YYYY)" EditBirthday) model.birthday
-        , Field.view colorScheme (tos colorScheme) model.agreedToTos
-        , submitButton colorScheme
-        , Field.viewError colorScheme model.error
+    <|
+        body model colorScheme
+
+
+smallView : Model -> ColorScheme -> Element Msg
+smallView model colorScheme =
+    column
+        [ centerX
+        , spacing 12
         ]
+    <|
+        body model colorScheme
+
+
+body : Model -> ColorScheme -> List (Element Msg)
+body model colorScheme =
+    [ paragraph [ Region.heading 2, Font.size 36, Font.color colorScheme.secondary ] [ text "Create Your Account" ]
+    , paragraph [ Font.size 16 ] [ text "Feed us your data" ]
+    , Field.view colorScheme (textInput "Name" EditName) model.name
+    , Field.view colorScheme (textInput "Email" EditEmail) model.email
+    , Field.view colorScheme (passwordInput "Password" EditPassword) model.password
+    , Field.view colorScheme (passwordInput "Confirm password" EditConfirmPassword) model.confirmPassword
+    , Field.view colorScheme (textInput "Username" EditUsername) model.username
+    , Field.view colorScheme (textInput "Birthday (MM/DD/YYYY)" EditBirthday) model.birthday
+    , Field.view colorScheme (tos colorScheme) model.agreedToTos
+    , submitButton colorScheme
+    , Field.viewError colorScheme model.error
+    ]
 
 
 tos : ColorScheme -> Bool -> Element Msg
@@ -289,24 +305,25 @@ tos colorScheme val =
         , checked = val
         , label =
             Input.labelRight
-                []
+                [ width fill ]
                 (newTabLink []
                     { url = "https://en.wikipedia.org/wiki/Echidna#Reproduction"
                     , label =
-                        el [ Font.color colorScheme.link ] (text "I agree to the terms and conditions")
+                        paragraph [ Font.color colorScheme.link ]
+                            [ text "I agree to the terms and conditions" ]
                     }
                 )
         }
 
 
 inputWidth =
-    350
+    width (fill |> maximum 350)
 
 
 textInput : String -> (String -> Msg) -> String -> Element Msg
 textInput lbl msg val =
     Input.text
-        [ width <| px inputWidth ]
+        [ inputWidth ]
         { onChange = msg
         , text = val
         , placeholder = Nothing
@@ -317,7 +334,7 @@ textInput lbl msg val =
 passwordInput : String -> (String -> Msg) -> String -> Element Msg
 passwordInput lbl msg val =
     Input.newPassword
-        [ width <| px inputWidth ]
+        [ inputWidth ]
         { onChange = msg
         , text = val
         , placeholder = Nothing

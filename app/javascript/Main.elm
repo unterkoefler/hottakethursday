@@ -337,7 +337,7 @@ update msg model =
             )
 
         WindowResized dim ->
-            ( { model | dimensions = dim }
+            ( { model | dimensions = dim, showNavBar = False }
             , Cmd.none
             )
 
@@ -366,7 +366,11 @@ update msg model =
 
 
 handleUrlChange : Model -> Url.Url -> ( Model, Cmd Msg )
-handleUrlChange model url =
+handleUrlChange mdl url =
+    let
+        model =
+            { mdl | showNavBar = False }
+    in
     case toRoute <| Url.toString url of
         HomeRoute section ->
             case model.profile of
@@ -742,10 +746,10 @@ viewForThursday model colorScheme =
             largeDeviceView model colorScheme
 
         ( Tablet, Portrait ) ->
-            smallDeviceView model
+            smallDeviceView model colorScheme
 
         ( Phone, _ ) ->
-            smallDeviceView model
+            smallDeviceView model colorScheme
 
 
 noFocus : FocusStyle
@@ -790,6 +794,16 @@ largeDeviceBody dim shouldShowAds elmt =
         elmt
 
 
+smallDeviceBody : Element Msg -> Element Msg
+smallDeviceBody elmt =
+    el
+        [ paddingXY 12 76
+        , centerX
+        , width fill
+        ]
+        elmt
+
+
 fullWidth : Dimensions -> Bool -> Length
 fullWidth dim shouldShowAds =
     if shouldShowAds then
@@ -811,12 +825,16 @@ adsPaddingX =
     15
 
 
-smallDeviceView : Model -> Html Msg
-smallDeviceView _ =
-    layout
-        []
+smallDeviceView : Model -> ColorScheme -> Html Msg
+smallDeviceView model colorScheme =
+    layoutWith
+        { options = [ focusStyle noFocus ] }
+        [ width fill
+        , inFront <| smallDeviceHeader model colorScheme
+        ]
     <|
-        paragraph [] [ text "Website under construction for this screen size. Try stretching your screen a lil bit" ]
+        smallDeviceBody <|
+            smallDeviceContent model colorScheme
 
 
 largeDeviceHeader : Model -> ColorScheme -> Element Msg
@@ -831,9 +849,65 @@ largeDeviceHeader model colorScheme =
         , Background.color colorScheme.primary
         , Font.color colorScheme.textOnPrimary
         ]
-        [ link [ Font.size 24 ] { url = "/", label = text "HotTakeThursday 🔥" }
+        [ title
         , el [ alignRight ] (row [ spacing 24 ] links)
         ]
+
+
+smallDeviceHeader : Model -> ColorScheme -> Element Msg
+smallDeviceHeader model colorScheme =
+    let
+        links =
+            navLinks model.page model.profile model.profileSubject
+
+        titleAndHamburger =
+            [ title
+            , hamburger
+            ]
+    in
+    case model.showNavBar of
+        True ->
+            column
+                [ width fill
+                , paddingEach { top = 15, bottom = 0, left = 0, right = 0 }
+                , spacing 20
+                , Background.color colorScheme.primary
+                , Font.color colorScheme.textOnPrimary
+                ]
+                [ row [ width fill, paddingXY 15 0 ] titleAndHamburger
+                , column
+                    [ Background.color colorScheme.primaryDark
+                    , spacing 15
+                    , width fill
+                    , padding 15
+                    ]
+                    links
+                ]
+
+        False ->
+            row
+                [ width fill
+                , padding 15
+                , Background.color colorScheme.primary
+                , Font.color colorScheme.textOnPrimary
+                ]
+                titleAndHamburger
+
+
+title : Element Msg
+title =
+    link [ Font.size 24 ] { url = "/", label = text "HotTakeThursday 🔥" }
+
+
+hamburger : Element Msg
+hamburger =
+    Input.button
+        [ alignRight
+        , Font.size 30
+        ]
+        { label = text "☰"
+        , onPress = Just NavBarToggled
+        }
 
 
 navLinks : Page -> Maybe { a | user : User } -> Maybe { b | user : User } -> List (Element Msg)
@@ -966,22 +1040,87 @@ largeDeviceContent model colorScheme =
             Element.map ProfileMsg (Profile.view data colorScheme Nothing)
 
         ( Loading next, _ ) ->
-            row [] [ text "Loading..." ]
+            text "Loading..."
 
         ( Forbidden, Just _ ) ->
-            row []
-                [ text <|
-                    "Sorry! You don't have permission to view this"
-                        ++ " page. If you think this is an error, please"
-                        ++ " report it to noonecares@yahoo.net"
-                ]
+            text <|
+                "Sorry! You don't have permission to view this"
+                    ++ " page. If you think this is an error, please"
+                    ++ " report it to noonecares@yahoo.net"
 
         ( Forbidden, Nothing ) ->
-            row []
-                [ text <|
-                    "Sorry! You don't have permission to view this"
-                        ++ " page. Please login or signup using the links above"
-                ]
+            text <|
+                "Sorry! You don't have permission to view this"
+                    ++ " page. Please login or signup using the links above"
+
+        ( DeleteAccount data, Just { user } ) ->
+            Element.map DeleteAccountMsg <| DeleteAccount.view data colorScheme
+
+        ( DeleteAccount _, Nothing ) ->
+            text "You're not even signed in lol"
+
+        ( PleaseConfirmEmail, Just { user } ) ->
+            text "You're signed in. Go home."
+
+        ( PleaseConfirmEmail, Nothing ) ->
+            text "Thanks! Check your email for a confirmation link!"
+
+        ( Error m, _ ) ->
+            text m
+
+
+smallDeviceContent : Model -> ColorScheme -> Element Msg
+smallDeviceContent model colorScheme =
+    case ( model.page, model.profile ) of
+        ( Home data, Just { user } ) ->
+            Element.map FeedMsg <| Feed.view data colorScheme (Just user)
+
+        ( Home data, Nothing ) ->
+            Element.map FeedMsg <| Feed.view data colorScheme Nothing
+
+        ( Login data, Nothing ) ->
+            Element.map LoginMsg (Login.smallView data colorScheme)
+
+        ( Login data, Just { user } ) ->
+            alreadySignedIn user.username
+
+        ( ForgotPassword email, Nothing ) ->
+            Element.map ForgotPasswordMsg <| ForgotPassword.smallView email colorScheme
+
+        ( ForgotPassword _, Just { user } ) ->
+            alreadySignedIn user.username
+
+        ( ResetPassword email, Nothing ) ->
+            Element.map ResetPasswordMsg <| ResetPassword.smallView email colorScheme
+
+        ( ResetPassword _, Just { user } ) ->
+            alreadySignedIn user.username
+
+        ( Signup data, Nothing ) ->
+            Element.map SignupMsg (Signup.smallView data colorScheme)
+
+        ( Signup data, Just { user } ) ->
+            alreadySignedIn user.username
+
+        ( Profile data, Just { user } ) ->
+            Element.map ProfileMsg (Profile.view data colorScheme (Just user))
+
+        ( Profile data, Nothing ) ->
+            Element.map ProfileMsg (Profile.view data colorScheme Nothing)
+
+        ( Loading next, _ ) ->
+            text "Loading..."
+
+        ( Forbidden, Just _ ) ->
+            text <|
+                "Sorry! You don't have permission to view this"
+                    ++ " page. If you think this is an error, please"
+                    ++ " report it to noonecares@yahoo.net"
+
+        ( Forbidden, Nothing ) ->
+            text <|
+                "Sorry! You don't have permission to view this"
+                    ++ " page. Please login or signup using the links above"
 
         ( DeleteAccount data, Just { user } ) ->
             Element.map DeleteAccountMsg <| DeleteAccount.view data colorScheme
