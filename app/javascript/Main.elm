@@ -30,7 +30,8 @@ import Task
 import Thursday exposing (daysUntilThursday, isThursday, toWeekdayString)
 import Time
 import Url
-import Url.Parser as Parser exposing ((</>), Parser, fragment, map, oneOf, parse, s, top)
+import Url.Parser as Parser exposing ((</>), (<?>), Parser, fragment, map, oneOf, parse, s, top)
+import Url.Parser.Query as Query
 
 
 
@@ -78,7 +79,7 @@ type Route
     | LoginRoute
     | ForgotPasswordRoute
     | SignupRoute
-    | ProfileRoute Profile.Section
+    | ProfileRoute (Maybe Int) Profile.Section
     | DeleteAccountRoute
     | PleaseConfirmEmailRoute
     | NotFound
@@ -91,7 +92,7 @@ routeParser =
         , Parser.map LoginRoute (Parser.s "login")
         , Parser.map ForgotPasswordRoute (Parser.s "forgot-password")
         , Parser.map SignupRoute (Parser.s "signup")
-        , Parser.map ProfileRoute (Parser.s "profile" </> Parser.fragment Profile.toSection)
+        , Parser.map ProfileRoute (Parser.s "profile" <?> Query.int "uid" </> Parser.fragment Profile.toSection)
         , Parser.map DeleteAccountRoute (Parser.s "delete-account")
         , Parser.map PleaseConfirmEmailRoute (Parser.s "please-confirm-email")
         ]
@@ -121,6 +122,7 @@ type Page
     | Forbidden
     | DeleteAccount DeleteAccount.Model
     | PleaseConfirmEmail
+    | Error String
 
 
 type alias Model =
@@ -133,6 +135,7 @@ type alias Model =
     , showNavBar : Bool
     , expandNavTabs : Bool
     , dimensions : Dimensions
+    , profileSubject : Maybe { user : User, takes : List Data.Take.Take }
     }
 
 
@@ -159,6 +162,7 @@ init flags url key =
             , showNavBar = False
             , expandNavTabs = False
             , dimensions = parsedFlags.dimensions
+            , profileSubject = Nothing
             }
 
         loadAuthCmd =
@@ -180,7 +184,7 @@ init flags url key =
             , Cmd.batch [ loadAuthCmd, setTimeZone ]
             )
 
-        ProfileRoute section ->
+        ProfileRoute userId section ->
             case parsedFlags.storedJWT of
                 Just _ ->
                     ( { model | page = Loading url }
@@ -227,6 +231,7 @@ init flags url key =
 type Msg
     = FeedMsg Feed.Msg
     | ProfileMsg Profile.Msg
+    | ProfileSubjectLoaded (Result Http.Error { user : User, takes : List Data.Take.Take })
     | LoginMsg Login.Msg
     | SignupMsg Signup.Msg
     | DeleteAccountMsg DeleteAccount.Msg
@@ -324,6 +329,26 @@ update msg model =
             , Cmd.none
             )
 
+        ProfileSubjectLoaded (Ok subject) ->
+            case model.page of
+                Loading next ->
+                    ( { model | profileSubject = Just subject }
+                    , Nav.pushUrl model.navKey (Url.toString next)
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        ProfileSubjectLoaded (Err _) ->
+            case model.page of
+                Loading next ->
+                    ( { model | page = Error "The user you are looking for does not exist" }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
         _ ->
             updatePage msg model
 
@@ -350,10 +375,10 @@ handleUrlChange model url =
         SignupRoute ->
             ( { model | page = Signup Signup.init }, Cmd.none )
 
-        ProfileRoute section ->
+        ProfileRoute userId section ->
             case model.profile of
-                Just { user } ->
-                    handleUrlChangeToProfile model section user
+                Just { user, auth } ->
+                    handleUrlChangeToProfile model section user auth userId url
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -368,11 +393,30 @@ handleUrlChange model url =
             ( model, Cmd.none )
 
 
-handleUrlChangeToProfile : Model -> Profile.Section -> User -> ( Model, Cmd Msg )
-handleUrlChangeToProfile model section user =
-    ( { model | page = Profile <| Profile.toModel section user, expandNavTabs = False }
-    , Cmd.none
-    )
+handleUrlChangeToProfile : Model -> Profile.Section -> User -> Api.UserAuth -> Maybe Int -> Url.Url -> ( Model, Cmd Msg )
+handleUrlChangeToProfile model section user auth maybeUserId url =
+    let
+        userId =
+            Maybe.withDefault user.id maybeUserId
+    in
+    case model.profileSubject of
+        Nothing ->
+            ( { model | page = Loading url }
+            , Api.userById auth userId ProfileSubjectLoaded
+            )
+
+        Just subject ->
+            if subject.user.id == userId then
+                ( { model
+                    | page = Profile <| Profile.toModel section subject.user subject.takes
+                  }
+                , Cmd.none
+                )
+
+            else
+                ( { model | page = Loading url, profileSubject = Nothing }
+                , Api.userById auth userId ProfileSubjectLoaded
+                )
 
 
 homePage : Model -> Feed.FeedSection -> Page
@@ -417,6 +461,9 @@ updatePage msg model =
             updateDeleteAccountPage msg model data
 
         PleaseConfirmEmail ->
+            ( model, Cmd.none )
+
+        Error _ ->
             ( model, Cmd.none )
 
 
@@ -529,7 +576,12 @@ handleProfileMsg : Profile.Msg -> Model -> Profile.Model -> Api.UserAuth -> ( Mo
 handleProfileMsg msg model data auth =
     let
         ( newData, cmd ) =
-            Profile.update msg data auth
+            case model.profile of
+                Just { user } ->
+                    Profile.update msg data user auth
+
+                Nothing ->
+                    ( data, Cmd.none )
 
         newProfile =
             case ( model.profile, Profile.updatedUserInfo msg ) of
@@ -710,7 +762,7 @@ largeDeviceHeader : Model -> ColorScheme -> Element Msg
 largeDeviceHeader model colorScheme =
     let
         links =
-            navLinks model.page model.profile
+            navLinks model.page model.profile model.profileSubject
     in
     row
         [ width fill
@@ -723,8 +775,8 @@ largeDeviceHeader model colorScheme =
         ]
 
 
-navLinks : Page -> Maybe { a | user : User } -> List (Element Msg)
-navLinks page profile =
+navLinks : Page -> Maybe { a | user : User } -> Maybe { b | user : User } -> List (Element Msg)
+navLinks page profile profileSubject =
     case page of
         Home _ ->
             case profile of
@@ -748,7 +800,23 @@ navLinks page profile =
             [ navItem "Login" "login" ]
 
         Profile _ ->
-            [ logoutButton, navItem "Delete Account" "delete-account" ]
+            case ( profile, profileSubject ) of
+                ( Just { user }, Just subject ) ->
+                    if user.id == subject.user.id then
+                        [ logoutButton, navItem "Delete Account" "delete-account" ]
+
+                    else
+                        [ notificationsLink
+                        , navItem "Profile" "profile"
+                        , navItem "Delete Account" "delete-account"
+                        , logoutButton
+                        ]
+
+                ( Nothing, _ ) ->
+                    [ navItem "Login" "login", navItem "Sign Up" "signup" ]
+
+                ( Just { user }, Nothing ) ->
+                    [ logoutButton, navItem "Delete Account" "delete-account" ]
 
         Loading _ ->
             []
@@ -760,6 +828,9 @@ navLinks page profile =
             [ logoutButton ]
 
         PleaseConfirmEmail ->
+            []
+
+        Error _ ->
             []
 
 
@@ -860,6 +931,9 @@ largeDeviceContent model colorScheme =
 
         ( PleaseConfirmEmail, Nothing ) ->
             text "Thanks! Check your email for a confirmation link!"
+
+        ( Error m, _ ) ->
+            text m
 
 
 alreadySignedIn : String -> Element Msg

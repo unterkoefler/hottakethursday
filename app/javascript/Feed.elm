@@ -1,4 +1,4 @@
-module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feedWidth, fromTakes, init, toFeedSection, update, view)
+module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feed, feedWidth, fromTakes, init, toFeedSection, update, view)
 
 import Api
 import Colors exposing (ColorScheme)
@@ -484,8 +484,10 @@ takeAndAuthor take =
         , alignLeft
         ]
         [ paragraph [] [ text <| "\"" ++ take.content ++ "\"" ]
-        , el [ Font.alignRight ]
-            (text <| "- @" ++ take.postedBy.username)
+        , link [ Font.alignRight ]
+            { url = "/profile?uid=" ++ String.fromInt take.postedBy.id
+            , label = text <| "- @" ++ take.postedBy.username
+            }
         ]
 
 
