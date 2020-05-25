@@ -1073,10 +1073,10 @@ smallDeviceContent : Model -> ColorScheme -> Element Msg
 smallDeviceContent model colorScheme =
     case ( model.page, model.profile ) of
         ( Home data, Just { user } ) ->
-            Element.map FeedMsg <| Feed.view data colorScheme (Just user)
+            Element.map FeedMsg <| Feed.smallView data colorScheme (Just user)
 
         ( Home data, Nothing ) ->
-            Element.map FeedMsg <| Feed.view data colorScheme Nothing
+            Element.map FeedMsg <| Feed.smallView data colorScheme Nothing
 
         ( Login data, Nothing ) ->
             Element.map LoginMsg (Login.smallView data colorScheme)

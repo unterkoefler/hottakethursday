@@ -1,4 +1,4 @@
-module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feed, feedWidth, fromTakes, init, toFeedSection, update, view)
+module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feed, feedWidth, fromTakes, init, smallView, toFeedSection, update, view)
 
 import Api
 import Colors exposing (ColorScheme)
@@ -668,7 +668,7 @@ view data colorScheme maybeUser =
                     feed colorScheme data.cards maybeUser
 
                 Coldest ->
-                    noColdTakes
+                    noColdTakes [ width <| px feedWidth ]
     in
     column
         [ spacing 24
@@ -766,13 +766,14 @@ homeNavTabs colorScheme section =
         ]
 
 
-noColdTakes : Element Msg
-noColdTakes =
+noColdTakes : List (Attribute Msg) -> Element Msg
+noColdTakes attributes =
     paragraph
-        [ Font.size 24
-        , padding 36
-        , width (px feedWidth)
-        ]
+        ([ Font.size 24
+         , padding 36
+         ]
+            ++ attributes
+        )
         [ text <| "Just kidding! We don't have any cold takes here." ]
 
 
@@ -781,3 +782,180 @@ feed colorScheme takes user =
     column
         [ spacing 12 ]
         (List.map (\t -> viewTake colorScheme t user) takes)
+
+
+
+-- SMALL VIEW
+
+
+smallView : Model -> ColorScheme -> Maybe User -> Element Msg
+smallView data colorScheme maybeUser =
+    let
+        maybeCompose =
+            case ( maybeUser, data.section ) of
+                ( Just user, Hottest ) ->
+                    composeView colorScheme user data.compose
+
+                _ ->
+                    Element.none
+
+        maybeFeed =
+            case data.section of
+                Hottest ->
+                    smallFeed colorScheme data.cards maybeUser
+
+                Coldest ->
+                    noColdTakes []
+    in
+    column
+        [ spacing 24
+        , centerX
+        , width fill
+        ]
+        [ homeNavTabs colorScheme data.section
+        , maybeCompose
+        , maybeFeed
+        ]
+
+
+smallFeed : ColorScheme -> List TakeCard -> Maybe User -> Element Msg
+smallFeed colorScheme takes user =
+    column
+        [ spacing 6 ]
+        (List.map (\t -> smallViewTake colorScheme t user) takes)
+
+
+smallViewTake : ColorScheme -> TakeCard -> Maybe User -> Element Msg
+smallViewTake colorScheme card user =
+    case card.state of
+        Default ->
+            smallDefaultView colorScheme card user
+
+        Focused ->
+            smallFocusedView colorScheme card user
+
+        Deleting ->
+            deletingView
+
+        FailedToDelete ->
+            column [ spacing 24 ]
+                [ failedView "Failed to delete."
+                , focusedView colorScheme card user
+                ]
+
+
+smallDefaultView : ColorScheme -> TakeCard -> Maybe User -> Element Msg
+smallDefaultView colorScheme card user =
+    Input.button
+        [ Border.width 1
+        , Border.rounded 7
+        , Border.color colorScheme.secondary
+        ]
+        { onPress = Just <| TakeFocused card
+        , label = smallTakeCardContents colorScheme card user False
+        }
+
+
+smallFocusedView : ColorScheme -> TakeCard -> Maybe User -> Element Msg
+smallFocusedView colorScheme card user =
+    Input.button
+        [ Border.width 1
+        , Border.rounded 7
+        , Border.color colorScheme.secondary
+        ]
+        { onPress = Just <| TakeFocused card
+        , label = smallTakeCardContents colorScheme card user True
+        }
+
+
+smallTakeCardContents : ColorScheme -> TakeCard -> Maybe User -> Bool -> Element Msg
+smallTakeCardContents colorScheme card user focused =
+    column
+        [ spacing cardSpacing
+        , padding cardPadding
+        ]
+        [ row
+            [ spacing cardSpacing
+            , padding cardPadding
+            ]
+            [ el [ width fill ] <| smallTakeAndAuthor card.take
+            , smallFireButton colorScheme card user card.take.usersWhoLiked
+            ]
+        , if focused then
+            focusButtons colorScheme card user
+
+          else
+            none
+        ]
+
+
+smallTakeAndAuthor : Take -> Element Msg
+smallTakeAndAuthor take =
+    textColumn
+        [ spacing 12
+        , paddingEach { left = 5, right = 10, top = 5, bottom = 5 }
+        , width fill
+        , Html.Attributes.style "word-break" "break-all" |> htmlAttribute
+        , alignLeft
+        , Font.size 14
+        ]
+        [ paragraph [] [ text <| "\"" ++ take.content ++ "\"" ]
+        , el [ alignRight ] <|
+            link [ Font.alignRight ]
+                { url = "/profile?uid=" ++ String.fromInt take.postedBy.id
+                , label = text <| "- @" ++ take.postedBy.username
+                }
+        ]
+
+
+smallFireButton : ColorScheme -> TakeCard -> Maybe User -> List User -> Element Msg
+smallFireButton colorScheme card maybeUser likers =
+    let
+        likeCount =
+            List.length likers
+
+        onPress =
+            case maybeUser of
+                Just _ ->
+                    Just <| FireButtonPressed card
+
+                Nothing ->
+                    Nothing
+
+        canLike =
+            not <| memberWithMaybe maybeUser likers True
+
+        url =
+            if canLike then
+                "/assets/fire-transparent.png"
+
+            else
+                "/assets/fire.png"
+    in
+    Input.button
+        [ Border.color colorScheme.secondaryLight
+        , Border.width 1
+        , Border.rounded 7
+        , alignRight
+        ]
+        { onPress = onPress
+        , label = smallFireAndLikeCount url likeCount
+        }
+
+
+smallFireAndLikeCount : String -> Int -> Element Msg
+smallFireAndLikeCount url likeCount =
+    column
+        [ padding fireAndLikeCountPadding
+        , spacing fireAndLikeCountSpacing
+        , centerX
+        ]
+        [ image [ width (px 30) ] { src = url, description = "A fire emoji" }
+        , el
+            [ centerX
+            , Font.size 16
+            , Font.family [ Font.monospace ]
+            ]
+          <|
+            text (String.fromInt 999)
+        ]
