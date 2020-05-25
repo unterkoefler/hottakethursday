@@ -244,7 +244,14 @@ addOrUpdateTake model take =
 
 addTakes : Model -> List Take -> Model
 addTakes model takes =
-    { model | cards = fromTakes takes ++ model.cards }
+    let
+        oldTakeIds =
+            List.map (\c -> c.take.id) model.cards
+
+        newTakes =
+            List.filter (\take -> not <| List.member take.id oldTakeIds) takes
+    in
+    { model | cards = fromTakes newTakes ++ model.cards }
 
 
 replaceTake : List TakeCard -> Take -> Maybe (List TakeCard)
