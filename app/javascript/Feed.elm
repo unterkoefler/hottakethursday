@@ -1,4 +1,4 @@
-module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feed, feedWidth, fromTakes, init, smallView, toFeedSection, update, view)
+module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feed, feedWidth, fromTakes, init, smallFeed, smallView, toFeedSection, update, view)
 
 import Api
 import Colors exposing (ColorScheme)
@@ -821,7 +821,7 @@ smallView data colorScheme maybeUser =
 smallFeed : ColorScheme -> List TakeCard -> Maybe User -> Element Msg
 smallFeed colorScheme takes user =
     column
-        [ spacing 6 ]
+        [ spacing 6, width fill ]
         (List.map (\t -> smallViewTake colorScheme t user) takes)
 
 
@@ -850,6 +850,7 @@ smallDefaultView colorScheme card user =
         [ Border.width 1
         , Border.rounded 7
         , Border.color colorScheme.secondary
+        , width fill
         ]
         { onPress = Just <| TakeFocused card
         , label = smallTakeCardContents colorScheme card user False
@@ -862,6 +863,7 @@ smallFocusedView colorScheme card user =
         [ Border.width 1
         , Border.rounded 7
         , Border.color colorScheme.secondary
+        , width fill
         ]
         { onPress = Just <| TakeFocused card
         , label = smallTakeCardContents colorScheme card user True
@@ -873,10 +875,12 @@ smallTakeCardContents colorScheme card user focused =
     column
         [ spacing cardSpacing
         , padding cardPadding
+        , width fill
         ]
         [ row
             [ spacing cardSpacing
             , padding cardPadding
+            , width fill
             ]
             [ el [ width fill ] <| smallTakeAndAuthor card.take
             , smallFireButton colorScheme card user card.take.usersWhoLiked
@@ -957,5 +961,5 @@ smallFireAndLikeCount url likeCount =
             , Font.family [ Font.monospace ]
             ]
           <|
-            text (String.fromInt 999)
+            text (String.fromInt likeCount)
         ]

@@ -1,4 +1,4 @@
-module Profile exposing (Model, Msg, Section, toModel, toSection, update, updatedUserInfo, view)
+module Profile exposing (Model, Msg, Section, smallView, toModel, toSection, update, updatedUserInfo, view)
 
 import Api
 import AssocList as Dict exposing (Dict)
@@ -31,6 +31,7 @@ type alias Model =
     , section : Section
     , error : Maybe String
     , takes : Feed.Model
+    , expandTabs : Bool
     }
 
 
@@ -70,6 +71,7 @@ toModel section subject takes =
     , section = section
     , error = Nothing
     , takes = Feed.addTakes Feed.init takes
+    , expandTabs = False
     }
 
 
@@ -100,6 +102,7 @@ type Msg
     | ProfileImageSelected File
     | ProfileImageUpdated (Result Http.Error User)
     | FeedMsg Feed.Msg
+    | ToggleTabs
 
 
 toSection : Maybe String -> Section
@@ -193,6 +196,11 @@ update msg model user auth =
             in
             ( { model | takes = takes }
             , Cmd.map FeedMsg cmd
+            )
+
+        ToggleTabs ->
+            ( { model | expandTabs = not model.expandTabs }
+            , Cmd.none
             )
 
 
@@ -506,3 +514,216 @@ aboutEditButton colorScheme label onPress =
         { onPress = onPress
         , label = text label
         }
+
+
+
+-- SMALL VIEW
+
+
+smallView : Model -> ColorScheme -> Maybe User -> Element Msg
+smallView model colorScheme maybeUser =
+    let
+        ownProfile =
+            case maybeUser of
+                Nothing ->
+                    False
+
+                Just user ->
+                    user.id == model.subject.id
+    in
+    column [ spacing 36, width fill ]
+        [ smallAboutUser colorScheme model.subject model.items ownProfile model.error
+        , smallProfileContent colorScheme model ownProfile maybeUser
+        ]
+
+
+smallAboutUser : ColorScheme -> User -> Dict String BioItem -> Bool -> Maybe String -> Element Msg
+smallAboutUser colorScheme user items editable error =
+    el
+        [ Border.widthEach { left = 0, right = 0, top = 0, bottom = 1 }
+        , Border.color colorScheme.lightGray
+        , width fill
+        , paddingEach { left = 0, right = 0, top = 0, bottom = 36 }
+        ]
+    <|
+        column
+            [ spacing 12
+            ]
+            ([ profilePicture colorScheme user editable
+             , el [ centerX ] <| errorMsg colorScheme error
+             , el [ Region.heading 5, Font.size 24, centerX ] (text <| "@" ++ user.username)
+             ]
+                ++ List.map (\( a, b ) -> aboutUserElem colorScheme a b editable) (Dict.toList items)
+            )
+
+
+smallProfileContent : ColorScheme -> Model -> Bool -> Maybe User -> Element Msg
+smallProfileContent colorScheme model ownProfile maybeUser =
+    let
+        userId =
+            model.subject.id
+    in
+    column
+        [ alignTop
+        , alignLeft
+        , padding 12
+        , width fill
+        , spacing 12
+        ]
+        [ smallProfileNavTabs colorScheme model.section model.expandTabs ownProfile userId
+        , smallProfileBody colorScheme model ownProfile maybeUser
+        ]
+
+
+smallProfileBody : ColorScheme -> Model -> Bool -> Maybe User -> Element Msg
+smallProfileBody colorScheme model ownProfile maybeUser =
+    case model.section of
+        Takes ->
+            let
+                takes =
+                    model.takes.cards
+            in
+            Element.map FeedMsg <| Feed.smallFeed colorScheme takes maybeUser
+
+        _ ->
+            paragraph
+                [ Font.size 24
+                ]
+                [ text "Under construction" ]
+
+
+expanded_ =
+    True
+
+
+smallProfileNavTabs : ColorScheme -> Section -> Bool -> Bool -> Int -> Element Msg
+smallProfileNavTabs colorScheme section expandTabs ownProfile userId =
+    let
+        attributes =
+            [ Border.width 2
+            , Border.rounded 12
+            , Border.color colorScheme.secondary
+            , centerX
+            , width fill
+            ]
+    in
+    case expandTabs of
+        False ->
+            Input.button
+                attributes
+                { onPress = Just ToggleTabs
+                , label = currentNavTabLabel colorScheme section expandTabs ownProfile
+                }
+
+        True ->
+            column
+                ([ spacing 0
+                 , paddingEach { left = 0, right = 0, top = 0, bottom = 0 }
+                 ]
+                    ++ attributes
+                )
+                [ Input.button
+                    [ width fill
+                    ]
+                    { onPress = Just ToggleTabs
+                    , label = currentNavTabLabel colorScheme section expandTabs ownProfile
+                    }
+                , expandedTabOption colorScheme "Takes" "/profile" (Takes == section)
+                , expandedTabOption colorScheme "Notifications" "/profile#notifications" (Notifications == section)
+                , expandedTabOption colorScheme "Settings" "/profile#settings" (Settings == section)
+                ]
+
+
+expandedTabOption : ColorScheme -> String -> String -> Bool -> Element Msg
+expandedTabOption colorScheme label url current =
+    let
+        fontColor =
+            if current then
+                colorScheme.textOnSecondary
+
+            else
+                colorScheme.secondary
+    in
+    link
+        [ Font.center
+        , Font.size 20
+        , width fill
+        , paddingXY 0 12
+        , Font.color fontColor
+        ]
+        { url = url
+        , label = text label
+        }
+
+
+currentNavTabLabel : ColorScheme -> Section -> Bool -> Bool -> Element Msg
+currentNavTabLabel colorScheme section expandTabs ownProfile =
+    let
+        sectionName =
+            case section of
+                Takes ->
+                    "Takes"
+
+                Notifications ->
+                    "Notifications"
+
+                Settings ->
+                    "Settings"
+
+        arrow =
+            case ( expandTabs, ownProfile ) of
+                ( _, False ) ->
+                    Element.none
+
+                ( False, True ) ->
+                    el [ Font.alignRight, paddingXY 6 0 ] <| text "▾"
+
+                ( True, True ) ->
+                    el [ Font.alignRight, paddingXY 6 0 ] <| text "▴"
+
+        ( fontColor, bgColor ) =
+            if expandTabs then
+                ( colorScheme.white, colorScheme.secondary )
+
+            else
+                ( colorScheme.secondary, colorScheme.white )
+
+        border =
+            if expandTabs then
+                Border.roundEach { topLeft = 9, topRight = 9, bottomLeft = 0, bottomRight = 0 }
+
+            else
+                Border.rounded 12
+    in
+    row
+        [ Font.color fontColor
+        , Background.color bgColor
+        , border
+        , Font.size 20
+        , padding 12
+        , width fill
+        ]
+        [ el [ centerX ] <| text sectionName
+        , arrow
+        ]
+
+
+ignore colorScheme section ownProfile userId =
+    column
+        [ Border.widthEach { top = 0, bottom = 2, left = 0, right = 0 }
+        , width shrink
+        , Border.color colorScheme.secondary
+        ]
+    <|
+        if ownProfile then
+            [ navTab colorScheme "Takes" "/profile" (Takes == section)
+            , navTab colorScheme "Notifications" "/profile#notifications" (Notifications == section)
+            , navTab colorScheme "Settings" "/profile#settings" (Settings == section)
+            ]
+
+        else
+            [ navTab colorScheme
+                "Takes"
+                ("/profile?uid=" ++ String.fromInt userId)
+                True
+            ]

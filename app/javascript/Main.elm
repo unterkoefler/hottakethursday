@@ -731,25 +731,11 @@ plural n sing plur =
 
 viewForThursday : Model -> ColorScheme -> Html Msg
 viewForThursday model colorScheme =
-    let
-        { class, orientation } =
-            classifyDevice model.dimensions
-    in
-    case ( class, orientation ) of
-        ( Desktop, _ ) ->
-            largeDeviceView model colorScheme
+    if isSmallScreen model.dimensions then
+        smallDeviceView model colorScheme
 
-        ( BigDesktop, _ ) ->
-            largeDeviceView model colorScheme
-
-        ( Tablet, Landscape ) ->
-            largeDeviceView model colorScheme
-
-        ( Tablet, Portrait ) ->
-            smallDeviceView model colorScheme
-
-        ( Phone, _ ) ->
-            smallDeviceView model colorScheme
+    else
+        largeDeviceView model colorScheme
 
 
 noFocus : FocusStyle
@@ -1103,10 +1089,10 @@ smallDeviceContent model colorScheme =
             alreadySignedIn user.username
 
         ( Profile data, Just { user } ) ->
-            Element.map ProfileMsg (Profile.view data colorScheme (Just user))
+            Element.map ProfileMsg (Profile.smallView data colorScheme (Just user))
 
         ( Profile data, Nothing ) ->
-            Element.map ProfileMsg (Profile.view data colorScheme Nothing)
+            Element.map ProfileMsg (Profile.smallView data colorScheme Nothing)
 
         ( Loading next, _ ) ->
             text "Loading..."
@@ -1224,3 +1210,8 @@ deleteAccountView colorScheme =
             , label = text "Goodbye :("
             }
         ]
+
+
+isSmallScreen : { window | height : Int, width : Int } -> Bool
+isSmallScreen window =
+    window.width < 730
