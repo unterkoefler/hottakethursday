@@ -827,7 +827,7 @@ largeDeviceHeader : Model -> ColorScheme -> Element Msg
 largeDeviceHeader model colorScheme =
     let
         links =
-            navLinks model.page model.profile model.profileSubject
+            navLinks colorScheme model.page model.profile model.profileSubject
     in
     row
         [ width fill
@@ -836,7 +836,7 @@ largeDeviceHeader model colorScheme =
         , Font.color colorScheme.textOnPrimary
         ]
         [ title
-        , el [ alignRight ] (row [ spacing 24 ] links)
+        , el [ alignRight ] (row [ spacing 24 ] <| List.map (\f -> f False True) links)
         ]
 
 
@@ -844,7 +844,7 @@ smallDeviceHeader : Model -> ColorScheme -> Element Msg
 smallDeviceHeader model colorScheme =
     let
         links =
-            navLinks model.page model.profile model.profileSubject
+            navLinks colorScheme model.page model.profile model.profileSubject
 
         titleAndHamburger =
             [ title
@@ -867,7 +867,8 @@ smallDeviceHeader model colorScheme =
                     , width fill
                     , padding 15
                     ]
-                    links
+                  <|
+                    borderBetween (List.map (\f -> f True) links)
                 ]
 
         False ->
@@ -896,60 +897,74 @@ hamburger =
         }
 
 
-navLinks : Page -> Maybe { a | user : User } -> Maybe { b | user : User } -> List (Element Msg)
-navLinks page profile profileSubject =
+navLinks : ColorScheme -> Page -> Maybe { a | user : User } -> Maybe { b | user : User } -> List (Bool -> Bool -> Element Msg)
+navLinks colorScheme page profile profileSubject =
     case page of
         Home _ ->
             case profile of
                 Just { user } ->
-                    [ notificationsLink
-                    , navItem "Profile" "profile"
-                    , navItem "Delete Account" "delete-account"
-                    , logoutButton
+                    [ navItem colorScheme "Notifications" "/profile#notifications"
+                    , navItem colorScheme "Profile" "profile"
+                    , navItem colorScheme "Delete Account" "delete-account"
+                    , logoutButton colorScheme
                     ]
 
                 Nothing ->
-                    [ navItem "Login" "login", navItem "Sign Up" "signup" ]
+                    [ navItem colorScheme "Login" "login"
+                    , navItem colorScheme "Sign Up" "signup"
+                    ]
 
         Login _ ->
-            [ navItem "Sign Up" "signup" ]
+            [ navItem colorScheme "Sign Up" "signup" ]
 
         ForgotPassword _ ->
-            [ navItem "Login" "login", navItem "Sign Up" "signup" ]
+            [ navItem colorScheme "Login" "login"
+            , navItem colorScheme "Sign Up" "signup"
+            ]
 
         ResetPassword _ ->
-            [ navItem "Login" "login", navItem "Sign Up" "signup" ]
+            [ navItem colorScheme "Login" "login"
+            , navItem colorScheme "Sign Up" "signup"
+            ]
 
         Signup _ ->
-            [ navItem "Login" "login" ]
+            [ navItem colorScheme "Login" "login" ]
 
         Profile _ ->
             case ( profile, profileSubject ) of
                 ( Just { user }, Just subject ) ->
                     if user.id == subject.user.id then
-                        [ logoutButton, navItem "Delete Account" "delete-account" ]
+                        [ logoutButton colorScheme
+                        , navItem colorScheme "Delete Account" "delete-account"
+                        ]
 
                     else
-                        [ notificationsLink
-                        , navItem "Profile" "profile"
-                        , navItem "Delete Account" "delete-account"
-                        , logoutButton
+                        [ navItem colorScheme "Notifications" "/profile#notifications"
+                        , navItem colorScheme "Profile" "profile"
+                        , navItem colorScheme "Delete Account" "delete-account"
+                        , logoutButton colorScheme
                         ]
 
                 ( Nothing, _ ) ->
-                    [ navItem "Login" "login", navItem "Sign Up" "signup" ]
+                    [ navItem colorScheme "Login" "login"
+                    , navItem colorScheme "Sign Up" "signup"
+                    ]
 
                 ( Just { user }, Nothing ) ->
-                    [ logoutButton, navItem "Delete Account" "delete-account" ]
+                    [ logoutButton colorScheme
+                    , navItem colorScheme "Delete Account" "delete-account"
+                    ]
 
         Loading _ ->
             []
 
         Forbidden ->
-            [ navItem "Login" "login", navItem "Sign Up" "signup" ]
+            [ navItem colorScheme "Login" "login"
+            , navItem colorScheme "Sign Up" "signup"
+            ]
 
         DeleteAccount _ ->
-            [ logoutButton ]
+            [ logoutButton colorScheme ]
 
         PleaseConfirmEmail ->
             []
@@ -968,22 +983,41 @@ showAds model =
             False
 
 
-logoutButton =
+logoutButton : ColorScheme -> Bool -> Bool -> Element Msg
+logoutButton colorScheme expand first =
     Input.button
-        []
+        (navItemAttributes colorScheme expand first)
         { onPress = Just LogoutButtonPressed
         , label = text "Logout"
         }
 
 
-notificationsLink =
-    link [] { url = "profile#notifications", label = text "Notifications" }
-
-
-navItem : String -> String -> Element Msg
-navItem txt link_ =
-    link []
+navItem : ColorScheme -> String -> String -> Bool -> Bool -> Element Msg
+navItem colorScheme txt link_ expand first =
+    link
+        (navItemAttributes colorScheme expand first)
         { url = link_, label = text txt }
+
+
+navItemAttributes : ColorScheme -> Bool -> Bool -> List (Attribute Msg)
+navItemAttributes colorScheme expand first =
+    let
+        expandAttributes =
+            [ width fill, Font.alignRight, padding 12, Font.size 24 ]
+
+        borderAttributes =
+            [ Border.widthEach { left = 0, right = 0, top = 1, bottom = 0 }
+            , Border.color colorScheme.lightGray
+            ]
+    in
+    if expand && not first then
+        borderAttributes ++ expandAttributes
+
+    else if expand then
+        expandAttributes
+
+    else
+        []
 
 
 largeDeviceContent : Model -> ColorScheme -> Element Msg
@@ -1215,3 +1249,17 @@ deleteAccountView colorScheme =
 isSmallScreen : { window | height : Int, width : Int } -> Bool
 isSmallScreen window =
     window.width < 730
+
+
+
+-- there is probably a better way to do this
+
+
+borderBetween : List (Bool -> Element Msg) -> List (Element Msg)
+borderBetween toElements =
+    case toElements of
+        first :: rest ->
+            first True :: List.map (\f -> f False) rest
+
+        [] ->
+            []

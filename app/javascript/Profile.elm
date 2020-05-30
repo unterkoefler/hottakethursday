@@ -348,6 +348,7 @@ aboutUser colorScheme user items editable error =
         [ Border.widthEach { left = 0, right = 1, top = 0, bottom = 0 }
         , Border.color colorScheme.lightGray
         , width (px aboutUserSidebarWidth)
+        , alignTop
         ]
     <|
         column
