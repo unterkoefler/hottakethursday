@@ -1,4 +1,4 @@
-module Login exposing (LoginAttempt(..), Model, Msg, emptyForm, update, view)
+module Login exposing (LoginAttempt(..), Model, Msg, emptyForm, smallView, update, view)
 
 import Api
 import Browser.Navigation as Nav
@@ -113,6 +113,22 @@ view model colorScheme =
         [ spacing 12
         , centerX
         , paddingEach { left = 15, right = 15, top = 64, bottom = 15 }
+        ]
+        [ el [ Region.heading 2, Font.size 36, Font.color colorScheme.secondary ] (text "Welcome Back")
+        , row [ Font.size 14 ] [ text "I've missed you" ]
+        , inputWithLabel colorScheme "Email" model.email EmailChanged
+        , passwordWithLabel colorScheme "Password" model.password PasswordChanged
+        , forgotPasswordLink colorScheme
+        , submitButton colorScheme
+        , paragraph [] [ text <| failureMessage model.previousAttempt ]
+        ]
+
+
+smallView : Model -> ColorScheme -> Element Msg
+smallView model colorScheme =
+    column
+        [ spacing 12
+        , centerX
         ]
         [ el [ Region.heading 2, Font.size 36, Font.color colorScheme.secondary ] (text "Welcome Back")
         , row [ Font.size 14 ] [ text "I've missed you" ]

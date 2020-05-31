@@ -1,4 +1,4 @@
-module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feed, feedWidth, fromTakes, init, toFeedSection, update, view)
+module Feed exposing (FeedSection, Model, Msg, addOrUpdateTake, addTakes, feed, feedWidth, fromTakes, init, smallFeed, smallView, toFeedSection, update, view)
 
 import Api
 import Colors exposing (ColorScheme)
@@ -16,6 +16,7 @@ import NavTabs exposing (navTab)
 import Ports
 import Thursday exposing (toWeekdayString)
 import Time
+import Time.Distance exposing (inWords)
 
 
 
@@ -244,7 +245,14 @@ addOrUpdateTake model take =
 
 addTakes : Model -> List Take -> Model
 addTakes model takes =
-    { model | cards = fromTakes takes ++ model.cards }
+    let
+        oldTakeIds =
+            List.map (\c -> c.take.id) model.cards
+
+        newTakes =
+            List.filter (\take -> not <| List.member take.id oldTakeIds) takes
+    in
+    { model | cards = fromTakes newTakes ++ model.cards }
 
 
 replaceTake : List TakeCard -> Take -> Maybe (List TakeCard)
@@ -393,14 +401,14 @@ estLikeCountWidth =
     30
 
 
-viewTake : ColorScheme -> TakeCard -> Maybe User -> Element Msg
-viewTake colorScheme card user =
+viewTake : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+viewTake colorScheme card user now =
     case card.state of
         Default ->
-            defaultView colorScheme card user
+            defaultView colorScheme card user now
 
         Focused ->
-            focusedView colorScheme card user
+            focusedView colorScheme card user now
 
         Deleting ->
             deletingView
@@ -408,31 +416,31 @@ viewTake colorScheme card user =
         FailedToDelete ->
             column [ spacing 24 ]
                 [ failedView "Failed to delete."
-                , focusedView colorScheme card user
+                , focusedView colorScheme card user now
                 ]
 
 
-defaultView : ColorScheme -> TakeCard -> Maybe User -> Element Msg
-defaultView colorScheme card user =
+defaultView : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+defaultView colorScheme card user now =
     Input.button
         [ Border.width 1
         , Border.rounded 7
         , Border.color colorScheme.secondary
         ]
         { onPress = Just <| TakeFocused card
-        , label = takeCardContents colorScheme card user False
+        , label = takeCardContents colorScheme card user False now
         }
 
 
-focusedView : ColorScheme -> TakeCard -> Maybe User -> Element Msg
-focusedView colorScheme card user =
+focusedView : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+focusedView colorScheme card user now =
     Input.button
         [ Border.width 1
         , Border.rounded 7
         , Border.color colorScheme.secondary
         ]
         { onPress = Just <| TakeFocused card
-        , label = takeCardContents colorScheme card user True
+        , label = takeCardContents colorScheme card user True now
         }
 
 
@@ -451,8 +459,8 @@ deletingView =
     text "Deleting the take..."
 
 
-takeCardContents : ColorScheme -> TakeCard -> Maybe User -> Bool -> Element Msg
-takeCardContents colorScheme card user focused =
+takeCardContents : ColorScheme -> TakeCard -> Maybe User -> Bool -> Time.Posix -> Element Msg
+takeCardContents colorScheme card user focused now =
     column
         [ spacing cardSpacing
         , padding cardPadding
@@ -462,7 +470,7 @@ takeCardContents colorScheme card user focused =
             , padding cardPadding
             ]
             [ profilePicThumbnail card
-            , el [ width (px takeWidth) ] <| takeAndAuthor card.take
+            , el [ width (px takeWidth) ] <| takeAndAuthor card.take now
             , fireButton colorScheme card user card.take.usersWhoLiked
             ]
         , if focused then
@@ -473,20 +481,20 @@ takeCardContents colorScheme card user focused =
         ]
 
 
-takeAndAuthor : Take -> Element Msg
-takeAndAuthor take =
+takeAndAuthor : Take -> Time.Posix -> Element Msg
+takeAndAuthor take now =
     textColumn
         [ spacing 12
         , paddingEach { left = 5, right = 30, top = 5, bottom = 5 }
         , width (px takeWidth)
-        , Html.Attributes.style "word-break" "break-all" |> htmlAttribute
+        , Html.Attributes.style "overflow-wrap" "break-word" |> htmlAttribute
         , alignLeft
         ]
         [ paragraph [] [ text <| "\"" ++ take.content ++ "\"" ]
         , el [ alignRight ] <|
             link [ Font.alignRight ]
                 { url = "/profile?uid=" ++ String.fromInt take.postedBy.id
-                , label = text <| "- @" ++ take.postedBy.username
+                , label = text <| "- @" ++ take.postedBy.username ++ " (" ++ inWords take.timePosted now ++ ")"
                 }
         ]
 
@@ -581,50 +589,6 @@ likeCountLabel likeCount =
             rightPad (String.fromInt likeCount) " " 3
 
 
-formatTime : Time.Posix -> Time.Zone -> String
-formatTime time zone =
-    let
-        weekday =
-            toWeekdayString (Time.toWeekday zone time)
-
-        hour24 =
-            Time.toHour zone time
-
-        hourTmp =
-            String.fromInt (modBy 12 hour24)
-
-        hour =
-            if hourTmp == "0" then
-                "12"
-
-            else
-                hourTmp
-
-        minute =
-            Time.toMinute Time.utc time
-
-        second =
-            Time.toSecond Time.utc time
-
-        xm =
-            if hour24 < 12 then
-                "AM"
-
-            else
-                "PM"
-    in
-    String.join ":" [ hour, leftPad minute, leftPad second ] ++ " " ++ xm
-
-
-leftPad : Int -> String
-leftPad i =
-    if i < 10 then
-        "0" ++ String.fromInt i
-
-    else
-        String.fromInt i
-
-
 rightPad : String -> String -> Int -> String
 rightPad s padder to =
     if String.length s < to then
@@ -644,8 +608,8 @@ memberWithMaybe e l default =
             default
 
 
-view : Model -> ColorScheme -> Maybe User -> Element Msg
-view data colorScheme maybeUser =
+view : Model -> ColorScheme -> Maybe User -> Time.Posix -> Element Msg
+view data colorScheme maybeUser now =
     let
         maybeCompose =
             case ( maybeUser, data.section ) of
@@ -658,10 +622,10 @@ view data colorScheme maybeUser =
         maybeFeed =
             case data.section of
                 Hottest ->
-                    feed colorScheme data.cards maybeUser
+                    feed colorScheme data.cards maybeUser now
 
                 Coldest ->
-                    noColdTakes
+                    noColdTakes [ width <| px feedWidth ]
     in
     column
         [ spacing 24
@@ -759,18 +723,204 @@ homeNavTabs colorScheme section =
         ]
 
 
-noColdTakes : Element Msg
-noColdTakes =
+noColdTakes : List (Attribute Msg) -> Element Msg
+noColdTakes attributes =
     paragraph
-        [ Font.size 24
-        , padding 36
-        , width (px feedWidth)
-        ]
+        ([ Font.size 24
+         , padding 36
+         ]
+            ++ attributes
+        )
         [ text <| "Just kidding! We don't have any cold takes here." ]
 
 
-feed : ColorScheme -> List TakeCard -> Maybe User -> Element Msg
-feed colorScheme takes user =
+feed : ColorScheme -> List TakeCard -> Maybe User -> Time.Posix -> Element Msg
+feed colorScheme takes user now =
     column
         [ spacing 12 ]
-        (List.map (\t -> viewTake colorScheme t user) takes)
+        (List.map (\t -> viewTake colorScheme t user now) <|
+            List.reverse takes
+        )
+
+
+
+-- SMALL VIEW
+
+
+smallView : Model -> ColorScheme -> Maybe User -> Time.Posix -> Element Msg
+smallView data colorScheme maybeUser now =
+    let
+        maybeCompose =
+            case ( maybeUser, data.section ) of
+                ( Just user, Hottest ) ->
+                    composeView colorScheme user data.compose
+
+                _ ->
+                    Element.none
+
+        maybeFeed =
+            case data.section of
+                Hottest ->
+                    smallFeed colorScheme data.cards maybeUser now
+
+                Coldest ->
+                    noColdTakes []
+    in
+    column
+        [ spacing 24
+        , centerX
+        , width fill
+        ]
+        [ homeNavTabs colorScheme data.section
+        , maybeCompose
+        , maybeFeed
+        ]
+
+
+smallFeed : ColorScheme -> List TakeCard -> Maybe User -> Time.Posix -> Element Msg
+smallFeed colorScheme takes user now =
+    column
+        [ spacing 6, width fill ]
+        (List.map (\t -> smallViewTake colorScheme t user now) <|
+            List.reverse takes
+        )
+
+
+smallViewTake : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+smallViewTake colorScheme card user now =
+    case card.state of
+        Default ->
+            smallDefaultView colorScheme card user now
+
+        Focused ->
+            smallFocusedView colorScheme card user now
+
+        Deleting ->
+            deletingView
+
+        FailedToDelete ->
+            column [ spacing 24 ]
+                [ failedView "Failed to delete."
+                , smallFocusedView colorScheme card user now
+                ]
+
+
+smallDefaultView : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+smallDefaultView colorScheme card user now =
+    Input.button
+        [ Border.width 1
+        , Border.rounded 7
+        , Border.color colorScheme.secondary
+        , width fill
+        ]
+        { onPress = Just <| TakeFocused card
+        , label = smallTakeCardContents colorScheme card user False now
+        }
+
+
+smallFocusedView : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+smallFocusedView colorScheme card user now =
+    Input.button
+        [ Border.width 1
+        , Border.rounded 7
+        , Border.color colorScheme.secondary
+        , width fill
+        ]
+        { onPress = Just <| TakeFocused card
+        , label = smallTakeCardContents colorScheme card user True now
+        }
+
+
+smallTakeCardContents : ColorScheme -> TakeCard -> Maybe User -> Bool -> Time.Posix -> Element Msg
+smallTakeCardContents colorScheme card user focused now =
+    column
+        [ spacing cardSpacing
+        , padding cardPadding
+        , width fill
+        ]
+        [ row
+            [ spacing cardSpacing
+            , padding cardPadding
+            , width fill
+            ]
+            [ el [ width fill ] <| smallTakeAndAuthor card.take now
+            , smallFireButton colorScheme card user card.take.usersWhoLiked
+            ]
+        , if focused then
+            focusButtons colorScheme card user
+
+          else
+            none
+        ]
+
+
+smallTakeAndAuthor : Take -> Time.Posix -> Element Msg
+smallTakeAndAuthor take now =
+    textColumn
+        [ spacing 12
+        , paddingEach { left = 5, right = 10, top = 5, bottom = 5 }
+        , width fill
+        , Html.Attributes.style "word-break" "break-all" |> htmlAttribute
+        , alignLeft
+        , Font.size 14
+        ]
+        [ paragraph [] [ text <| "\"" ++ take.content ++ "\"" ]
+        , el [ alignRight ] <|
+            link [ Font.alignRight ]
+                { url = "/profile?uid=" ++ String.fromInt take.postedBy.id
+                , label = text <| "- @" ++ take.postedBy.username ++ " (" ++ inWords take.timePosted now ++ ")"
+                }
+        ]
+
+
+smallFireButton : ColorScheme -> TakeCard -> Maybe User -> List User -> Element Msg
+smallFireButton colorScheme card maybeUser likers =
+    let
+        likeCount =
+            List.length likers
+
+        onPress =
+            case maybeUser of
+                Just _ ->
+                    Just <| FireButtonPressed card
+
+                Nothing ->
+                    Nothing
+
+        canLike =
+            not <| memberWithMaybe maybeUser likers True
+
+        url =
+            if canLike then
+                "/assets/fire-transparent.png"
+
+            else
+                "/assets/fire.png"
+    in
+    Input.button
+        [ Border.color colorScheme.secondaryLight
+        , Border.width 1
+        , Border.rounded 7
+        , alignRight
+        ]
+        { onPress = onPress
+        , label = smallFireAndLikeCount url likeCount
+        }
+
+
+smallFireAndLikeCount : String -> Int -> Element Msg
+smallFireAndLikeCount url likeCount =
+    column
+        [ padding fireAndLikeCountPadding
+        , spacing fireAndLikeCountSpacing
+        , centerX
+        ]
+        [ image [ width (px 30) ] { src = url, description = "A fire emoji" }
+        , el
+            [ centerX
+            , Font.size 16
+            , Font.family [ Font.monospace ]
+            ]
+          <|
+            text (String.fromInt likeCount)
+        ]

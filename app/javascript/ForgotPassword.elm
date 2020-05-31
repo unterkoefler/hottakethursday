@@ -1,4 +1,4 @@
-module ForgotPassword exposing (Model, Msg, init, update, view)
+module ForgotPassword exposing (Model, Msg, init, smallView, update, view)
 
 import Api
 import Colors exposing (ColorScheme)
@@ -130,6 +130,19 @@ view model colorScheme =
         ]
 
 
+smallView : Model -> ColorScheme -> Element Msg
+smallView model colorScheme =
+    column
+        [ spacing 24
+        , centerX
+        ]
+        [ el [ Region.heading 2, Font.size 36, Font.color colorScheme.secondary ] (text "Reset Password")
+        , Field.view colorScheme (textInput "Enter your email" EditEmail) model.email
+        , submitButton colorScheme
+        , viewMessage colorScheme model.message
+        ]
+
+
 inputWidth =
     350
 
@@ -137,7 +150,7 @@ inputWidth =
 textInput : String -> (String -> Msg) -> String -> Element Msg
 textInput lbl msg val =
     Input.text
-        [ width <| px inputWidth ]
+        [ width (fill |> maximum inputWidth) ]
         { onChange = msg
         , text = val
         , placeholder = Nothing

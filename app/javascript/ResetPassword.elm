@@ -1,4 +1,4 @@
-module ResetPassword exposing (Model, Msg, init, update, view)
+module ResetPassword exposing (Model, Msg, init, smallView, update, view)
 
 import Api
 import Colors exposing (ColorScheme)
@@ -169,14 +169,28 @@ view model colorScheme =
         ]
 
 
+smallView : Model -> ColorScheme -> Element Msg
+smallView model colorScheme =
+    column
+        [ centerX
+        , spacing 24
+        ]
+        [ paragraph [ Region.heading 2, Font.size 36, Font.color colorScheme.secondary ] [ text "Change Your Password" ]
+        , Field.view colorScheme (passwordInput "New Password" EditPassword) model.password
+        , Field.view colorScheme (passwordInput "Confirm Password" EditConfirmPassword) model.confirmPassword
+        , submitButton colorScheme
+        , viewMessage colorScheme model.message
+        ]
+
+
 inputWidth =
-    350
+    width (fill |> maximum 350)
 
 
 passwordInput : String -> (String -> Msg) -> String -> Element Msg
 passwordInput lbl msg val =
     Input.newPassword
-        [ width <| px inputWidth ]
+        [ inputWidth ]
         { onChange = msg
         , text = val
         , placeholder = Nothing
