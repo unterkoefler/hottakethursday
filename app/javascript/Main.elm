@@ -58,7 +58,7 @@ main =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ Time.every (15 * 60 * 1000) Tick
+        [ Time.every (60 * 1000) Tick
         , case ( model.profile, model.page ) of
             ( Just _, Home _ ) ->
                 Ports.newTakeInfo
@@ -1024,10 +1024,10 @@ largeDeviceContent : Model -> ColorScheme -> Element Msg
 largeDeviceContent model colorScheme =
     case ( model.page, model.profile ) of
         ( Home data, Just { user } ) ->
-            Element.map FeedMsg <| Feed.view data colorScheme (Just user)
+            Element.map FeedMsg <| Feed.view data colorScheme (Just user) model.time
 
         ( Home data, Nothing ) ->
-            Element.map FeedMsg <| Feed.view data colorScheme Nothing
+            Element.map FeedMsg <| Feed.view data colorScheme Nothing model.time
 
         ( Login data, Nothing ) ->
             Element.map LoginMsg (Login.view data colorScheme)
@@ -1054,10 +1054,10 @@ largeDeviceContent model colorScheme =
             alreadySignedIn user.username
 
         ( Profile data, Just { user } ) ->
-            Element.map ProfileMsg (Profile.view data colorScheme (Just user))
+            Element.map ProfileMsg (Profile.view data colorScheme (Just user) model.time)
 
         ( Profile data, Nothing ) ->
-            Element.map ProfileMsg (Profile.view data colorScheme Nothing)
+            Element.map ProfileMsg (Profile.view data colorScheme Nothing model.time)
 
         ( Loading next, _ ) ->
             text "Loading..."
@@ -1093,10 +1093,10 @@ smallDeviceContent : Model -> ColorScheme -> Element Msg
 smallDeviceContent model colorScheme =
     case ( model.page, model.profile ) of
         ( Home data, Just { user } ) ->
-            Element.map FeedMsg <| Feed.smallView data colorScheme (Just user)
+            Element.map FeedMsg <| Feed.smallView data colorScheme (Just user) model.time
 
         ( Home data, Nothing ) ->
-            Element.map FeedMsg <| Feed.smallView data colorScheme Nothing
+            Element.map FeedMsg <| Feed.smallView data colorScheme Nothing model.time
 
         ( Login data, Nothing ) ->
             Element.map LoginMsg (Login.smallView data colorScheme)
@@ -1123,10 +1123,10 @@ smallDeviceContent model colorScheme =
             alreadySignedIn user.username
 
         ( Profile data, Just { user } ) ->
-            Element.map ProfileMsg (Profile.smallView data colorScheme (Just user))
+            Element.map ProfileMsg (Profile.smallView data colorScheme (Just user) model.time)
 
         ( Profile data, Nothing ) ->
-            Element.map ProfileMsg (Profile.smallView data colorScheme Nothing)
+            Element.map ProfileMsg (Profile.smallView data colorScheme Nothing model.time)
 
         ( Loading next, _ ) ->
             text "Loading..."

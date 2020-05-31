@@ -16,6 +16,7 @@ import NavTabs exposing (navTab)
 import Ports
 import Thursday exposing (toWeekdayString)
 import Time
+import Time.Distance exposing (inWords)
 
 
 
@@ -400,14 +401,14 @@ estLikeCountWidth =
     30
 
 
-viewTake : ColorScheme -> TakeCard -> Maybe User -> Element Msg
-viewTake colorScheme card user =
+viewTake : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+viewTake colorScheme card user now =
     case card.state of
         Default ->
-            defaultView colorScheme card user
+            defaultView colorScheme card user now
 
         Focused ->
-            focusedView colorScheme card user
+            focusedView colorScheme card user now
 
         Deleting ->
             deletingView
@@ -415,31 +416,31 @@ viewTake colorScheme card user =
         FailedToDelete ->
             column [ spacing 24 ]
                 [ failedView "Failed to delete."
-                , focusedView colorScheme card user
+                , focusedView colorScheme card user now
                 ]
 
 
-defaultView : ColorScheme -> TakeCard -> Maybe User -> Element Msg
-defaultView colorScheme card user =
+defaultView : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+defaultView colorScheme card user now =
     Input.button
         [ Border.width 1
         , Border.rounded 7
         , Border.color colorScheme.secondary
         ]
         { onPress = Just <| TakeFocused card
-        , label = takeCardContents colorScheme card user False
+        , label = takeCardContents colorScheme card user False now
         }
 
 
-focusedView : ColorScheme -> TakeCard -> Maybe User -> Element Msg
-focusedView colorScheme card user =
+focusedView : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+focusedView colorScheme card user now =
     Input.button
         [ Border.width 1
         , Border.rounded 7
         , Border.color colorScheme.secondary
         ]
         { onPress = Just <| TakeFocused card
-        , label = takeCardContents colorScheme card user True
+        , label = takeCardContents colorScheme card user True now
         }
 
 
@@ -458,8 +459,8 @@ deletingView =
     text "Deleting the take..."
 
 
-takeCardContents : ColorScheme -> TakeCard -> Maybe User -> Bool -> Element Msg
-takeCardContents colorScheme card user focused =
+takeCardContents : ColorScheme -> TakeCard -> Maybe User -> Bool -> Time.Posix -> Element Msg
+takeCardContents colorScheme card user focused now =
     column
         [ spacing cardSpacing
         , padding cardPadding
@@ -469,7 +470,7 @@ takeCardContents colorScheme card user focused =
             , padding cardPadding
             ]
             [ profilePicThumbnail card
-            , el [ width (px takeWidth) ] <| takeAndAuthor card.take
+            , el [ width (px takeWidth) ] <| takeAndAuthor card.take now
             , fireButton colorScheme card user card.take.usersWhoLiked
             ]
         , if focused then
@@ -480,20 +481,20 @@ takeCardContents colorScheme card user focused =
         ]
 
 
-takeAndAuthor : Take -> Element Msg
-takeAndAuthor take =
+takeAndAuthor : Take -> Time.Posix -> Element Msg
+takeAndAuthor take now =
     textColumn
         [ spacing 12
         , paddingEach { left = 5, right = 30, top = 5, bottom = 5 }
         , width (px takeWidth)
-        , Html.Attributes.style "word-break" "break-all" |> htmlAttribute
+        , Html.Attributes.style "overflow-wrap" "break-word" |> htmlAttribute
         , alignLeft
         ]
         [ paragraph [] [ text <| "\"" ++ take.content ++ "\"" ]
         , el [ alignRight ] <|
             link [ Font.alignRight ]
                 { url = "/profile?uid=" ++ String.fromInt take.postedBy.id
-                , label = text <| "- @" ++ take.postedBy.username
+                , label = text <| "- @" ++ take.postedBy.username ++ " (" ++ inWords take.timePosted now ++ ")"
                 }
         ]
 
@@ -588,50 +589,6 @@ likeCountLabel likeCount =
             rightPad (String.fromInt likeCount) " " 3
 
 
-formatTime : Time.Posix -> Time.Zone -> String
-formatTime time zone =
-    let
-        weekday =
-            toWeekdayString (Time.toWeekday zone time)
-
-        hour24 =
-            Time.toHour zone time
-
-        hourTmp =
-            String.fromInt (modBy 12 hour24)
-
-        hour =
-            if hourTmp == "0" then
-                "12"
-
-            else
-                hourTmp
-
-        minute =
-            Time.toMinute Time.utc time
-
-        second =
-            Time.toSecond Time.utc time
-
-        xm =
-            if hour24 < 12 then
-                "AM"
-
-            else
-                "PM"
-    in
-    String.join ":" [ hour, leftPad minute, leftPad second ] ++ " " ++ xm
-
-
-leftPad : Int -> String
-leftPad i =
-    if i < 10 then
-        "0" ++ String.fromInt i
-
-    else
-        String.fromInt i
-
-
 rightPad : String -> String -> Int -> String
 rightPad s padder to =
     if String.length s < to then
@@ -651,8 +608,8 @@ memberWithMaybe e l default =
             default
 
 
-view : Model -> ColorScheme -> Maybe User -> Element Msg
-view data colorScheme maybeUser =
+view : Model -> ColorScheme -> Maybe User -> Time.Posix -> Element Msg
+view data colorScheme maybeUser now =
     let
         maybeCompose =
             case ( maybeUser, data.section ) of
@@ -665,7 +622,7 @@ view data colorScheme maybeUser =
         maybeFeed =
             case data.section of
                 Hottest ->
-                    feed colorScheme data.cards maybeUser
+                    feed colorScheme data.cards maybeUser now
 
                 Coldest ->
                     noColdTakes [ width <| px feedWidth ]
@@ -777,19 +734,21 @@ noColdTakes attributes =
         [ text <| "Just kidding! We don't have any cold takes here." ]
 
 
-feed : ColorScheme -> List TakeCard -> Maybe User -> Element Msg
-feed colorScheme takes user =
+feed : ColorScheme -> List TakeCard -> Maybe User -> Time.Posix -> Element Msg
+feed colorScheme takes user now =
     column
         [ spacing 12 ]
-        (List.map (\t -> viewTake colorScheme t user) takes)
+        (List.map (\t -> viewTake colorScheme t user now) <|
+            List.reverse takes
+        )
 
 
 
 -- SMALL VIEW
 
 
-smallView : Model -> ColorScheme -> Maybe User -> Element Msg
-smallView data colorScheme maybeUser =
+smallView : Model -> ColorScheme -> Maybe User -> Time.Posix -> Element Msg
+smallView data colorScheme maybeUser now =
     let
         maybeCompose =
             case ( maybeUser, data.section ) of
@@ -802,7 +761,7 @@ smallView data colorScheme maybeUser =
         maybeFeed =
             case data.section of
                 Hottest ->
-                    smallFeed colorScheme data.cards maybeUser
+                    smallFeed colorScheme data.cards maybeUser now
 
                 Coldest ->
                     noColdTakes []
@@ -818,21 +777,23 @@ smallView data colorScheme maybeUser =
         ]
 
 
-smallFeed : ColorScheme -> List TakeCard -> Maybe User -> Element Msg
-smallFeed colorScheme takes user =
+smallFeed : ColorScheme -> List TakeCard -> Maybe User -> Time.Posix -> Element Msg
+smallFeed colorScheme takes user now =
     column
         [ spacing 6, width fill ]
-        (List.map (\t -> smallViewTake colorScheme t user) takes)
+        (List.map (\t -> smallViewTake colorScheme t user now) <|
+            List.reverse takes
+        )
 
 
-smallViewTake : ColorScheme -> TakeCard -> Maybe User -> Element Msg
-smallViewTake colorScheme card user =
+smallViewTake : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+smallViewTake colorScheme card user now =
     case card.state of
         Default ->
-            smallDefaultView colorScheme card user
+            smallDefaultView colorScheme card user now
 
         Focused ->
-            smallFocusedView colorScheme card user
+            smallFocusedView colorScheme card user now
 
         Deleting ->
             deletingView
@@ -840,12 +801,12 @@ smallViewTake colorScheme card user =
         FailedToDelete ->
             column [ spacing 24 ]
                 [ failedView "Failed to delete."
-                , focusedView colorScheme card user
+                , smallFocusedView colorScheme card user now
                 ]
 
 
-smallDefaultView : ColorScheme -> TakeCard -> Maybe User -> Element Msg
-smallDefaultView colorScheme card user =
+smallDefaultView : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+smallDefaultView colorScheme card user now =
     Input.button
         [ Border.width 1
         , Border.rounded 7
@@ -853,12 +814,12 @@ smallDefaultView colorScheme card user =
         , width fill
         ]
         { onPress = Just <| TakeFocused card
-        , label = smallTakeCardContents colorScheme card user False
+        , label = smallTakeCardContents colorScheme card user False now
         }
 
 
-smallFocusedView : ColorScheme -> TakeCard -> Maybe User -> Element Msg
-smallFocusedView colorScheme card user =
+smallFocusedView : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+smallFocusedView colorScheme card user now =
     Input.button
         [ Border.width 1
         , Border.rounded 7
@@ -866,12 +827,12 @@ smallFocusedView colorScheme card user =
         , width fill
         ]
         { onPress = Just <| TakeFocused card
-        , label = smallTakeCardContents colorScheme card user True
+        , label = smallTakeCardContents colorScheme card user True now
         }
 
 
-smallTakeCardContents : ColorScheme -> TakeCard -> Maybe User -> Bool -> Element Msg
-smallTakeCardContents colorScheme card user focused =
+smallTakeCardContents : ColorScheme -> TakeCard -> Maybe User -> Bool -> Time.Posix -> Element Msg
+smallTakeCardContents colorScheme card user focused now =
     column
         [ spacing cardSpacing
         , padding cardPadding
@@ -882,7 +843,7 @@ smallTakeCardContents colorScheme card user focused =
             , padding cardPadding
             , width fill
             ]
-            [ el [ width fill ] <| smallTakeAndAuthor card.take
+            [ el [ width fill ] <| smallTakeAndAuthor card.take now
             , smallFireButton colorScheme card user card.take.usersWhoLiked
             ]
         , if focused then
@@ -893,8 +854,8 @@ smallTakeCardContents colorScheme card user focused =
         ]
 
 
-smallTakeAndAuthor : Take -> Element Msg
-smallTakeAndAuthor take =
+smallTakeAndAuthor : Take -> Time.Posix -> Element Msg
+smallTakeAndAuthor take now =
     textColumn
         [ spacing 12
         , paddingEach { left = 5, right = 10, top = 5, bottom = 5 }
@@ -907,7 +868,7 @@ smallTakeAndAuthor take =
         , el [ alignRight ] <|
             link [ Font.alignRight ]
                 { url = "/profile?uid=" ++ String.fromInt take.postedBy.id
-                , label = text <| "- @" ++ take.postedBy.username
+                , label = text <| "- @" ++ take.postedBy.username ++ " (" ++ inWords take.timePosted now ++ ")"
                 }
         ]
 

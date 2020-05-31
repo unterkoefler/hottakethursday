@@ -9,7 +9,7 @@ class MeController < ApplicationController
   def by_id
     params.require(:id)
     user = User.find_by(id: params[:id])
-    takes = user.takes
+    takes = user.takes.order(created_at: :desc)
     user = ActiveModel::SerializableResource.new(user).as_json
     takes = takes.map { |t| ActiveModel::SerializableResource.new(t).as_json }
     render json: { user: user, takes: takes }

@@ -19,6 +19,7 @@ import Http
 import HttpUtils exposing (httpErrorToString)
 import NavTabs exposing (navTab)
 import Ports
+import Time
 
 
 
@@ -258,8 +259,8 @@ saveItemApiRequest key items auth =
 -- VIEW
 
 
-view : Model -> ColorScheme -> Maybe User -> Element Msg
-view model colorScheme maybeUser =
+view : Model -> ColorScheme -> Maybe User -> Time.Posix -> Element Msg
+view model colorScheme maybeUser now =
     let
         ownProfile =
             case maybeUser of
@@ -271,12 +272,12 @@ view model colorScheme maybeUser =
     in
     row [ spacing 36, width fill, height fill ]
         [ aboutUser colorScheme model.subject model.items ownProfile model.error
-        , profileContent colorScheme model ownProfile maybeUser
+        , profileContent colorScheme model ownProfile maybeUser now
         ]
 
 
-profileContent : ColorScheme -> Model -> Bool -> Maybe User -> Element Msg
-profileContent colorScheme model ownProfile maybeUser =
+profileContent : ColorScheme -> Model -> Bool -> Maybe User -> Time.Posix -> Element Msg
+profileContent colorScheme model ownProfile maybeUser now =
     let
         userId =
             model.subject.id
@@ -289,19 +290,19 @@ profileContent colorScheme model ownProfile maybeUser =
         , spacing 12
         ]
         [ profileNavTabs colorScheme model.section ownProfile userId
-        , profileBody colorScheme model ownProfile maybeUser
+        , profileBody colorScheme model ownProfile maybeUser now
         ]
 
 
-profileBody : ColorScheme -> Model -> Bool -> Maybe User -> Element Msg
-profileBody colorScheme model ownProfile maybeUser =
+profileBody : ColorScheme -> Model -> Bool -> Maybe User -> Time.Posix -> Element Msg
+profileBody colorScheme model ownProfile maybeUser now =
     case model.section of
         Takes ->
             let
                 takes =
                     model.takes.cards
             in
-            Element.map FeedMsg <| Feed.feed colorScheme takes maybeUser
+            Element.map FeedMsg <| Feed.feed colorScheme takes maybeUser now
 
         _ ->
             paragraph
@@ -416,7 +417,7 @@ aboutUserElem colorScheme label item editable =
 
 
 breakLongWords =
-    Html.Attributes.style "word-break" "break-all" |> htmlAttribute
+    Html.Attributes.style "overflow-wrap" "break-word" |> htmlAttribute
 
 
 bioItem : ColorScheme -> String -> BioItem -> Bool -> Element Msg
@@ -521,8 +522,8 @@ aboutEditButton colorScheme label onPress =
 -- SMALL VIEW
 
 
-smallView : Model -> ColorScheme -> Maybe User -> Element Msg
-smallView model colorScheme maybeUser =
+smallView : Model -> ColorScheme -> Maybe User -> Time.Posix -> Element Msg
+smallView model colorScheme maybeUser now =
     let
         ownProfile =
             case maybeUser of
@@ -534,7 +535,7 @@ smallView model colorScheme maybeUser =
     in
     column [ spacing 36, width fill ]
         [ smallAboutUser colorScheme model.subject model.items ownProfile model.error
-        , smallProfileContent colorScheme model ownProfile maybeUser
+        , smallProfileContent colorScheme model ownProfile maybeUser now
         ]
 
 
@@ -558,8 +559,8 @@ smallAboutUser colorScheme user items editable error =
             )
 
 
-smallProfileContent : ColorScheme -> Model -> Bool -> Maybe User -> Element Msg
-smallProfileContent colorScheme model ownProfile maybeUser =
+smallProfileContent : ColorScheme -> Model -> Bool -> Maybe User -> Time.Posix -> Element Msg
+smallProfileContent colorScheme model ownProfile maybeUser now =
     let
         userId =
             model.subject.id
@@ -572,19 +573,19 @@ smallProfileContent colorScheme model ownProfile maybeUser =
         , spacing 12
         ]
         [ smallProfileNavTabs colorScheme model.section model.expandTabs ownProfile userId
-        , smallProfileBody colorScheme model ownProfile maybeUser
+        , smallProfileBody colorScheme model ownProfile maybeUser now
         ]
 
 
-smallProfileBody : ColorScheme -> Model -> Bool -> Maybe User -> Element Msg
-smallProfileBody colorScheme model ownProfile maybeUser =
+smallProfileBody : ColorScheme -> Model -> Bool -> Maybe User -> Time.Posix -> Element Msg
+smallProfileBody colorScheme model ownProfile maybeUser now =
     case model.section of
         Takes ->
             let
                 takes =
                     model.takes.cards
             in
-            Element.map FeedMsg <| Feed.smallFeed colorScheme takes maybeUser
+            Element.map FeedMsg <| Feed.smallFeed colorScheme takes maybeUser now
 
         _ ->
             paragraph
