@@ -64,7 +64,7 @@ Rails.application.configure do
   config.action_mailer.delivery_method = :smtp
   config.action_mailer.perform_deliveries = true
   config.action_mailer.default_url_options = {
-    host: 'arcane-mountain-90844.herokuapp.com',
+    host: 'hottakethursday.com',
     protocol: 'https'
   }
   config.action_mailer.smtp_settings = {
@@ -72,7 +72,7 @@ Rails.application.configure do
     address: ENV['MAILGUN_SMTP_SERVER'],
     user_name: ENV['MAILGUN_SMTP_LOGIN'],
     password: ENV['MAILGUN_SMTP_PASSWORD'],
-    domain: 'arcane-mountain-90844.heroku.com',
+    domain: 'mg.hottakethursday.com',
     authentication:  :plain,
   }
 
