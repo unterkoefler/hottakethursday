@@ -4,7 +4,7 @@ import Time
 
 
 debug =
-    True
+    False
 
 
 thursday =
