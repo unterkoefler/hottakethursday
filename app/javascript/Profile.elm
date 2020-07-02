@@ -384,7 +384,9 @@ profilePictureNoButton colorScheme user =
             Maybe.withDefault "/assets/profilepic.jpg" user.avatarUrl
     in
     el
-        [ Background.color colorScheme.lightGray
+        [ Border.color colorScheme.lightGray
+        , Border.width 5
+        , Border.solid
         , padding 8
         , centerX
         , Border.rounded 500
