@@ -211,6 +211,17 @@ cssColorDict =
         |> Dict.map (\_ c -> Element.rgba255 c.red c.green c.blue c.alpha)
 
 
+luminance : Color -> Float
+luminance color =
+    let
+        { red, green, blue } = Element.toRgb color
+        r = if red <= 0.03928 then red / 12.92 else ((red + 0.055) / 1.055) ^ 2.4
+        g = if green <= 0.03928 then green / 12.92 else ((green + 0.055) / 1.055) ^ 2.4
+        b = if blue <= 0.03928 then blue / 12.92 else ((blue + 0.055) / 1.055) ^ 2.4
+    in
+        0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
 colorSchemeForUser : Maybe User -> ColorScheme
 colorSchemeForUser maybeUser =
     case maybeUser of
@@ -226,7 +237,7 @@ colorSchemeForUser maybeUser =
             in
             case Dict.get cleaned cssColorDict of
                 Just color ->
-                    { defaultColorScheme | primary = color }
+                    { defaultColorScheme | primary = color, textOnPrimary = if 1.05 / ((luminance color) + 0.05) < 4.5 then CssColors.black else CssColors.white }
 
                 Nothing ->
                     defaultColorScheme
