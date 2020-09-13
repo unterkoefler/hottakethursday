@@ -401,7 +401,7 @@ estLikeCountWidth =
     30
 
 
-viewTake : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+viewTake : ColorScheme -> TakeCard -> User -> Time.Posix -> Element Msg
 viewTake colorScheme card user now =
     case card.state of
         Default ->
@@ -420,7 +420,7 @@ viewTake colorScheme card user now =
                 ]
 
 
-defaultView : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+defaultView : ColorScheme -> TakeCard -> User -> Time.Posix -> Element Msg
 defaultView colorScheme card user now =
     Input.button
         [ Border.width 1
@@ -432,7 +432,7 @@ defaultView colorScheme card user now =
         }
 
 
-focusedView : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+focusedView : ColorScheme -> TakeCard -> User -> Time.Posix -> Element Msg
 focusedView colorScheme card user now =
     Input.button
         [ Border.width 1
@@ -459,7 +459,7 @@ deletingView =
     text "Deleting the take..."
 
 
-takeCardContents : ColorScheme -> TakeCard -> Maybe User -> Bool -> Time.Posix -> Element Msg
+takeCardContents : ColorScheme -> TakeCard -> User -> Bool -> Time.Posix -> Element Msg
 takeCardContents colorScheme card user focused now =
     column
         [ spacing cardSpacing
@@ -513,11 +513,11 @@ profilePicThumbnail card =
         }
 
 
-focusButtons : ColorScheme -> TakeCard -> Maybe User -> Element Msg
+focusButtons : ColorScheme -> TakeCard -> User -> Element Msg
 focusButtons colorScheme card user =
     let
         buttons =
-            if Just card.take.postedBy == user then
+            if card.take.postedBy == user then
                 [ takeFocusButton colorScheme "delete" (DeleteTake card) ]
 
             else
@@ -532,22 +532,17 @@ takeFocusButton colorScheme txt msg =
         { onPress = Just msg, label = text txt }
 
 
-fireButton : ColorScheme -> TakeCard -> Maybe User -> List User -> Element Msg
-fireButton colorScheme card maybeUser likers =
+fireButton : ColorScheme -> TakeCard -> User -> List User -> Element Msg
+fireButton colorScheme card user likers =
     let
         likeCount =
             List.length likers
 
         onPress =
-            case maybeUser of
-                Just _ ->
-                    Just <| FireButtonPressed card
-
-                Nothing ->
-                    Nothing
+            Just <| FireButtonPressed card
 
         canLike =
-            not <| memberWithMaybe maybeUser likers True
+            not <| List.member user likers
 
         url =
             if canLike then
@@ -598,31 +593,22 @@ rightPad s padder to =
         s
 
 
-memberWithMaybe : Maybe a -> List a -> Bool -> Bool
-memberWithMaybe e l default =
-    case e of
-        Just e_ ->
-            List.member e_ l
 
-        Nothing ->
-            default
-
-
-view : Model -> ColorScheme -> Maybe User -> Time.Posix -> Element Msg
-view data colorScheme maybeUser now =
+view : Model -> ColorScheme -> User -> Time.Posix -> Element Msg
+view data colorScheme user now =
     let
         maybeCompose =
-            case ( maybeUser, data.section ) of
-                ( Just user, Hottest ) ->
+            case data.section of
+                Hottest ->
                     composeView colorScheme user data.compose
 
-                _ ->
+                Coldest ->
                     Element.none
 
         maybeFeed =
             case data.section of
                 Hottest ->
-                    feed colorScheme data.cards maybeUser now
+                    feed colorScheme data.cards user now
 
                 Coldest ->
                     noColdTakes [ width <| px feedWidth ]
@@ -734,7 +720,7 @@ noColdTakes attributes =
         [ text <| "Just kidding! We don't have any cold takes here." ]
 
 
-feed : ColorScheme -> List TakeCard -> Maybe User -> Time.Posix -> Element Msg
+feed : ColorScheme -> List TakeCard -> User -> Time.Posix -> Element Msg
 feed colorScheme takes user now =
     column
         [ spacing 12 ]
@@ -747,21 +733,21 @@ feed colorScheme takes user now =
 -- SMALL VIEW
 
 
-smallView : Model -> ColorScheme -> Maybe User -> Time.Posix -> Element Msg
-smallView data colorScheme maybeUser now =
+smallView : Model -> ColorScheme -> User -> Time.Posix -> Element Msg
+smallView data colorScheme user now =
     let
         maybeCompose =
-            case ( maybeUser, data.section ) of
-                ( Just user, Hottest ) ->
+            case data.section of
+                Hottest ->
                     composeView colorScheme user data.compose
 
-                _ ->
+                Coldest ->
                     Element.none
 
         maybeFeed =
             case data.section of
                 Hottest ->
-                    smallFeed colorScheme data.cards maybeUser now
+                    smallFeed colorScheme data.cards user now
 
                 Coldest ->
                     noColdTakes []
@@ -777,7 +763,7 @@ smallView data colorScheme maybeUser now =
         ]
 
 
-smallFeed : ColorScheme -> List TakeCard -> Maybe User -> Time.Posix -> Element Msg
+smallFeed : ColorScheme -> List TakeCard -> User -> Time.Posix -> Element Msg
 smallFeed colorScheme takes user now =
     column
         [ spacing 6, width fill ]
@@ -786,7 +772,7 @@ smallFeed colorScheme takes user now =
         )
 
 
-smallViewTake : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+smallViewTake : ColorScheme -> TakeCard -> User -> Time.Posix -> Element Msg
 smallViewTake colorScheme card user now =
     case card.state of
         Default ->
@@ -805,7 +791,7 @@ smallViewTake colorScheme card user now =
                 ]
 
 
-smallDefaultView : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+smallDefaultView : ColorScheme -> TakeCard -> User -> Time.Posix -> Element Msg
 smallDefaultView colorScheme card user now =
     Input.button
         [ Border.width 1
@@ -818,7 +804,7 @@ smallDefaultView colorScheme card user now =
         }
 
 
-smallFocusedView : ColorScheme -> TakeCard -> Maybe User -> Time.Posix -> Element Msg
+smallFocusedView : ColorScheme -> TakeCard -> User -> Time.Posix -> Element Msg
 smallFocusedView colorScheme card user now =
     Input.button
         [ Border.width 1
@@ -831,7 +817,7 @@ smallFocusedView colorScheme card user now =
         }
 
 
-smallTakeCardContents : ColorScheme -> TakeCard -> Maybe User -> Bool -> Time.Posix -> Element Msg
+smallTakeCardContents : ColorScheme -> TakeCard -> User -> Bool -> Time.Posix -> Element Msg
 smallTakeCardContents colorScheme card user focused now =
     column
         [ spacing cardSpacing
@@ -873,22 +859,17 @@ smallTakeAndAuthor take now =
         ]
 
 
-smallFireButton : ColorScheme -> TakeCard -> Maybe User -> List User -> Element Msg
-smallFireButton colorScheme card maybeUser likers =
+smallFireButton : ColorScheme -> TakeCard -> User -> List User -> Element Msg
+smallFireButton colorScheme card user likers =
     let
         likeCount =
             List.length likers
 
         onPress =
-            case maybeUser of
-                Just _ ->
                     Just <| FireButtonPressed card
 
-                Nothing ->
-                    Nothing
-
         canLike =
-            not <| memberWithMaybe maybeUser likers True
+            not <| List.member user likers
 
         url =
             if canLike then

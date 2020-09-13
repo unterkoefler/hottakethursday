@@ -259,25 +259,20 @@ saveItemApiRequest key items auth =
 -- VIEW
 
 
-view : Model -> ColorScheme -> Maybe User -> Time.Posix -> Element Msg
-view model colorScheme maybeUser now =
+view : Model -> ColorScheme -> User -> Time.Posix -> Element Msg
+view model colorScheme user now =
     let
         ownProfile =
-            case maybeUser of
-                Nothing ->
-                    False
-
-                Just user ->
-                    user.id == model.subject.id
+            user.id == model.subject.id
     in
     row [ spacing 36, width fill, height fill ]
         [ aboutUser colorScheme model.subject model.items ownProfile model.error
-        , profileContent colorScheme model ownProfile maybeUser now
+        , profileContent colorScheme model ownProfile user now
         ]
 
 
-profileContent : ColorScheme -> Model -> Bool -> Maybe User -> Time.Posix -> Element Msg
-profileContent colorScheme model ownProfile maybeUser now =
+profileContent : ColorScheme -> Model -> Bool -> User -> Time.Posix -> Element Msg
+profileContent colorScheme model ownProfile user now =
     let
         userId =
             model.subject.id
@@ -290,19 +285,19 @@ profileContent colorScheme model ownProfile maybeUser now =
         , spacing 12
         ]
         [ profileNavTabs colorScheme model.section ownProfile userId
-        , profileBody colorScheme model ownProfile maybeUser now
+        , profileBody colorScheme model ownProfile user now
         ]
 
 
-profileBody : ColorScheme -> Model -> Bool -> Maybe User -> Time.Posix -> Element Msg
-profileBody colorScheme model ownProfile maybeUser now =
+profileBody : ColorScheme -> Model -> Bool -> User -> Time.Posix -> Element Msg
+profileBody colorScheme model ownProfile user now =
     case model.section of
         Takes ->
             let
                 takes =
                     model.takes.cards
             in
-            Element.map FeedMsg <| Feed.feed colorScheme takes maybeUser now
+            Element.map FeedMsg <| Feed.feed colorScheme takes user now
 
         _ ->
             paragraph
@@ -524,20 +519,15 @@ aboutEditButton colorScheme label onPress =
 -- SMALL VIEW
 
 
-smallView : Model -> ColorScheme -> Maybe User -> Time.Posix -> Element Msg
-smallView model colorScheme maybeUser now =
+smallView : Model -> ColorScheme -> User -> Time.Posix -> Element Msg
+smallView model colorScheme user now =
     let
         ownProfile =
-            case maybeUser of
-                Nothing ->
-                    False
-
-                Just user ->
-                    user.id == model.subject.id
+            user.id == model.subject.id
     in
     column [ spacing 36, width fill ]
         [ smallAboutUser colorScheme model.subject model.items ownProfile model.error
-        , smallProfileContent colorScheme model ownProfile maybeUser now
+        , smallProfileContent colorScheme model ownProfile user now
         ]
 
 
@@ -561,8 +551,8 @@ smallAboutUser colorScheme user items editable error =
             )
 
 
-smallProfileContent : ColorScheme -> Model -> Bool -> Maybe User -> Time.Posix -> Element Msg
-smallProfileContent colorScheme model ownProfile maybeUser now =
+smallProfileContent : ColorScheme -> Model -> Bool -> User -> Time.Posix -> Element Msg
+smallProfileContent colorScheme model ownProfile user now =
     let
         userId =
             model.subject.id
@@ -575,19 +565,19 @@ smallProfileContent colorScheme model ownProfile maybeUser now =
         , spacing 12
         ]
         [ smallProfileNavTabs colorScheme model.section model.expandTabs ownProfile userId
-        , smallProfileBody colorScheme model ownProfile maybeUser now
+        , smallProfileBody colorScheme model ownProfile user now
         ]
 
 
-smallProfileBody : ColorScheme -> Model -> Bool -> Maybe User -> Time.Posix -> Element Msg
-smallProfileBody colorScheme model ownProfile maybeUser now =
+smallProfileBody : ColorScheme -> Model -> Bool -> User -> Time.Posix -> Element Msg
+smallProfileBody colorScheme model ownProfile user now =
     case model.section of
         Takes ->
             let
                 takes =
                     model.takes.cards
             in
-            Element.map FeedMsg <| Feed.smallFeed colorScheme takes maybeUser now
+            Element.map FeedMsg <| Feed.smallFeed colorScheme takes user now
 
         _ ->
             paragraph

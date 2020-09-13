@@ -1024,10 +1024,10 @@ largeDeviceContent : Model -> ColorScheme -> Element Msg
 largeDeviceContent model colorScheme =
     case ( model.page, model.profile ) of
         ( Home data, Just { user } ) ->
-            Element.map FeedMsg <| Feed.view data colorScheme (Just user) model.time
+            Element.map FeedMsg <| Feed.view data colorScheme  user model.time
 
         ( Home data, Nothing ) ->
-            Element.map FeedMsg <| Feed.view data colorScheme Nothing model.time
+            welcomePage colorScheme
 
         ( Login data, Nothing ) ->
             Element.map LoginMsg (Login.view data colorScheme)
@@ -1054,24 +1054,19 @@ largeDeviceContent model colorScheme =
             alreadySignedIn user.username
 
         ( Profile data, Just { user } ) ->
-            Element.map ProfileMsg (Profile.view data colorScheme (Just user) model.time)
+            Element.map ProfileMsg (Profile.view data colorScheme user model.time)
 
         ( Profile data, Nothing ) ->
-            Element.map ProfileMsg (Profile.view data colorScheme Nothing model.time)
+            forbiddenView NotLoggedIn
 
         ( Loading next, _ ) ->
             text "Loading..."
 
         ( Forbidden, Just _ ) ->
-            text <|
-                "Sorry! You don't have permission to view this"
-                    ++ " page. If you think this is an error, please"
-                    ++ " report it to noonecares@yahoo.net"
+            forbiddenView LoggedIn
 
         ( Forbidden, Nothing ) ->
-            text <|
-                "Sorry! You don't have permission to view this"
-                    ++ " page. Please login or signup using the links above"
+            forbiddenView NotLoggedIn
 
         ( DeleteAccount data, Just { user } ) ->
             Element.map DeleteAccountMsg <| DeleteAccount.view data colorScheme
@@ -1093,10 +1088,10 @@ smallDeviceContent : Model -> ColorScheme -> Element Msg
 smallDeviceContent model colorScheme =
     case ( model.page, model.profile ) of
         ( Home data, Just { user } ) ->
-            Element.map FeedMsg <| Feed.smallView data colorScheme (Just user) model.time
+            Element.map FeedMsg <| Feed.smallView data colorScheme  user model.time
 
         ( Home data, Nothing ) ->
-            Element.map FeedMsg <| Feed.smallView data colorScheme Nothing model.time
+            welcomePage colorScheme
 
         ( Login data, Nothing ) ->
             Element.map LoginMsg (Login.smallView data colorScheme)
@@ -1123,24 +1118,19 @@ smallDeviceContent model colorScheme =
             alreadySignedIn user.username
 
         ( Profile data, Just { user } ) ->
-            Element.map ProfileMsg (Profile.smallView data colorScheme (Just user) model.time)
+            Element.map ProfileMsg (Profile.smallView data colorScheme user model.time)
 
         ( Profile data, Nothing ) ->
-            Element.map ProfileMsg (Profile.smallView data colorScheme Nothing model.time)
+            forbiddenView NotLoggedIn
 
         ( Loading next, _ ) ->
             text "Loading..."
 
         ( Forbidden, Just _ ) ->
-            text <|
-                "Sorry! You don't have permission to view this"
-                    ++ " page. If you think this is an error, please"
-                    ++ " report it to noonecares@yahoo.net"
+            forbiddenView LoggedIn
 
         ( Forbidden, Nothing ) ->
-            text <|
-                "Sorry! You don't have permission to view this"
-                    ++ " page. Please login or signup using the links above"
+            forbiddenView NotLoggedIn
 
         ( DeleteAccount data, Just { user } ) ->
             Element.map DeleteAccountMsg <| DeleteAccount.view data colorScheme
@@ -1186,6 +1176,25 @@ fakeAd =
         { src = "/assets/trash-ad.jpg"
         , description = "An advertisement for a trash can"
         }
+
+type LoginState = LoggedIn | NotLoggedIn
+
+forbiddenView : LoginState -> Element Msg
+forbiddenView loginState =
+    let
+        msg = 
+            case loginState of
+            LoggedIn ->
+                "Sorry! You don't have permission to view this"
+                    ++ " page. If you think this is an error, please"
+                    ++ " report it to noonecares@yahoo.net."
+            
+            NotLoggedIn ->
+                "Sorry! You don't have permission to view this"
+                    ++ " page. Please login or signup using the links above."
+    in
+    paragraph [] [ text msg ]
+
 
 
 forgotPasswordView : String -> Element Msg
@@ -1244,6 +1253,24 @@ deleteAccountView colorScheme =
             , label = text "Goodbye :("
             }
         ]
+
+
+welcomePage : ColorScheme -> Element Msg
+welcomePage colorScheme = 
+            column
+                [ spacing 24
+                , centerX
+                , padding 24
+                ]
+                [ paragraph [] [ text "Hi!" ]
+                , paragraph [ spacing 12 ] 
+                    [ text "Welcome to HotTakeThursday, the best site for sharing your hot takes, but only on Thursdays. To see or post some hot takes, please "
+                    , link [ Font.color colorScheme.link ] { url = "/login", label = text "log in" }
+                    , text " or "
+                    , link [ Font.color colorScheme.link ] { url = "/signup", label = text "sign up" }
+                    , text ". It's free!"
+                    ]
+                ]
 
 
 isSmallScreen : { window | height : Int, width : Int } -> Bool
